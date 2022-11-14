@@ -1,0 +1,17 @@
+<configuration debug="true">
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="io.github.scndry" level="TRACE"/>
+    <logger name="io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.XmlElementReader" level="DEBUG"/>
+    <logger name="org.apache" level="TRACE"/>
+    <logger name="org.apache.poi.hssf" level="DEBUG"/>
+
+    <root level="WARN">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>

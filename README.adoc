@@ -1,0 +1,643 @@
+= Jackson dataformat: Spreadsheet
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :speech_balloon:
+:important-caption: :blue_book:
+:caution-caption: :orange_book:
+:warning-caption: :closed_book:
+endif::[]
+:toc:
+:toclevels: 3
+:toc-placement!:
+:link-oss-sonatype: https://s01.oss.sonatype.org/index.html#view-repositories;snapshots~browsestorage~/io/github/scndry/jackson-dataformat-spreadsheet/maven-metadata.xml
+
+[quote]
+_Let's get rid of the Spread Sh!t._
+
+This https://github.com/FasterXML/jackson[Jackson] extension library is a component that memory-efficiently reads and writes the http://officeopenxml.com/anatomyofOOXML-xlsx.php[SpreadsheetML] formatfootnote:[XLSX -- XSSF (XML SpreadSheet Format)] using https://poi.apache.org/[Apache POI] and https://www.xml.com/pub/a/2003/09/17/stax.html[StAX] via Jackson abstraction. -- _Implemented as full streaming implementation, which allows full access (streaming, data-binding, and tree-model)._
+
+NOTE: The same abstraction is provided for the _Horrible_ Microsoft Excel formatfootnote:[XLS -- HSSF (Horrible SpreadSheet Format)].
+However, not based on https://poi.apache.org/components/spreadsheet/how-to.html#event_api[Event API], so may not be suitable for large _.xls_ files.
+
+toc::[]
+
+== Installation
+
+image:https://github.com/scndry/jackson-dataformat-spreadsheet/actions/workflows/build.yml/badge.svg[]
+image:https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fs01.oss.sonatype.org%2Fservice%2Flocal%2Frepositories%2Fsnapshots%2Fcontent%2Fio%2Fgithub%2Fscndry%2Fjackson-dataformat-spreadsheet%2Fmaven-metadata.xml[]
+image:https://img.shields.io/github/license/scndry/jackson-dataformat-spreadsheet.svg[]
+
+CAUTION: This project is currently under development.
+If you are interested, you can always use the latest snapshot artifacts from {link-oss-sonatype}[OSS Sonatype].
+
+=== Maven
+
+[source,xml]
+----
+<repository>
+    <id>sonatype-snapshots</id>
+    <url>https://s01.oss.sonatype.org/content/repositories/snapshots/</url>
+</repository>
+
+<dependency>
+    <groupId>io.github.scndry</groupId>
+    <artifactId>jackson-dataformat-spreadsheet</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+</dependency>
+----
+
+=== Gradle
+
+[source,groovy]
+----
+repositories {
+    maven { url "https://s01.oss.sonatype.org/content/repositories/snapshots/" }
+}
+
+dependencies {
+    implementation "io.github.scndry:jackson-dataformat-spreadsheet:0.0.1-SNAPSHOT"
+}
+----
+
+== Busy Developers' Guide to Features
+
+[quote]
+Want to use HSSF and XSSF read and write spreadsheets in a hurry?
+This guide is for you. -- _Apache POI's https://poi.apache.org/components/spreadsheet/quick-guide.html[Quick Guide]._
+
+=== Reading Spreadsheet
+
+First, let's look at _input-entries.xlsx_ file to read.
+
+.input-entries.xlsx
+|===
+|Column A |Column B
+
+|1 |2 |3 |4
+|===
+
+Then let's define the `Entry` class annotated `@DataGrid`.
+
+[source,java]
+----
+@DataGrid
+public class Entry {
+    private int a;
+    private int b;
+    // Constructors, Getters, Setters and toString
+}
+----
+
+We use `SpreadsheetMapper` to read the file into an `Entry` object, so let’s set it up now.
+
+[source,java]
+----
+SpreadsheetMapper mapper = new SpreadsheetMapper();
+File file = new File("input-entries.xlsx");
+----
+
+Once we have `SpreadsheetMapper` configured, simply use `readValue`.
+
+[source,java]
+----
+Entry value = mapper.readValue(file, Entry.class);
+// Output: Entry(a=1, b=2)
+----
+
+You can use `readValues` to read the entire list.
+
+[source,java]
+----
+List<Entry> values = mapper.readValues(file, Entry.class);
+// Output: [Entry(a=1, b=2), Entry(a=3, b=4)]
+----
+
+By default, it reads the first sheet.
+If you need to find and read a specific sheet by name or index, you can use `SheetInput`.
+
+[source,java]
+----
+String sheetName = "Entries";
+SheetInput<File> input = SheetInput.source(file, sheetName);
+List<Entry> values = mapper.readValues(input, Entry.class);
+// Output: [Entry(a=1, b=2), Entry(a=3, b=4)]
+----
+
+=== Writing Spreadsheet
+
+We also use `SpreadsheetMapper` to write an `Entry` object to the file.
+Just call `writeValue`.
+
+[source,java]
+----
+SpreadsheetMapper mapper = new SpreadsheetMapper();
+File file = new File("output-entries.xlsx");
+Entry value = new Entry(1, 2);
+mapper.writeValue(file, value);
+----
+
+The output of the above in the file will be:
+
+.output-entries.xlsx
+[cols="1,1"]
+|===
+|a |b |1 |2
+|===
+
+This time, let's write a list.
+
+[source,java]
+----
+List<Entry> values = Arrays.asList(new Entry(1, 2), new Entry(3, 4));
+mapper.writeValue(file, values);
+----
+
+----
+java.lang.IllegalArgumentException: `valueType` MUST be specified to write a value of a Collection or array type
+----
+
+[quote]
+_Oh, Sheet!
+왓더익셉션?_
+
+Okay.
+Let's add a `valueType` to the 3rd parameter.
+
+[source,java]
+----
+Class<Entry> valueType = Entry.class;
+mapper.writeValue(file, values, valueType);
+----
+
+.output-entries.xlsx
+[cols="1,1"]
+|===
+|a |b |1 |2 |3 |4
+|===
+
+Now let's annotate on properties with `@DataColumn` to write each column's name.
+
+[source,java]
+----
+@DataGrid
+public class Entry {
+    @DataColumn("Column A")
+    private int a;
+    @DataColumn("Column B")
+    private int b;
+    // Constructors, Getters, Setters and toString
+}
+----
+
+.output-entries.xlsx
+[cols="1,1"]
+|===
+|Column A |Column B |1 |2 |3 |4
+|===
+
+And also you can use `SheetOutput` to write the sheet name.
+By default, the created sheet is named `"Sheet" + _indexOfSheet_`.
+
+[source,java]
+----
+String sheetName = "Entries";
+SheetOutput<File> output = SheetOutput.target(file, sheetName);
+mapper.writeValue(output, values, Entry.class);
+----
+
+=== Nested Object (de)Structuring
+
+Spreadsheets are a flat data representation of a 2-dimensional structure, but most of the POJOs we have take complex nested structures.
+Of course, it provides (de)structuring these complex models, as you can see below:
+
+|===
+|ID |NAME |ZIPCODE |ADDRESS LINE 1 |ADDRESS LINE 2 |DESIGNATION |SALARY
+
+|1
+|John Doe
+|12345
+|123 Main St.
+|Anytown, USA
+|CEO
+|$300,000.00
+|===
+
+As we are _Object-Oriented Developers_, you probably don't want to manage a lot of column data in a flat model.
+Let's first define the _well-structured_ `Employee` class.
+
+[source,java]
+----
+@DataGrid
+class Employee {
+    int id;
+    String name;
+    Address address;
+    Employment employment;
+    // ...
+}
+
+class Address {
+    String zipcode;
+    AddressLines addressLines;
+    // ...
+}
+
+class AddressLines {
+    String line1;
+    String line2;
+    // ...
+}
+
+class Employment {
+    Designation designation;
+    long salary;
+    // ...
+}
+
+enum Designation {
+    CEO, CTO, SM, ARCH, INT
+}
+----
+
+No additional code is required when deserializing data into nested structures, you can deserialize the same way.
+
+[source,java]
+----
+Employee value = mapper.readValue(input, Employee.class);
+----
+
+Here’s the `Employee` object that output will be:
+
+----
+Employee(
+    id=1
+    name=John doe
+    address=Address(
+        zipcode=12345
+        addressLines=AddressLines(
+            line1=123 Main St.
+            line2=Anytown, USA
+        )
+    )
+    employment=Emeployment(
+        designation=CEO
+        salary=300000
+    )
+)
+----
+
+Just as can be deserialized without any additional code, you can serialize these nested objects.
+
+[source,java]
+----
+mapper.writeValue(output, values, Employee.class);
+----
+
+==== Writing the Nested List
+
+Although limited, it supports serializing nested list structures. _However, deserializing is not supported due to implementation complexity._
+
+[source,java]
+----
+@DataGrid
+class Outer {
+    @DataColumn("A") int a;
+    List<Inner> inners;
+    @DataColumn("E") int e;
+    // ...
+}
+
+class Inner {
+    @DataColumn("B") int b;
+    @DataColumn("C") int[] c;
+    @DataColumn("D") int d;
+    // ...
+}
+----
+
+[source,java]
+----
+Outer value = new Outer(
+        1, Arrays.asList(
+            new Inner(2, new int[]{3, 4}, 5),
+            new Inner(6, new int[]{7, 8}, 9)),
+        10);
+mapper.writeValue(output, value);
+----
+
+This will lead to the desired result like this:
+
+[cols="1a,1a,1a,1a,1a"]
+|===
+|A |B |C |D |E
+
+|1       |2       |3 |5       |10
+|`BLANK` |`BLANK` |4 |`BLANK` |`BLANK`
+|`BLANK` |6       |7 |9       |`BLANK`
+|`BLANK` |`BLANK` |8 |`BLANK` |`BLANK`
+|===
+
+=== Annotations and Schema
+
+For most column schema generation requirements, `@DataGrid` and `@DataColumn` annotations will provide all you need.
+The two have almost similar attributes, so only listing attributes of `@DataColumn`.
+
+.Attributes in `@DataColumn`
+* `String value()`: The column's name to write in header
+* `String style()`: The `name` of the `cellStyle` to apply to the column, it should be registered with `StylesBuilder`.
+* `String headerStyle()`: Same as `style()`, but only applied to the column's header.
+* `int width()`: Fixed width for the column.
+* `OptBoolean autoSize()`: Adjusts the column width to fit the contents. _Not accurate for https://en.wikipedia.org/wiki/Halfwidth_and_fullwidth_forms[fullwidth forms] like the https://en.wikipedia.org/wiki/CJK_characters[CJK characters]._
+* `int minWidth()`: Minimum width of the auto-sized column.
+* `int maxWidth()`: Maximum width of the auto-sized column.
+
+==== Attribute Resolution
+
+Column schema uses particular order designed to allow for value overrides.
+Attributes are considered in the following order:
+
+. ``@DataColumn``'s attribute on property.
+. ``@DataGrid``'s attribute on the class in which the property is declared.
+. ``@DataGrid``'s attribute of the class of which the class in which the property is declared is a member.
+
+For a better understanding, let's look at the code below:
+
+[source,java]
+----
+@DataGrid(autoSizeColumn = OptBoolean.FALSE)
+class Foo {
+    @DataColumn(style = "Foo_a_style")
+    int a;
+    @DataColumn(headerStyle = "Foo_b_headerStyle")
+    int b;
+    // ...
+}
+
+@DataGrid(columnHeaderStyle = "Bar_columnHeaderStyle")
+class Bar {
+    Foo foo;
+    // ...
+}
+
+@DataGrid(columnStyle = "Baz_columnStyle", autoSizeColumn = OptBoolean.TRUE)
+class Baz {
+    Foo foo;
+    // ...
+}
+----
+
+Schema is generated and used when (de)serializing within `SpreadsheetMapper`, but you can generate using `sheetSchemaFor`.
+
+[source,java]
+----
+SpreadsheetSchema foo = mapper.sheetSchemaFor(Foo.class);
+SpreadsheetSchema bar = mapper.sheetSchemaFor(Bar.class);
+SpreadsheetSchema baz = mapper.sheetSchemaFor(Baz.class);
+----
+
+Column attributes of schemas generated for each of the above types are as follows:
+
+[cols="1,1a,1a,1a"]
+|===
+|Column |Style |Header Style| Auto Size
+
+|foo.a
+|`"Foo_a_style"`
+|`""`
+|`FALSE`
+
+|foo.b
+|`""`
+|`"Foo_b_headerStyle"`
+|`FALSE`
+
+|bar.foo.a
+|`"Foo_a_style"`
+|`"Bar_columnHeaderStyle"`
+|`FALSE`
+
+|bar.foo.b
+|`""`
+|`"Foo_b_headerStyle"`
+|`FALSE`
+
+|baz.foo.a
+|`"Foo_a_style"`
+|`""`
+|`FALSE`
+
+|baz.foo.b
+|`"Baz_columnStyle"`
+|`"Foo_b_headerStyle"`
+|`FALSE`
+|===
+
+
+=== Build Your Own Styles
+
+[source,java]
+----
+@DataGrid(columnHeaderStyle = "baseHeader")
+class Employee {
+    // ...
+    Address address;
+    Employment employment;
+    // ...
+}
+
+class Address {
+    @DataColumn(value = "ZIPCODE", style = "zipcode")
+    String zipcode;
+    // ...
+}
+
+@DataGrid(columnHeaderStyle = "employmentHeader")
+class Employment {
+    // ...
+    @DataColumn(value = "SALARY", style = "salary", headerStyle = "salaryHeader")
+    long salary;
+    // ...
+}
+----
+
+[source,java]
+----
+StylesBuilder builder = new StylesBuilder()
+        .cellStyle(/*name*/ "baseHeader")
+            .border().thin()
+            .fillForegroundColor(IndexedColors.GREY_25_PERCENT)
+            .fillPattern().solidForeground()
+            .font().bold().end()
+            .end()
+        .cellStyle(/*name*/ "employmentHeader", /*cloneStyleFrom*/ "baseHeader")
+            .fillForegroundColor(198, 239, 206)
+            .end()
+        .cellStyle("salaryHeader", "baseHeader")
+            .fillForegroundColor(0xFFC7CE)
+            .font().bold().color(0x9C0006).end()
+            .end()
+        .cellStyle("salary")
+            .dataFormat("[Red][>=100000]$#,##0.00;$#,##0.00")
+            .end()
+        .cellStyle("zipcode")
+            .dataFormat().text()
+            .end();
+SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+        .stylesBuilder(builder)
+        .build();
+mapper.writeValue(output, values, type);
+----
+
+.Built-in data formats for convenience
+* `general()`: `"General"`
+* `text()`: `"@"`
+* `numberInt()`: `"0"`
+* `numberFloat()`: `"0.00"`
+* `numberIntWithComma()`: `"&#35;,##0"`
+* `numberFloatWithComma()`: `"&#35;,##0.00"`
+* `date()`: `"yyyy-mm-dd"`
+* `dateTime()`: `"yyyy-mm-dd hh:mm:ss"`
+
+[source,java]
+----
+SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+        .addModule(new ExcelDateModule())
+        .build();
+----
+
+=== Change Origin Address
+
+[source,java]
+----
+CellAddress address = ...;
+SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+        .origin(address)
+        .origin("B2")
+        .origin(1, 1)
+        .build();
+mapper.writeValue(output, values, type);
+----
+
+[cols="1a,1a,1a"]
+|===
+|`BLANK`
+|`BLANK`
+|`BLANK`
+
+|`BLANK`
+|Column A
+|Column B
+
+|`BLANK`
+|1
+|2
+
+|`BLANK`
+|3
+|4
+|===
+
+=== Overwrite Column Names
+
+[source,java]
+----
+SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+        .columnNameResolver(prop -> "Overwrite " + prop.getName().toUpperCase())
+        .build();
+mapper.writeValue(output, values, type);
+----
+
+[cols="1,1"]
+|===
+|Overwrite A |Overwrite B |1 |2 |3 |4
+|===
+
+[source,java]
+----
+enum ColumnCode {
+    A("Code A"), B("Code B");
+    String text;
+    // ...
+}
+
+@Retention(RetentionPolicy.RUNTIME)
+@interface NameOf {
+    ColumnCode value();
+}
+
+@DataGrid
+class Entity {
+    @NameOf(ColumnCode.A)
+    @DataColumn("It will be overwritten")
+    int a;
+    @NameOf(ColumnCode.B)
+    int b;
+    // ...
+}
+----
+
+[source,java]
+----
+ColumnNameResolver byText = AnnotatedNameResolver.forValue(NameOf.class, ColumnCode::getText);
+SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+        .columnNameResolver(byText)
+        .build();
+mapper.writeValue(output, values, type);
+----
+
+[cols="1,1"]
+|===
+|Code A |Code B |1 |2 |3 |4
+|===
+
+=== Reading Under Control
+
+[source,java]
+----
+SpreadsheetReader reader = mapper.sheetReaderFor(Entry.class);
+try (SheetMappingIterator<Entry> iterator = reader.readValues(input)) {
+    while (iterator.hasNext()) {
+        Entry value = iterator.next();
+        SheetLocation location = iterator.getCurrentLocation();
+        boolean done = ...;
+        if (done) {
+            break;
+        }
+    }
+}
+----
+
+[source,java]
+----
+SpreadsheetMapper mapper = SpreadsheetMapper.builder();
+        .enable(SheetParser.Feature.BREAK_ON_BLANK_ROW)
+        .build();
+----
+
+.On/Off Features in `SheetParser.Feature`
+* `BLANK_ROW_AS_NULL` (default `true`)
+* `BREAK_ON_BLANK_ROW` (default `false`)
+
+== And more.
+
+=== Supported Types
+
+* Deserialization
+** `java.io.File`
+** `java.io.InputStream`
+** `io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetInput<T>`
+** `org.apache.poi.ss.usermodel.Sheet`
+* Serialization
+** `java.io.File`
+** `java.io.OutputStream`
+** `io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetOutput<T>`
+** `org.apache.poi.ss.usermodel.Sheet`
+
+=== References
+
+* https://github.com/FasterXML/jackson-docs[Jackson documentation hub]
+* https://poi.apache.org/components/spreadsheet/index.html[POI-HSSF and POI-XSSF/SXSSF]
+
+== License
+
+Project is licensed under https://www.apache.org/licenses/LICENSE-2.0.txt[Apache License 2.0].
