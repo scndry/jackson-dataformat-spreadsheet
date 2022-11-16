@@ -25,7 +25,7 @@ dependencies {
         exclude("org.apache.commons", "commons-math3")
         exclude("org.apache.logging.log4j", "log4j-api")
     }
-    implementation("org.slf4j:slf4j-api:1.7.36")
+    implementation("org.slf4j:slf4j-api:2.0.3")
 }
 
 dependencies {
