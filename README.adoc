@@ -11,6 +11,9 @@ endif::[]
 :toc-placement!:
 :link-oss-sonatype: https://s01.oss.sonatype.org/index.html#view-repositories;snapshots~browsestorage~/io/github/scndry/jackson-dataformat-spreadsheet/maven-metadata.xml
 
+image:https://github.com/scndry/jackson-dataformat-spreadsheet/actions/workflows/build.yml/badge.svg[]
+image:https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fs01.oss.sonatype.org%2Fservice%2Flocal%2Frepositories%2Fsnapshots%2Fcontent%2Fio%2Fgithub%2Fscndry%2Fjackson-dataformat-spreadsheet%2Fmaven-metadata.xml[]
+
 [quote]
 _Let's get rid of the Spread Sh!t._
 
@@ -22,10 +25,6 @@ However, not based on https://poi.apache.org/components/spreadsheet/how-to.html#
 toc::[]
 
 == Installation
-
-image:https://github.com/scndry/jackson-dataformat-spreadsheet/actions/workflows/build.yml/badge.svg[]
-image:https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fs01.oss.sonatype.org%2Fservice%2Flocal%2Frepositories%2Fsnapshots%2Fcontent%2Fio%2Fgithub%2Fscndry%2Fjackson-dataformat-spreadsheet%2Fmaven-metadata.xml[]
-image:https://img.shields.io/github/license/scndry/jackson-dataformat-spreadsheet.svg[]
 
 CAUTION: This project is currently under development.
 If you are interested, you can always use the latest snapshot artifacts from {link-oss-sonatype}[OSS Sonatype].
