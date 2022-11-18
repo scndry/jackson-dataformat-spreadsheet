@@ -17,15 +17,9 @@ repositories {
 }
 
 dependencies {
-    implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
-    implementation("org.apache.poi:poi-ooxml:$poiVersion") {
-        exclude("com.github.virtuald", "curvesapi")
-        exclude("com.zaxxer", "SparseBitSet")
-        exclude("commons-codec", "commons-codec")
-        exclude("org.apache.commons", "commons-math3")
-        exclude("org.apache.logging.log4j", "log4j-api")
-    }
-    implementation("org.slf4j:slf4j-api:2.0.4")
+    api("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
+    api("org.apache.poi:poi-ooxml:$poiVersion")
+    api("org.slf4j:slf4j-api:2.0.4")
 }
 
 dependencies {
@@ -45,6 +39,9 @@ dependencies {
 }
 
 java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    withJavadocJar()
     withSourcesJar()
 }
 
@@ -55,10 +52,18 @@ publishing {
             pom {
                 name.set(title)
                 description.set(project.description)
+                url.set("https://github.com/scndry/jackson-dataformat-spreadsheet")
                 licenses {
                     license {
                         name.set("The Apache License, Version 2.0")
                         url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("scndry")
+                        email.set("scndryan@gmail.com")
+                        url.set("https://github.com/scndry")
                     }
                 }
                 scm {
@@ -76,7 +81,7 @@ publishing {
                 url = uri(properties[if (snapshots) "${name}Snapshots" else "${name}Releases"] as String)
                 credentials(PasswordCredentials::class)
             } else {
-                url = uri(layout.buildDirectory.dir(if (snapshots) "repository/snapshots" else "repository/releases"))
+                url = uri(layout.buildDirectory.dir(if (snapshots) "publications/snapshots" else "publications/releases"))
             }
         }
     }
@@ -84,6 +89,11 @@ publishing {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+tasks.withType<Javadoc> {
+    val opts = options as CoreJavadocOptions
+    opts.addBooleanOption("Xdoclint:-missing", true)
 }
 
 tasks.withType<Jar> {
