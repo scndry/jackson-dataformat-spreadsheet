@@ -17,17 +17,17 @@ image:https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fs01.oss.
 [quote]
 _Let's get rid of the Spread Sh!t._
 
-This https://github.com/FasterXML/jackson[Jackson] extension library is a component that memory-efficiently reads and writes the http://officeopenxml.com/anatomyofOOXML-xlsx.php[SpreadsheetML] formatfootnote:[XLSX -- XSSF (XML SpreadSheet Format)] using https://poi.apache.org/[Apache POI] and https://www.xml.com/pub/a/2003/09/17/stax.html[StAX] via Jackson abstraction. -- _Implemented as full streaming implementation, which allows full access (streaming, data-binding, and tree-model)._
+This https://github.com/FasterXML/jackson[Jackson^] extension library is a component that memory-efficiently reads and writes the http://officeopenxml.com/anatomyofOOXML-xlsx.php[SpreadsheetML^] formatfootnote:[XLSX -- XSSF (XML SpreadSheet Format)] using https://poi.apache.org/[Apache POI^] and https://www.xml.com/pub/a/2003/09/17/stax.html[StAX^] via Jackson abstraction. -- _Implemented as full streaming implementation, which allows full access (streaming, data-binding, and tree-model)._
 
 NOTE: The same abstraction is provided for the _Horrible_ Microsoft Excel formatfootnote:[XLS -- HSSF (Horrible SpreadSheet Format)].
-However, not based on https://poi.apache.org/components/spreadsheet/how-to.html#event_api[Event API], so may not be suitable for large _.xls_ files.
+However, not based on https://poi.apache.org/components/spreadsheet/how-to.html#event_api[Event API^], so may not be suitable for large _.xls_ files.
 
 toc::[]
 
 == Installation
 
 CAUTION: This project is currently under development.
-If you are interested, you can always use the latest snapshot artifacts from {link-oss-sonatype}[OSS Sonatype].
+If you are interested, you can always use the latest snapshot artifacts from {link-oss-sonatype}[OSS Sonatype^].
 
 === Maven
 
@@ -62,7 +62,7 @@ dependencies {
 
 [quote]
 Want to use HSSF and XSSF read and write spreadsheets in a hurry?
-This guide is for you. -- _Apache POI's https://poi.apache.org/components/spreadsheet/quick-guide.html[Quick Guide]._
+This guide is for you. -- _Apache POI's https://poi.apache.org/components/spreadsheet/quick-guide.html[Quick Guide^]._
 
 === Reading Spreadsheet
 
@@ -156,8 +156,7 @@ java.lang.IllegalArgumentException: `valueType` MUST be specified to write a val
 ----
 
 [quote]
-_Oh, Sheet!
-왓더익셉션?_
+_Oh, Sheet!_
 
 Okay.
 Let's add a `valueType` to the 3rd parameter.
@@ -346,7 +345,7 @@ The two have almost similar attributes, so only listing attributes of `@DataColu
 * `String style()`: The `name` of the `cellStyle` to apply to the column, it should be registered with `StylesBuilder`.
 * `String headerStyle()`: Same as `style()`, but only applied to the column's header.
 * `int width()`: Fixed width for the column.
-* `OptBoolean autoSize()`: Adjusts the column width to fit the contents. _Not accurate for https://en.wikipedia.org/wiki/Halfwidth_and_fullwidth_forms[fullwidth forms] like the https://en.wikipedia.org/wiki/CJK_characters[CJK characters]._
+* `OptBoolean autoSize()`: Adjusts the column width to fit the contents. _Not accurate for https://en.wikipedia.org/wiki/Halfwidth_and_fullwidth_forms[fullwidth forms^] like the https://en.wikipedia.org/wiki/CJK_characters[CJK characters^]._
 * `int minWidth()`: Minimum width of the auto-sized column.
 * `int maxWidth()`: Maximum width of the auto-sized column.
 
@@ -634,9 +633,9 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder();
 
 === References
 
-* https://github.com/FasterXML/jackson-docs[Jackson documentation hub]
-* https://poi.apache.org/components/spreadsheet/index.html[POI-HSSF and POI-XSSF/SXSSF]
+* https://github.com/FasterXML/jackson-docs[Jackson documentation hub^]
+* https://poi.apache.org/components/spreadsheet/index.html[POI-HSSF and POI-XSSF/SXSSF^]
 
 == License
 
-Project is licensed under https://www.apache.org/licenses/LICENSE-2.0.txt[Apache License 2.0].
+Project is licensed under https://www.apache.org/licenses/LICENSE-2.0.txt[Apache License 2.0^].
