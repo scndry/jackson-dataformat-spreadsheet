@@ -61,9 +61,9 @@ publishing {
                 }
                 developers {
                     developer {
-                        id.set("scndry")
+                        name.set("Ryan S. Yang")
                         email.set("scndryan@gmail.com")
-                        url.set("https://github.com/scndry")
+                        url.set("https://scndry.github.io")
                     }
                 }
                 scm {
