@@ -44,6 +44,12 @@ public final class AnnotatedNameResolver<A extends Annotation> implements Column
 
     @Override
     public String resolve(final BeanProperty prop) {
-        return _nameMapper.apply(prop.getAnnotation(_type));
+        final A ann = prop.getAnnotation(_type);
+        if (ann == null) {
+            final String msg = String.format("Annotation `@%s` must not be null for %s",
+                    _type.getSimpleName(), prop);
+            throw new IllegalArgumentException(msg);
+        }
+        return _nameMapper.apply(ann);
     }
 }
