@@ -192,7 +192,7 @@ public final class SpreadsheetFactory extends JsonFactory {
     }
 
     private SSMLSheetReader _createSSMLSheetReader(final SSMLWorkbook workbook, final SheetInput<?> src) {
-        final PackagePart worksheetPart = src.isNamed() ? workbook.getSheet(src.getName()) : workbook.getSheetAt(src.getIndex());
+        final PackagePart worksheetPart = src.isNamed() ? workbook.getWorksheetPart(src.getName()) : workbook.getWorksheetPartAt(src.getIndex());
         if (worksheetPart == null) {
             throw new IllegalArgumentException("No sheet for " + src);
         }

@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Optional;
 
 public final class SSMLWorkbook implements AutoCloseable {
 
@@ -28,7 +29,7 @@ public final class SSMLWorkbook implements AutoCloseable {
         }
         final CTWorkbook workbook = doc.getWorkbook();
         _date1904 = workbook.getWorkbookPr().getDate1904();
-        _worksheetRels = _corePart.getRelationshipsByType(XSSFRelation.WORKSHEET);
+        _worksheetRels = _corePart.getRelationships(XSSFRelation.WORKSHEET);
         _sheets = workbook.getSheets().getSheetList();
     }
 
@@ -48,26 +49,23 @@ public final class SSMLWorkbook implements AutoCloseable {
         return _date1904;
     }
 
-    public PackagePart getSharedStrings() {
+    public PackagePart getSharedStringsPart() {
         return _corePart.getRelatedPart(XSSFRelation.SHARED_STRINGS);
     }
 
-    public PackagePart getStyles() {
+    public PackagePart getStylesPart() {
         return _corePart.getRelatedPart(XSSFRelation.STYLES);
     }
 
-    public PackagePart getSheetAt(final int index) {
+    public PackagePart getWorksheetPartAt(final int index) {
         _validateSheetIndex(index);
-        final CTSheet sheet = _sheets.get(index);
-        final PackageRelationship rel = _worksheetRels.getRelationshipByID(sheet.getId());
-        return _corePart.getRelatedPart(rel);
+        return _worksheetPart(_sheets.get(index));
     }
 
-    public PackagePart getSheet(final String name) {
+    public PackagePart getWorksheetPart(final String name) {
         for (final CTSheet sheet : _sheets) {
             if (sheet.getName().equalsIgnoreCase(name)) {
-                final PackageRelationship rel = _worksheetRels.getRelationshipByID(sheet.getId());
-                return _corePart.getRelatedPart(rel);
+                return _worksheetPart(sheet);
             }
         }
         return null;
@@ -76,6 +74,12 @@ public final class SSMLWorkbook implements AutoCloseable {
     @Override
     public void close() throws IOException {
         _corePart.getPackage().close();
+    }
+
+    private PackagePart _worksheetPart(final CTSheet sheet) {
+        final String id = Optional.ofNullable(sheet.getId()).orElseGet(() -> "rId" + sheet.getSheetId());
+        final PackageRelationship rel = _worksheetRels.getRelationshipByID(id);
+        return _corePart.getRelatedPart(rel);
     }
 
     private void _validateSheetIndex(final int index) {

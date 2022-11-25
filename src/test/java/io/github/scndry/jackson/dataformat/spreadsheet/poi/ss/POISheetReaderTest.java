@@ -10,7 +10,7 @@ class POISheetReaderTest extends SheetReaderTestBase {
 
     @Test
     void test() throws Exception {
-        final Workbook workbook = new XSSFWorkbook(source);
+        final Workbook workbook = new XSSFWorkbook(transitionalSource);
         final Sheet sheet = workbook.getSheetAt(0);
         reader = new POISheetReader(sheet);
         testSheetReader();

@@ -11,7 +11,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class SheetReaderTestBase implements FixtureAs {
 
-    protected final InputStream source = fixtureAsStream("entries-headless.xlsx");
+    protected final InputStream transitionalSource = fixtureAsStream("entries-headless.xlsx");
+    protected final InputStream strictSource = fixtureAsStream("entries-headless-strict.xlsx");
     protected SheetReader reader;
 
     protected void testSheetReader() throws Exception {

@@ -7,9 +7,17 @@ import org.junit.jupiter.api.Test;
 class SSMLSheetReaderTest extends SheetReaderTestBase {
 
     @Test
-    void test() throws Exception {
-        final SSMLWorkbook workbook = SSMLWorkbook.create(source);
-        final PackagePart worksheetPart = workbook.getSheetAt(0);
+    void testTransitional() throws Exception {
+        final SSMLWorkbook workbook = SSMLWorkbook.create(transitionalSource);
+        final PackagePart worksheetPart = workbook.getWorksheetPartAt(0);
+        reader = new SSMLSheetReader(worksheetPart, workbook);
+        testSheetReader();
+    }
+
+    @Test
+    void testStrict() throws Exception {
+        final SSMLWorkbook workbook = SSMLWorkbook.create(strictSource);
+        final PackagePart worksheetPart = workbook.getWorksheetPartAt(0);
         reader = new SSMLSheetReader(worksheetPart, workbook);
         testSheetReader();
     }
