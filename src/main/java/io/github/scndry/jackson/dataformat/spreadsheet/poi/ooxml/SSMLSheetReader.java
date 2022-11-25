@@ -9,13 +9,12 @@ import org.apache.poi.openxml4j.exceptions.InvalidOperationException;
 import org.apache.poi.openxml4j.opc.PackagePart;
 import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.FormulaError;
+import org.apache.poi.ss.usermodel.RichTextString;
 import org.apache.poi.ss.util.CellAddress;
-import org.apache.poi.xssf.eventusermodel.ReadOnlySharedStringsTable;
 import org.apache.poi.xssf.model.SharedStrings;
 import org.apache.poi.xssf.usermodel.XSSFRichTextString;
 import org.apache.xmlbeans.SchemaType;
 import org.openxmlformats.schemas.spreadsheetml.x2006.main.*;
-import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -45,7 +44,8 @@ public final class SSMLSheetReader implements SheetReader {
         _sheet = worksheetPart;
         _workbook = workbook;
         try {
-            _strings = new ReadOnlySharedStringsTable(_workbook.getSharedStrings());
+            final PackagePart sharedStrings = _workbook.getSharedStringsPart();
+            _strings = sharedStrings == null ? new BlankSharedStrings() : new LazySharedStrings(sharedStrings);
             _reader = new XmlElementReader(_sheet.getInputStream());
             final SchemaType type = _reader.getElementType();
             if (!type.equals(WorksheetDocument.type)) {
@@ -53,8 +53,6 @@ public final class SSMLSheetReader implements SheetReader {
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
-        } catch (SAXException e) {
-            throw new IllegalStateException(e);
         }
         _reader.nextUntil(START_SHEET_DATA);
         _next = SheetToken.SHEET_DATA_START;
@@ -175,5 +173,23 @@ public final class SSMLSheetReader implements SheetReader {
             }
         }
         return token;
+    }
+
+    static class BlankSharedStrings implements SharedStrings {
+
+        @Override
+        public RichTextString getItemAt(final int idx) {
+            return new XSSFRichTextString("");
+        }
+
+        @Override
+        public int getCount() {
+            return 0;
+        }
+
+        @Override
+        public int getUniqueCount() {
+            return 0;
+        }
     }
 }

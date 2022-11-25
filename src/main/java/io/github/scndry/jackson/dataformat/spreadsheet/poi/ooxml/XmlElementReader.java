@@ -17,13 +17,15 @@ import java.io.UncheckedIOException;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.regex.Pattern;
 
 import static org.apache.poi.schemas.ooxml.system.ooxml.TypeSystemHolder.typeSystem;
 
 @Slf4j
 final class XmlElementReader implements AutoCloseable {
 
-    static final XmlOptions DEFAULT_XML_OPTIONS;
+    private static final Pattern STRICT_NS_PATTERN = Pattern.compile("http://purl\\.oclc\\.org/ooxml/(\\w+)/(\\w+)");
+    private static final XmlOptions DEFAULT_XML_OPTIONS;
 
     static {
         DEFAULT_XML_OPTIONS = new XmlOptions();
@@ -58,7 +60,7 @@ final class XmlElementReader implements AutoCloseable {
     private static SchemaType _findElementType(final InputStream src, final XMLInputFactory factory) throws XMLStreamException {
         final XMLStreamReader reader = factory.createXMLStreamReader(src);
         while (!reader.isStartElement()) reader.next();
-        final QName name = reader.getName();
+        final QName name = _transitionalName(reader.getName());
         typeSystem.findType(name);
         SchemaType type = typeSystem.findDocumentType(name);
         if (type == null) {
@@ -68,6 +70,15 @@ final class XmlElementReader implements AutoCloseable {
             throw new IllegalArgumentException("Cannot find type for " + name);
         }
         return type;
+    }
+
+    private static QName _transitionalName(final QName name) {
+        final java.util.regex.Matcher matcher = STRICT_NS_PATTERN.matcher(name.getNamespaceURI());
+        if (matcher.matches()) {
+            final String namespaceURI = matcher.replaceAll("http://schemas.openxmlformats.org/$1/2006/$2");
+            return new QName(namespaceURI, name.getLocalPart(), name.getPrefix());
+        }
+        return name;
     }
 
     public SchemaType getElementType() {
@@ -166,7 +177,7 @@ final class XmlElementReader implements AutoCloseable {
         if (log.isTraceEnabled()) {
             log.trace("Start element: {}", event);
         }
-        final QName name = event.getName();
+        final QName name = _transitionalName(event.getName());
         final XmlObject parent = _deque.getFirst();
         final SchemaProperty property = parent.schemaType().getElementProperty(name);
         SchemaType type = null;
@@ -179,7 +190,7 @@ final class XmlElementReader implements AutoCloseable {
             XMLEvent next;
             do {
                 next = _reader.nextEvent(); // skip unknowns
-            } while (!next.isEndElement() || !next.asEndElement().getName().equals(name));
+            } while (!next.isEndElement() || !_transitionalName(next.asEndElement().getName()).equals(name));
             return;
         }
         final XmlObject object = typeSystem.newInstance(type, DEFAULT_XML_OPTIONS);
@@ -211,7 +222,7 @@ final class XmlElementReader implements AutoCloseable {
         if (log.isTraceEnabled()) {
             log.trace("End element: {}", event);
         }
-        final QName name = event.getName();
+        final QName name = _transitionalName(event.getName());
         _lastObject = _deque.removeFirst();
         if (_context != null) {
             if (_lastObject.schemaType().equals(_context)) {

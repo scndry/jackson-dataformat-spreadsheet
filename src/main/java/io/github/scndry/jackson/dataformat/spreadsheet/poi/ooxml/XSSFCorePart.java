@@ -11,14 +11,18 @@ import org.apache.poi.xssf.usermodel.XSSFRelation;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.regex.Pattern;
 
 @Slf4j
 final class XSSFCorePart {
 
+    private static final Pattern TRANSITIONAL_NS_PATTERN = Pattern.compile("http://schemas\\.openxmlformats\\.org/(\\w+)/2006/(\\w+)");
     private final PackagePart _part;
+    private final boolean _strictFormat;
 
     XSSFCorePart(final PackagePart corePart) {
         _part = corePart;
+        _strictFormat = corePart.getPackage().isStrictOoxmlFormat();
     }
 
     public InputStream getInputStream() {
@@ -30,7 +34,7 @@ final class XSSFCorePart {
     }
 
     public PackagePart getRelatedPart(final XSSFRelation rel) {
-        return getRelatedPart(getRelationshipByType(rel));
+        return getRelatedPart(getRelationship(rel));
     }
 
     public PackagePart getRelatedPart(final PackageRelationship rel) {
@@ -42,13 +46,13 @@ final class XSSFCorePart {
         }
     }
 
-    public PackageRelationship getRelationshipByType(final XSSFRelation rel) {
-        return getRelationshipsByType(rel).getRelationship(0);
+    public PackageRelationship getRelationship(final XSSFRelation rel) {
+        return getRelationships(rel).getRelationship(0);
     }
 
-    public PackageRelationshipCollection getRelationshipsByType(final XSSFRelation rel) {
+    public PackageRelationshipCollection getRelationships(final XSSFRelation rel) {
         try {
-            return _part.getRelationshipsByType(rel.getRelation());
+            return _part.getRelationshipsByType(_relationshipType(rel));
         } catch (InvalidFormatException e) {
             throw new IllegalArgumentException(e);
         }
@@ -56,5 +60,12 @@ final class XSSFCorePart {
 
     public OPCPackage getPackage() {
         return _part.getPackage();
+    }
+
+    private String _relationshipType(final XSSFRelation rel) {
+        if (_strictFormat) {
+            return TRANSITIONAL_NS_PATTERN.matcher(rel.getRelation()).replaceFirst("http://purl.oclc.org/ooxml/$1/$2");
+        }
+        return rel.getRelation();
     }
 }

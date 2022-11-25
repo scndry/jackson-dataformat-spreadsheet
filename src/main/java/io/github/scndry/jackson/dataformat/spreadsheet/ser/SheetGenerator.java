@@ -6,7 +6,6 @@ import com.fasterxml.jackson.core.io.IOContext;
 import io.github.scndry.jackson.dataformat.spreadsheet.PackageVersion;
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamContext;
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamWriteException;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import lombok.extern.slf4j.Slf4j;
 
