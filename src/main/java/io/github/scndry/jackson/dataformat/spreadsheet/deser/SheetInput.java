@@ -1,12 +1,12 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.deser;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetContent;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.util.CleanableTempFile;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.poi.util.TempFile;
 
 import java.io.File;
 import java.io.IOException;
@@ -76,7 +76,7 @@ public final class SheetInput<T> implements SheetContent<T> {
     private static File createTempFile(final InputStream raw) {
         File file = null;
         try {
-            file = TempFile.createTempFile("sheet-input", ".xlsx");
+            file = CleanableTempFile.createTempFile("sheet-input", ".xlsx");
             Files.copy(raw, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
             return file;
         } catch (IOException e) {
