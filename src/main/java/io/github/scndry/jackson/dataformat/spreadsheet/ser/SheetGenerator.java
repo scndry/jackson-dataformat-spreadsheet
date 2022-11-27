@@ -10,6 +10,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
@@ -217,16 +218,18 @@ public final class SheetGenerator extends GeneratorBase {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void close() throws IOException {
         super.close();
         _writer.adjustColumnWidth();
         final Object content = _ioContext.contentReference().getRawContent();
         if (content instanceof SheetOutput) {
-            final SheetOutput<?> output = (SheetOutput<?>) content;
-            _writer.write(output.getOutputStream());
-        }
-        if (_ioContext.isResourceManaged() || isEnabled(StreamWriteFeature.AUTO_CLOSE_TARGET)) {
-            _writer.close();
+            final OutputStream out = ((SheetOutput<OutputStream>) content).getRaw();
+            _writer.write(out);
+            if (_ioContext.isResourceManaged() || isEnabled(StreamWriteFeature.AUTO_CLOSE_TARGET)) {
+                _writer.close();
+                out.close();
+            }
         }
     }
 

@@ -15,9 +15,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.util.CellAddress;
 
+import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.file.Files;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -251,6 +253,13 @@ public final class SheetParser extends ParserMinimalBase {
         _closed = true;
         if (_ioContext.isResourceManaged() || isEnabled(StreamReadFeature.AUTO_CLOSE_SOURCE)) {
             _reader.close();
+        }
+        final Object content = _ioContext.contentReference().getRawContent();
+        if (content instanceof SheetInput) {
+            final SheetInput<?> input = (SheetInput<?>) content;
+            if (_ioContext.isResourceManaged() && input.isFile()) {
+                Files.deleteIfExists(((File) input.getRaw()).toPath());
+            }
         }
     }
 

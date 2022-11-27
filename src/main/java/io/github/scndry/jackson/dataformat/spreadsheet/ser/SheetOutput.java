@@ -6,9 +6,7 @@ import lombok.Getter;
 import lombok.ToString;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.file.Files;
 
 @Getter
 @ToString
@@ -37,12 +35,5 @@ public final class SheetOutput<T> implements SheetContent<T> {
 
     public static SheetOutput<OutputStream> target(final OutputStream raw, final String sheetName) {
         return new SheetOutput<>(raw, sheetName);
-    }
-
-    public OutputStream getOutputStream() throws IOException {
-        if (raw instanceof OutputStream) {
-            return (OutputStream) raw;
-        }
-        return Files.newOutputStream(((File) getRaw()).toPath());
     }
 }

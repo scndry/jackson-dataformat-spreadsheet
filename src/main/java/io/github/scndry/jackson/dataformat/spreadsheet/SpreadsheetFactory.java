@@ -18,12 +18,15 @@ import org.apache.poi.openxml4j.opc.PackagePart;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.util.TempFile;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 
 @SuppressWarnings("java:S2177")
 public final class SpreadsheetFactory extends JsonFactory {
@@ -114,12 +117,14 @@ public final class SpreadsheetFactory extends JsonFactory {
 
     @SuppressWarnings("unchecked")
     public SheetParser createParser(final SheetInput<?> src) throws IOException {
-        final IOContext ctxt = _createContext(_createContentReference(src), src.isFile());
+        final SheetInput<?> source = _preferRawAsFile(src);
+        final boolean resourceManaged = src != source;
+        final IOContext ctxt = _createContext(_createContentReference(source), resourceManaged);
         final SheetReader reader;
-        if (src.isFile()) {
-            reader = _createFileSheetReader((SheetInput<File>) src);
+        if (source.isFile()) {
+            reader = _createFileSheetReader((SheetInput<File>) source);
         } else {
-            reader = _createInputStreamSheetReader((SheetInput<InputStream>) src);
+            reader = _createInputStreamSheetReader((SheetInput<InputStream>) source);
         }
         return _createParser(reader, ctxt);
     }
@@ -148,8 +153,10 @@ public final class SpreadsheetFactory extends JsonFactory {
     }
 
     public SheetGenerator createGenerator(final SheetOutput<?> out) throws IOException {
-        final IOContext ctxt = _createContext(_createContentReference(out), out.isFile());
-        return _createGenerator(_createSheetWriter(out), ctxt);
+        final SheetOutput<OutputStream> output = _rawAsOutputStream(out);
+        final boolean resourceManaged = out != output;
+        final IOContext ctxt = _createContext(_createContentReference(output), resourceManaged);
+        return _createGenerator(_createSheetWriter(output), ctxt);
     }
 
     @Override
@@ -207,6 +214,19 @@ public final class SpreadsheetFactory extends JsonFactory {
         return new POISheetReader(sheet);
     }
 
+    @SuppressWarnings("unchecked")
+    private SheetInput<?> _preferRawAsFile(final SheetInput<?> src) throws IOException {
+        if (src.isFile()) return src;
+        final InputStream raw = ((SheetInput<InputStream>) src).getRaw();
+        if (!PackageUtil.isOOXML(raw)) return src;
+        final File file = TempFile.createTempFile("sheet-input", ".xlsx");
+        Files.copy(raw, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        if (isEnabled(StreamReadFeature.AUTO_CLOSE_SOURCE)) {
+            raw.close();
+        }
+        return src.isNamed() ? SheetInput.source(file, src.getName()) : SheetInput.source(file, src.getIndex());
+    }
+
     /*
     /**********************************************************
     /* Factory methods used by factory for creating generator instances,
@@ -227,5 +247,12 @@ public final class SpreadsheetFactory extends JsonFactory {
             sheet = workbook.createSheet();
         }
         return new POISheetWriter(sheet);
+    }
+
+    @SuppressWarnings("unchecked")
+    private SheetOutput<OutputStream> _rawAsOutputStream(final SheetOutput<?> out) throws IOException {
+        if (!out.isFile()) return (SheetOutput<OutputStream>) out;
+        final OutputStream raw = Files.newOutputStream(((File) out.getRaw()).toPath());
+        return out.isNamed() ? SheetOutput.target(raw, out.getName()) : SheetOutput.target(raw);
     }
 }
