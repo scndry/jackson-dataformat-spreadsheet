@@ -19,7 +19,7 @@ repositories {
 dependencies {
     api("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     api("org.apache.poi:poi-ooxml:$poiVersion")
-    implementation("org.slf4j:slf4j-api:2.0.5")
+    implementation("org.slf4j:slf4j-api:2.0.6")
 }
 
 dependencies {
