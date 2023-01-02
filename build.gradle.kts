@@ -23,7 +23,7 @@ dependencies {
 }
 
 dependencies {
-    testImplementation("com.navercorp.fixturemonkey:fixture-monkey:0.4.9")
+    testImplementation("com.navercorp.fixturemonkey:fixture-monkey:0.4.10")
     testImplementation("org.assertj:assertj-core:3.23.1")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.1")
     testRuntimeOnly("ch.qos.logback:logback-classic:1.3.5")
