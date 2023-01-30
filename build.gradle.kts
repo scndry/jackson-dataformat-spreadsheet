@@ -8,7 +8,7 @@ version = "0.0.1-SNAPSHOT"
 description = "Support for reading and writing Spreadsheet via Jackson abstractions."
 
 val title = "Jackson dataformat: Spreadsheet"
-val jacksonVersion = "2.14.1"
+val jacksonVersion = "2.14.2"
 val poiVersion = "5.2.3"
 val snapshots = version.toString().endsWith("SNAPSHOT")
 
