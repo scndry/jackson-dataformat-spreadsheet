@@ -46,7 +46,7 @@ dependencies {
     jmh("org.dhatim:fastexcel:0.20.0")
     jmh("org.dhatim:fastexcel-reader:0.20.0")
     jmh("com.h2database:h2:2.2.224")
-    jmh("com.fasterxml.woodstox:woodstox-core:7.1.0")
+    jmh("com.fasterxml.woodstox:woodstox-core:7.1.1")
 }
 
 java {
