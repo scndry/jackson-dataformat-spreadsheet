@@ -14,7 +14,7 @@ image:https://github.com/scndry/jackson-dataformat-spreadsheet/actions/workflows
 [quote]
 _Let's get rid of the Spread Sh!t._
 
-A https://github.com/FasterXML/jackson[Jackson^] extension module for reading and writing http://officeopenxml.com/anatomyofOOXML-xlsx.php[SpreadsheetML^]footnote:[XLSX -- XSSF (XML SpreadSheet Format)] using https://poi.apache.org/[Apache POI^] and https://www.xml.com/pub/a/2003/09/17/stax.html[StAX^].
+A https://github.com/FasterXML/jackson[Jackson^] extension module for reading and writing https://ecma-international.org/publications-and-standards/standards/ecma-376/[SpreadsheetML^]footnote:[XLSX -- XSSF (XML SpreadSheet Format)] using https://poi.apache.org/[Apache POI^] and https://www.xml.com/pub/a/2003/09/17/stax.html[StAX^].
 Built as a full streaming implementation -- supports streaming, data-binding, and tree-model access just like any other Jackson data format module.
 
 As we are _Object-Oriented Developers_, we map spreadsheets to POJOs -- not the other way around.
@@ -36,11 +36,6 @@ toc::[]
 
 [source,xml]
 ----
-<repository>
-    <id>github</id>
-    <url>https://maven.pkg.github.com/scndry/jackson-dataformat-spreadsheet</url>
-</repository>
-
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
@@ -52,16 +47,6 @@ toc::[]
 
 [source,groovy]
 ----
-repositories {
-    maven {
-        url "https://maven.pkg.github.com/scndry/jackson-dataformat-spreadsheet"
-        credentials {
-            username = project.findProperty("gpr.user")
-            password = project.findProperty("gpr.key")
-        }
-    }
-}
-
 dependencies {
     implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.0.0"
 }

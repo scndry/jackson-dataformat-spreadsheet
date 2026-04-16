@@ -1,6 +1,8 @@
+import com.vanniktech.maven.publish.SonatypeHost
+
 plugins {
     id("java-library")
-    id("maven-publish")
+    id("com.vanniktech.maven.publish") version "0.30.0"
     id("jacoco")
     id("me.champeau.jmh") version "0.6.8"
 }
@@ -53,47 +55,34 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(8))
     }
-    withJavadocJar()
-    withSourcesJar()
+    // javadocJar and sourcesJar provided by com.vanniktech.maven.publish
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-            pom {
-                name.set(title)
-                description.set(project.description)
-                url.set("https://github.com/scndry/jackson-dataformat-spreadsheet")
-                licenses {
-                    license {
-                        name.set("The Apache License, Version 2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                    }
-                }
-                developers {
-                    developer {
-                        name.set("Seongman Yang")
-                        email.set("scndryan@gmail.com")
-                        url.set("https://scndry.github.io")
-                    }
-                }
-                scm {
-                    connection.set("scm:git:git://github.com/scndry/jackson-dataformat-spreadsheet.git")
-                    developerConnection.set("scm:git:ssh://github.com/scndry/jackson-dataformat-spreadsheet.git")
-                    url.set("https://github.com/scndry/jackson-dataformat-spreadsheet")
-                }
+mavenPublishing {
+    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    signAllPublications()
+
+    pom {
+        name.set(title)
+        description.set(project.description)
+        url.set("https://github.com/scndry/jackson-dataformat-spreadsheet")
+        licenses {
+            license {
+                name.set("The Apache License, Version 2.0")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
             }
         }
-    }
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/scndry/jackson-dataformat-spreadsheet")
-            credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: findProperty("gpr.user") as String?
-                password = System.getenv("GITHUB_TOKEN") ?: findProperty("gpr.key") as String?
+        developers {
+            developer {
+                name.set("Seongman Yang")
+                email.set("scndryan@gmail.com")
+                url.set("https://scndry.github.io")
             }
+        }
+        scm {
+            connection.set("scm:git:git://github.com/scndry/jackson-dataformat-spreadsheet.git")
+            developerConnection.set("scm:git:ssh://github.com/scndry/jackson-dataformat-spreadsheet.git")
+            url.set("https://github.com/scndry/jackson-dataformat-spreadsheet")
         }
     }
 }

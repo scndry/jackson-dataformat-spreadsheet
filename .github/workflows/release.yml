@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
   release:
@@ -18,17 +17,23 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
-          java-version: 8
+          java-version: 11
           distribution: temurin
 
       - name: Build and test
         run: ./gradlew check --console=plain
 
-      - name: Publish to GitHub Packages
-        run: ./gradlew publish --console=plain
+      - name: Import GPG key
+        run: echo "${{ secrets.GPG_SECRET_KEY }}" | base64 -d | gpg --batch --import
+
+      - name: Publish to Maven Central
+        run: ./gradlew publishAndReleaseToMavenCentral --console=plain
         env:
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.OSSRH_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.OSSRH_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.GPG_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+          ORG_GRADLE_PROJECT_signingSecretKeyRingFile: /home/runner/.gnupg/secring.gpg
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
