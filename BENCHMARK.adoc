@@ -1,0 +1,179 @@
+= Benchmark
+:toc:
+:toc-placement!:
+
+toc::[]
+
+== Environment
+
+* JDK 21.0.10, OpenJDK 64-Bit Server VM
+* Apple Silicon (aarch64)
+* JMH 1.35, Fork 1, Warmup 3 iterations, Measurement 5 iterations
+* GC profiler enabled (`gc.alloc.rate.norm` = bytes allocated per operation)
+* Test data: mixed types (String + int + double + boolean), `XSSFWorkbook` (shared string table), 6 columns
+* All read benchmarks produce the same POJO for fair comparison.
+
+== Read — Throughput
+
+[cols="2,1,1,1,1"]
+|===
+|Library |1K rows |10K rows |50K rows |100K rows
+
+|**jackson-spreadsheet**
+|**2.8 ms**
+|**20.3 ms**
+|**96.2 ms**
+|**186.4 ms**
+
+|FastExcel Reader
+|2.0 ms
+|20.9 ms
+|101.6 ms
+|211.1 ms
+
+|EasyExcel
+|3.2 ms
+|26.1 ms
+|135.8 ms
+|258.0 ms
+
+|Apache POI UserModel
+|12.0 ms
+|101.6 ms
+|487.9 ms
+|1095.4 ms
+|===
+
+* jackson-spreadsheet outperforms FastExcel at 50K+ rows thanks to SoA shared string table.
+* EasyExcel is 28% slower at 100K rows.
+* POI UserModel is 5.9x slower at 100K rows (full in-memory DOM).
+
+== Read — Memory (bytes/op)
+
+[cols="2,1,1,1"]
+|===
+|Library |10K rows |50K rows |100K rows
+
+|EasyExcel
+|40 MB
+|203 MB
+|397 MB
+
+|FastExcel Reader
+|43 MB
+|214 MB
+|418 MB
+
+|**jackson-spreadsheet**
+|**61 MB**
+|**306 MB**
+|**612 MB**
+
+|Apache POI UserModel
+|235 MB
+|1167 MB
+|2333 MB
+|===
+
+* jackson-spreadsheet allocates ~1.5x of FastExcel/EasyExcel due to Jackson data-binding overhead (token objects, deserializer buffers).
+* POI UserModel allocates 3.8x due to full in-memory workbook DOM.
+* SharedStrings optimization (SoA + direct String return without POI RichTextString wrapping) significantly reduces allocation for SST-heavy workloads.
+
+== Write — Throughput
+
+[cols="2,1,1,1,1"]
+|===
+|Library |1K rows |10K rows |50K rows |100K rows
+
+|EasyExcel
+|2.9 ms
+|6.0 ms
+|19.0 ms
+|34.1 ms
+
+|FastExcel
+|2.6 ms
+|15.5 ms
+|74.3 ms
+|155.1 ms
+
+|Apache POI SXSSF
+|5.4 ms
+|29.8 ms
+|136.3 ms
+|269.4 ms
+
+|**jackson-spreadsheet**
+|**5.6 ms**
+|**32.7 ms**
+|**146.9 ms**
+|**297.4 ms**
+|===
+
+== StAX Implementation
+
+Mixed-type workload, 50K rows (Aalto excluded from FastExcel Reader for isolated comparison):
+
+[cols="2,1,1,1"]
+|===
+|StAX Implementation |10K rows |50K rows |vs JDK
+
+|JDK built-in
+|20.8 ms
+|101.9 ms
+|baseline
+
+|Woodstox 7.1.0
+|15.7 ms
+|76.1 ms
+|25% faster
+
+|Aalto 1.3.4
+|15.4 ms
+|76.9 ms
+|25% faster
+|===
+
+* Woodstox and Aalto perform equally — both ~25% faster than JDK built-in.
+* Aalto XML is included as a default dependency — no additional setup needed.
+* The main Read benchmarks above ran with Aalto.
+
+== SharedStrings — InMemory vs FileBacked
+
+String-heavy workload (4 string columns, mostly unique values, `XSSFWorkbook`):
+
+[cols="2,1,1,1"]
+|===
+|Strategy |10K rows |50K rows |100K rows
+
+|InMemory (default)
+|19.0 ms
+|81.3 ms
+|174.0 ms
+
+|FileBacked (H2 MVStore)
+|30.4 ms
+|123.4 ms
+|248.6 ms
+|===
+
+* FileBacked is ~65% slower due to disk I/O per cache miss and MVStore overhead.
+* FileBacked's value is **peak heap reduction** for extremely large shared string tables, not throughput. When the SST exceeds available heap, InMemory causes OOM while FileBacked stays constant at ~4 MB cache.
+
+== How to Run
+
+[source,bash]
+----
+./gradlew jmh
+----
+
+Filter specific benchmarks:
+
+[source,bash]
+----
+./gradlew jmh -Pjmh.includes="ReadBenchmark"
+./gradlew jmh -Pjmh.includes="WriteBenchmark"
+./gradlew jmh -Pjmh.includes="SharedStringsBenchmark"
+----
+
+GC profiler is enabled by default. Results are saved to `build/results/jmh/results.txt`.
