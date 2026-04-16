@@ -27,7 +27,7 @@ dependencies {
 }
 
 dependencies {
-    testImplementation("org.assertj:assertj-core:3.27.3")
+    testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.11.4")
     testRuntimeOnly("ch.qos.logback:logback-classic:1.3.15")
     testRuntimeOnly("org.apache.logging.log4j:log4j-to-slf4j:2.24.3")
