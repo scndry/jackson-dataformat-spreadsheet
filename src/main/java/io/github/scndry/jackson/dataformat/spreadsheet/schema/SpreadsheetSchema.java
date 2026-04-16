@@ -1,21 +1,48 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema;
 
-import com.fasterxml.jackson.core.FormatSchema;
-import lombok.RequiredArgsConstructor;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.util.CellAddress;
-
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@RequiredArgsConstructor
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellAddress;
+
+import com.fasterxml.jackson.core.FormatSchema;
+
+/**
+ * {@link FormatSchema} implementation that defines the column
+ * layout for spreadsheet reading and writing. Contains an
+ * ordered list of {@link Column} definitions, a cell origin,
+ * and style configuration.
+ *
+ * @see Column
+ * @see SchemaGenerator
+ */
 public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
 
     public static final String SCHEMA_TYPE = "spreadsheet";
     private final List<Column> _columns;
     private final Styles.Builder _stylesBuilder;
     private final CellAddress _origin;
+    private final boolean _useHeader;
+
+    public SpreadsheetSchema(
+            final List<Column> columns,
+            final Styles.Builder stylesBuilder,
+            final CellAddress origin) {
+        this(columns, stylesBuilder, origin, true);
+    }
+
+    public SpreadsheetSchema(
+            final List<Column> columns,
+            final Styles.Builder stylesBuilder,
+            final CellAddress origin,
+            final boolean useHeader) {
+        _columns = columns;
+        _stylesBuilder = stylesBuilder;
+        _origin = origin;
+        _useHeader = useHeader;
+    }
 
     @Override
     public String getSchemaType() {
@@ -39,7 +66,19 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     }
 
     public int getDataRow() {
-        return _origin.getRow() + 1;
+        return _origin.getRow() + (_useHeader ? 1 : 0);
+    }
+
+    public boolean usesHeader() {
+        return _useHeader;
+    }
+
+    public SpreadsheetSchema withUseHeader(final boolean state) {
+        return _useHeader == state ? this : new SpreadsheetSchema(
+                _columns,
+                _stylesBuilder,
+                _origin,
+                state);
     }
 
     public int getOriginColumn() {
@@ -67,7 +106,12 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         if (filter.isEmpty()) {
             return _columns;
         }
-        return _columns.stream().filter(c -> c.getPointer().startsWith(filter)).collect(Collectors.toList());
+        return _columns
+                .stream()
+                .filter(c -> c
+                .getPointer()
+                .startsWith(filter)).collect(Collectors
+                .toList());
     }
 
     public Styles buildStyles(final Workbook workbook) {

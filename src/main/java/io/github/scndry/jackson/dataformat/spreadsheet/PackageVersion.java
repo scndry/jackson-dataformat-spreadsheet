@@ -1,9 +1,5 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
-import com.fasterxml.jackson.core.Version;
-import com.fasterxml.jackson.core.Versioned;
-import com.fasterxml.jackson.core.util.VersionUtil;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.JarURLConnection;
@@ -14,6 +10,13 @@ import java.security.CodeSource;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 
+import com.fasterxml.jackson.core.Version;
+import com.fasterxml.jackson.core.Versioned;
+import com.fasterxml.jackson.core.util.VersionUtil;
+
+/**
+ * Provides the version of this module by reading the implementation version from the JAR manifest.
+ */
 public final class PackageVersion implements Versioned {
 
     public static final String GROUP_ID = "io.github.scndry";
@@ -37,11 +40,15 @@ public final class PackageVersion implements Versioned {
         final CodeSource source = PackageVersion.class.getProtectionDomain().getCodeSource();
         if (source == null) return null;
         try (JarFile jarFile = getJarFile(source)) {
-            return jarFile.getManifest().getMainAttributes().getValue(Attributes.Name.IMPLEMENTATION_VERSION);
+            return jarFile
+                    .getManifest()
+                    .getMainAttributes()
+                    .getValue(Attributes.Name.IMPLEMENTATION_VERSION);
         }
     }
 
-    private static JarFile getJarFile(final CodeSource source) throws IOException, URISyntaxException {
+    private static JarFile getJarFile(final CodeSource source) throws IOException,
+            URISyntaxException {
         final URL location = source.getLocation();
         final URLConnection connection = location.openConnection();
         if (connection instanceof JarURLConnection) {

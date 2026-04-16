@@ -1,19 +1,25 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema.generator;
 
-import com.fasterxml.jackson.databind.BeanProperty;
-import lombok.RequiredArgsConstructor;
-
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.function.Function;
 
-@RequiredArgsConstructor
+import com.fasterxml.jackson.databind.BeanProperty;
+
+/**
+ * {@link ColumnNameResolver} that resolves column names by reading a specified attribute from a custom annotation on bean properties.
+ */
 public final class AnnotatedNameResolver<A extends Annotation> implements ColumnNameResolver {
 
     private final Class<A> _type;
     private final Function<A, String> _nameMapper;
+
+    public AnnotatedNameResolver(final Class<A> type, final Function<A, String> nameMapper) {
+        _type = type;
+        _nameMapper = nameMapper;
+    }
 
     public static <A extends Annotation, T>
     AnnotatedNameResolver<A> forValue(final Class<A> type, final Function<T, String> nameMapper) {
@@ -34,7 +40,9 @@ public final class AnnotatedNameResolver<A extends Annotation> implements Column
     }
 
     @SuppressWarnings("unchecked")
-    private static <A extends Annotation, T> T invoke(final Method method, final A annotation) throws Throwable {
+    private static <A extends Annotation, T> T invoke(
+            final Method method,
+            final A annotation) throws Throwable {
         if (Proxy.isProxyClass(annotation.getClass())) {
             final InvocationHandler handler = Proxy.getInvocationHandler(annotation);
             return (T) handler.invoke(annotation, method, new Object[0]);

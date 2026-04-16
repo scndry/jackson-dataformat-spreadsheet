@@ -1,0 +1,91 @@
+= Performance Guide
+:toc:
+:toc-placement!:
+
+toc::[]
+
+For benchmark results comparing jackson-spreadsheet with other Excel libraries, see link:BENCHMARK.adoc[Benchmark].
+
+== Streaming
+
+Jackson's `MappingIterator` processes rows one at a time -- constant memory regardless of file size.
+
+[source,java]
+----
+SpreadsheetReader reader = mapper.sheetReaderFor(Entry.class);
+
+// Row-by-row processing
+try (SheetMappingIterator<Entry> iterator = reader.readValues(input)) {
+    while (iterator.hasNext()) {
+        Entry value = iterator.next();
+        SheetLocation location = iterator.getCurrentLocation();
+        // ...
+    }
+}
+----
+
+TIP: `readValues(file, type)` loads all rows into a `List`. For large files, prefer `MappingIterator`.
+
+== Faster StAX Parsing
+
+This library parses XLSX internals (XML) via StAX (`javax.xml.stream`).
+Adding a third-party StAX implementation gives ~25% faster reads over the JDK built-in parser.
+No code changes needed -- auto-detected via Java SPI.
+
+https://github.com/FasterXML/aalto-xml[Aalto XML^] (~150 KB) is included by default -- no additional dependency needed.
+
+https://github.com/FasterXML/woodstox[Woodstox^] (~550 KB) performs equally well and can be used as an alternative if already on your classpath (e.g. via `jackson-dataformat-xml`).
+
+See link:BENCHMARK.adoc[Benchmark] for detailed comparison.
+
+== SharedStrings
+
+XLSX files store all string cell values in a shared string table (`xl/sharedStrings.xml`).
+POI's `SharedStringsTable` (UserModel API) loads the entire table into memory.
+This library uses its own `SharedStringLookup` interface with StAX-based lazy parsing -- strings are read on demand, not all at once.
+
+=== In-Memory (default)
+
+Structure of Array (SoA) layout: all character data in a single `char[]` buffer with separate `int[]` arrays for offsets and lengths.
+Eliminates per-String object overhead (~56 bytes each), significantly reducing GC pressure for large shared string tables.
+
+----
+POI SharedStringsTable (UserModel, per entry):
+  String object       16 bytes
+  char[] header       16 bytes
+  char[] data         variable
+  internal objects    ~100+ bytes
+  ≈ 130+ bytes per entry
+
+InMemorySharedStringLookup (per entry):
+  char[] data (shared)  variable
+  int offset            4 bytes
+  int length            4 bytes
+  ≈ 8 bytes + chars per entry
+----
+
+=== File-Backed (H2 MVStore)
+
+For extremely large shared string tables where even the SoA layout would consume too much heap,
+a disk-backed implementation stores strings in an H2 MVStore temporary file with a 4 MB heap cache.
+Heap usage stays constant regardless of table size.
+
+[source,java]
+----
+SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+        .enable(SheetParser.Feature.FILE_BACKED_SHARED_STRINGS)
+        .build();
+----
+
+Requires `com.h2database:h2` on the classpath:
+
+[source,xml]
+----
+<dependency>
+    <groupId>com.h2database</groupId>
+    <artifactId>h2</artifactId>
+    <version>2.2.224</version>
+</dependency>
+----
+
+The temporary file (`jackson-sst-*.mv`) is automatically deleted when the reader is closed.

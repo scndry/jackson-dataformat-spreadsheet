@@ -1,5 +1,10 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema.generator;
 
+import java.io.IOException;
+import java.util.stream.BaseStream;
+
+import lombok.extern.slf4j.Slf4j;
+
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.exc.InvalidDefinitionException;
@@ -8,16 +13,16 @@ import com.fasterxml.jackson.databind.ser.BeanPropertyWriter;
 import com.fasterxml.jackson.databind.ser.impl.UnsupportedTypeSerializer;
 import com.fasterxml.jackson.databind.util.BeanUtil;
 import com.fasterxml.jackson.databind.util.ClassUtil;
+
 import io.github.scndry.jackson.dataformat.spreadsheet.ExcelDateModule;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
-import lombok.extern.slf4j.Slf4j;
 
-import java.io.IOException;
-import java.util.stream.BaseStream;
-
+/**
+ * {@link JsonObjectFormatVisitor} that extracts column metadata from POJO bean properties during schema generation.
+ */
 @Slf4j
 final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
 
@@ -46,7 +51,11 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
         final ColumnPointer pointer = _wrapper.getPointer().resolve(prop.getName());
         final DataGrid.Value gridValue = _gridValue(prop);
         final DataColumn.Value columnValue = _columnValue(prop, gridValue);
-        final FormatVisitorWrapper visitor = new FormatVisitorWrapper(pointer, gridValue, columnValue, _provider);
+        final FormatVisitorWrapper visitor = new FormatVisitorWrapper(
+                pointer,
+                gridValue,
+                columnValue,
+                _provider);
         final JsonSerializer<Object> serializer = _findValueSerializer(prop);
         _checkTypeSupported(serializer);
         serializer.acceptJsonFormatVisitor(visitor, type);
@@ -58,7 +67,8 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
         }
     }
 
-    private JsonSerializer<Object> _findValueSerializer(final BeanProperty prop) throws JsonMappingException {
+    private JsonSerializer<Object> _findValueSerializer(
+            final BeanProperty prop) throws JsonMappingException {
         if (prop instanceof BeanPropertyWriter) {
             final BeanPropertyWriter writer = (BeanPropertyWriter) prop;
             if (writer.hasSerializer()) {
@@ -69,7 +79,9 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
     }
 
     private String _resolveColumnName(final BeanProperty prop) {
-        final ColumnNameResolver resolver = (ColumnNameResolver) _provider.getAttribute(ColumnNameResolver.class);
+        final ColumnNameResolver resolver =
+                (ColumnNameResolver) _provider.getAttribute(
+                        ColumnNameResolver.class);
         return resolver.resolve(prop);
     }
 
@@ -83,7 +95,9 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
         return DataColumn.Value.from(ann).withDefaults(grid);
     }
 
-    private void _checkTypeSupported(final JsonSerializer<Object> serializer) throws JsonMappingException {
+    private void _checkTypeSupported(
+            final JsonSerializer<Object> serializer)
+            throws JsonMappingException {
         if (serializer instanceof UnsupportedTypeSerializer) {
             try {
                 serializer.serialize(null, null, _provider);
@@ -95,12 +109,18 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
         }
     }
 
-    private void _reportBadDefinition(final InvalidDefinitionException e) throws InvalidDefinitionException {
+    private void _reportBadDefinition(
+            final InvalidDefinitionException e)
+            throws InvalidDefinitionException {
         if (!BeanUtil.isJava8TimeClass(e.getType().getRawClass())) throw e;
         if (log.isTraceEnabled()) log.trace(e.getMessage());
-        final String msg = "Java 8 date/time type " + ClassUtil.getTypeDescription(e.getType())
-                + " not supported by default: register Module `" + ExcelDateModule.class.getName()
-                + "` or add Module \"com.fasterxml.jackson.datatype:jackson-datatype-jsr310\" to enable handling";
+        final String msg = "Java 8 date/time type "
+                + ClassUtil.getTypeDescription(e.getType())
+                + " not supported by default: register Module `"
+                + ExcelDateModule.class.getName()
+                + "` or add Module "
+                + "\"com.fasterxml.jackson.datatype:jackson-datatype-jsr310\""
+                + " to enable handling";
         throw InvalidDefinitionException.from((JsonGenerator) e.getProcessor(), msg, e.getType());
     }
 }

@@ -1,8 +1,18 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.List;
+
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.util.CellAddress;
+
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.cfg.MapperBuilder;
+
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetInput;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetParser;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
@@ -10,15 +20,21 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.ColumnNameResolver;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetGenerator;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetOutput;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.util.CellAddress;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.List;
-
+/**
+ * {@link ObjectMapper} extension for reading and writing
+ * SpreadsheetML (XLSX) and legacy Excel (XLS) formats.
+ * <p>
+ * Basic usage:
+ * <pre>
+ * SpreadsheetMapper mapper = new SpreadsheetMapper();
+ * List&lt;MyPojo&gt; rows = mapper.readValues(file, MyPojo.class);
+ * mapper.writeValue(file, rows, MyPojo.class);
+ * </pre>
+ *
+ * @see SpreadsheetFactory
+ * @see SpreadsheetSchema
+ */
 @SuppressWarnings("java:S2177")
 public final class SpreadsheetMapper extends ObjectMapper {
 
@@ -31,6 +47,7 @@ public final class SpreadsheetMapper extends ObjectMapper {
     public SpreadsheetMapper(final SpreadsheetFactory f) {
         super(f);
         registerModule(new SpreadsheetModule());
+        registerModule(new ExcelDateModule());
         _schemaGenerator = new SchemaGenerator();
     }
 
@@ -74,10 +91,19 @@ public final class SpreadsheetMapper extends ObjectMapper {
     }
 
     @Override
-    protected SpreadsheetReader _newReader(final DeserializationConfig config, final JavaType valueType,
-                                           final Object valueToUpdate, final FormatSchema schema,
-                                           final InjectableValues injectableValues) {
-        return new SpreadsheetReader(this, config, valueType, valueToUpdate, schema, injectableValues);
+    protected SpreadsheetReader _newReader(
+            final DeserializationConfig config,
+            final JavaType valueType,
+            final Object valueToUpdate,
+            final FormatSchema schema,
+            final InjectableValues injectableValues) {
+        return new SpreadsheetReader(
+                this,
+                config,
+                valueType,
+                valueToUpdate,
+                schema,
+                injectableValues);
     }
 
     @Override
@@ -86,13 +112,17 @@ public final class SpreadsheetMapper extends ObjectMapper {
     }
 
     @Override
-    protected SpreadsheetWriter _newWriter(final SerializationConfig config, final FormatSchema schema) {
+    protected SpreadsheetWriter _newWriter(
+            final SerializationConfig config,
+            final FormatSchema schema) {
         return new SpreadsheetWriter(this, config, schema);
     }
 
     @Override
-    protected SpreadsheetWriter _newWriter(final SerializationConfig config, final JavaType rootType,
-                                           final PrettyPrinter pp) {
+    protected SpreadsheetWriter _newWriter(
+            final SerializationConfig config,
+            final JavaType rootType,
+            final PrettyPrinter pp) {
         return new SpreadsheetWriter(this, config, rootType, pp);
     }
 
@@ -119,12 +149,14 @@ public final class SpreadsheetMapper extends ObjectMapper {
     }
 
     @Override
-    public SpreadsheetMapper registerModules(final com.fasterxml.jackson.databind.Module... modules) {
+    public SpreadsheetMapper registerModules(
+            final com.fasterxml.jackson.databind.Module... modules) {
         return (SpreadsheetMapper) super.registerModules(modules);
     }
 
     @Override
-    public SpreadsheetMapper registerModules(final Iterable<? extends com.fasterxml.jackson.databind.Module> modules) {
+    public SpreadsheetMapper registerModules(
+            final Iterable<? extends com.fasterxml.jackson.databind.Module> modules) {
         return (SpreadsheetMapper) super.registerModules(modules);
     }
 
@@ -154,12 +186,16 @@ public final class SpreadsheetMapper extends ObjectMapper {
     }
 
     @Override
-    public SheetGenerator createGenerator(final OutputStream out, final JsonEncoding enc) throws IOException {
+    public SheetGenerator createGenerator(
+            final OutputStream out,
+            final JsonEncoding enc) throws IOException {
         return (SheetGenerator) super.createGenerator(out, enc);
     }
 
     @Override
-    public SheetGenerator createGenerator(final File outputFile, final JsonEncoding enc) throws IOException {
+    public SheetGenerator createGenerator(
+            final File outputFile,
+            final JsonEncoding enc) throws IOException {
         return (SheetGenerator) super.createGenerator(outputFile, enc);
     }
 
@@ -171,12 +207,14 @@ public final class SpreadsheetMapper extends ObjectMapper {
 
     public SheetParser createParser(final Sheet src) {
         _assertNotNull("src", src);
-        return (SheetParser) _deserializationConfig.initialize(tokenStreamFactory().createParser(src));
+        return (SheetParser) _deserializationConfig.initialize(
+                tokenStreamFactory().createParser(src));
     }
 
     public SheetParser createParser(final SheetInput<?> src) throws IOException {
         _assertNotNull("src", src);
-        return (SheetParser) _deserializationConfig.initialize(tokenStreamFactory().createParser(src));
+        return (SheetParser) _deserializationConfig.initialize(
+                tokenStreamFactory().createParser(src));
     }
 
     @Override
@@ -296,7 +334,9 @@ public final class SpreadsheetMapper extends ObjectMapper {
         }
     }
 
-    public <T> List<T> readValues(final SheetInput<?> src, final Class<T> valueType) throws IOException {
+    public <T> List<T> readValues(
+            final SheetInput<?> src,
+            final Class<T> valueType) throws IOException {
         try (MappingIterator<T> iterator = sheetReaderFor(valueType).readValues(src)) {
             return iterator.readAll();
         }
@@ -308,7 +348,9 @@ public final class SpreadsheetMapper extends ObjectMapper {
         }
     }
 
-    public <T> List<T> readValues(final InputStream src, final Class<T> valueType) throws IOException {
+    public <T> List<T> readValues(
+            final InputStream src,
+            final Class<T> valueType) throws IOException {
         try (MappingIterator<T> iterator = sheetReaderFor(valueType).readValues(src)) {
             return iterator.readAll();
         }
@@ -343,19 +385,31 @@ public final class SpreadsheetMapper extends ObjectMapper {
         writeValue(out, value, value.getClass());
     }
 
-    public void writeValue(final Sheet out, final Object value, final Class<?> valueType) throws IOException {
+    public void writeValue(
+            final Sheet out,
+            final Object value,
+            final Class<?> valueType) throws IOException {
         sheetWriterFor(valueType).writeValue(out, value);
     }
 
-    public void writeValue(final SheetOutput<?> out, final Object value, final Class<?> valueType) throws IOException {
+    public void writeValue(
+            final SheetOutput<?> out,
+            final Object value,
+            final Class<?> valueType) throws IOException {
         sheetWriterFor(valueType).writeValue(out, value);
     }
 
-    public void writeValue(final File out, final Object value, final Class<?> valueType) throws IOException {
+    public void writeValue(
+            final File out,
+            final Object value,
+            final Class<?> valueType) throws IOException {
         sheetWriterFor(valueType).writeValue(out, value);
     }
 
-    public void writeValue(final OutputStream out, final Object value, final Class<?> valueType) throws IOException {
+    public void writeValue(
+            final OutputStream out,
+            final Object value,
+            final Class<?> valueType) throws IOException {
         sheetWriterFor(valueType).writeValue(out, value);
     }
 
@@ -364,7 +418,9 @@ public final class SpreadsheetMapper extends ObjectMapper {
         return writeValueAsBytes(value, value.getClass());
     }
 
-    public byte[] writeValueAsBytes(final Object value, final Class<?> valueType) throws JsonProcessingException {
+    public byte[] writeValueAsBytes(
+            final Object value,
+            final Class<?> valueType) throws JsonProcessingException {
         return sheetWriterFor(valueType).writeValueAsBytes(value);
     }
 
@@ -419,7 +475,10 @@ public final class SpreadsheetMapper extends ObjectMapper {
      */
 
     public SpreadsheetSchema sheetSchemaFor(final Class<?> type) throws JsonMappingException {
-        return _schemaGenerator.generate(constructType(type), _serializerProvider(_serializationConfig), _serializerFactory);
+        return _schemaGenerator.generate(
+                constructType(type),
+                _serializerProvider(_serializationConfig),
+                _serializerFactory);
     }
 
     /*
@@ -432,7 +491,9 @@ public final class SpreadsheetMapper extends ObjectMapper {
         // Type can NOT be a Collection or array type
         final JavaType type = constructType(value.getClass());
         if (type.isArrayType() || type.isCollectionLikeType()) {
-            throw new IllegalArgumentException("`valueType` MUST be specified to write a value of a Collection or array type");
+            throw new IllegalArgumentException(
+                    "`valueType` MUST be specified to write a value"
+                    + " of a Collection or array type");
         }
     }
 
@@ -482,6 +543,11 @@ public final class SpreadsheetMapper extends ObjectMapper {
 
         public Builder columnNameResolver(final ColumnNameResolver resolver) {
             _mapper.setColumnNameResolver(resolver);
+            return _this();
+        }
+
+        public Builder useHeader(final boolean state) {
+            _mapper.setSchemaGenerator(_mapper.getSchemaGenerator().withUseHeader(state));
             return _this();
         }
     }

@@ -1,20 +1,5 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.deser;
 
-import com.fasterxml.jackson.core.*;
-import com.fasterxml.jackson.core.base.ParserMinimalBase;
-import com.fasterxml.jackson.core.exc.StreamReadException;
-import com.fasterxml.jackson.core.io.ContentReference;
-import com.fasterxml.jackson.core.io.IOContext;
-import io.github.scndry.jackson.dataformat.spreadsheet.PackageVersion;
-import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamContext;
-import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamReadException;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.CellType;
-import org.apache.poi.ss.util.CellAddress;
-
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -24,6 +9,33 @@ import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.util.CellAddress;
+
+import com.fasterxml.jackson.core.*;
+import com.fasterxml.jackson.core.base.ParserMinimalBase;
+import com.fasterxml.jackson.core.exc.StreamReadException;
+import com.fasterxml.jackson.core.io.ContentReference;
+import com.fasterxml.jackson.core.io.IOContext;
+
+import io.github.scndry.jackson.dataformat.spreadsheet.PackageVersion;
+import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamContext;
+import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamReadException;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+
+/**
+ * {@link com.fasterxml.jackson.core.JsonParser} implementation
+ * that reads spreadsheet cells as a stream of Jackson tokens.
+ * Requires a {@link SpreadsheetSchema} to map cell positions
+ * to JSON structure.
+ *
+ * @see SheetReader
+ * @see SpreadsheetSchema
+ * @see Feature
+ */
 @Slf4j
 public final class SheetParser extends ParserMinimalBase {
 
@@ -38,7 +50,12 @@ public final class SheetParser extends ParserMinimalBase {
     private CellAddress _reference;
     private CellValue _value;
 
-    public SheetParser(final IOContext ctxt, final int features, final ObjectCodec codec, final int formatFeatures, final SheetReader reader) {
+    public SheetParser(
+            final IOContext ctxt,
+            final int features,
+            final ObjectCodec codec,
+            final int formatFeatures,
+            final SheetReader reader) {
         super(features);
         _ioContext = ctxt;
         _objectCodec = codec;
@@ -154,7 +171,8 @@ public final class SheetParser extends ParserMinimalBase {
                 _reference = _reader.getReference();
                 _value = _reader.getCellValue();
                 final Column column = _schema.getColumn(_reference);
-                final ColumnPointer pointer = _parsingContext.relativePointer(column.getPointer().getParent());
+                final ColumnPointer pointer = _parsingContext
+                        .relativePointer(column.getPointer().getParent());
                 for (final ColumnPointer p : pointer) {
                     if (p.isParent()) {
                         _nextTokens.add(JsonToken.END_OBJECT);
@@ -178,6 +196,7 @@ public final class SheetParser extends ParserMinimalBase {
         }
     }
 
+    // Reads next SheetToken, skipping rows/columns outside schema bounds.
     private SheetToken _readNext() {
         if (!_reader.hasNext()) {
             return null;
@@ -186,6 +205,7 @@ public final class SheetParser extends ParserMinimalBase {
         if (token == SheetToken.ROW_START) {
             while (!_schema.isInRowBounds(_reader.getRow())) {
                 token = _reader.next();
+                if (token == SheetToken.SHEET_DATA_END) break;
             }
         }
         if (token == SheetToken.CELL_VALUE) {
@@ -201,7 +221,8 @@ public final class SheetParser extends ParserMinimalBase {
         final CellType type = _value.getCellType();
         switch (type) {
             case NUMERIC:
-                return _value.noFractionalPart() ? JsonToken.VALUE_NUMBER_INT : JsonToken.VALUE_NUMBER_FLOAT;
+                return _value.noFractionalPart()
+                        ? JsonToken.VALUE_NUMBER_INT : JsonToken.VALUE_NUMBER_FLOAT;
             case STRING:
                 return JsonToken.VALUE_STRING;
             case BLANK:
@@ -367,13 +388,34 @@ public final class SheetParser extends ParserMinimalBase {
 
     private void _checkSchemaSet() throws IOException {
         if (_schema == null) {
-            throw new SheetStreamReadException(this, "No schema of type '" + SpreadsheetSchema.SCHEMA_TYPE + "' set, can not parse");
+            throw new SheetStreamReadException(
+                    this,
+                    "No schema of type '" + SpreadsheetSchema.SCHEMA_TYPE + "' set, can not parse");
         }
     }
 
+    /**
+     * Configurable features specific to spreadsheet parsing.
+     * <ul>
+     * <li>{@link #BLANK_ROW_AS_NULL} -- yields a null value
+     *     for blank rows (enabled by default).</li>
+     * <li>{@link #BREAK_ON_BLANK_ROW} -- stops iteration
+     *     when a blank row is encountered.</li>
+     * <li>{@link #FILE_BACKED_SHARED_STRINGS} -- stores the
+     *     OOXML shared-string table on disk to reduce heap
+     *     usage for large files.</li>
+     * </ul>
+     */
     public enum Feature implements FormatFeature {
+        /** Yield {@code null} for blank rows (default: on). */
         BLANK_ROW_AS_NULL(true),
+        /** Stop iteration on the first blank row. */
         BREAK_ON_BLANK_ROW(false),
+        /**
+         * Use a file-backed shared-string table to reduce
+         * heap usage when reading large OOXML files.
+         */
+        FILE_BACKED_SHARED_STRINGS(false),
         ;
         final boolean _defaultState;
         final int _mask;

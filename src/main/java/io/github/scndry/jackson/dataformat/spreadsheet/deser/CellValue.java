@@ -3,6 +3,14 @@ package io.github.scndry.jackson.dataformat.spreadsheet.deser;
 import org.apache.poi.ss.formula.eval.ErrorEval;
 import org.apache.poi.ss.usermodel.CellType;
 
+/**
+ * Immutable wrapper for a typed spreadsheet cell value. Holds a
+ * {@link CellType} together with its numeric, boolean, or string
+ * representation.
+ *
+ * @see SheetReader
+ * @see SheetParser
+ */
 public final class CellValue {
 
     public static final CellValue BLANK = new CellValue(CellType.BLANK, 0.0, false, null, 0);
@@ -15,7 +23,12 @@ public final class CellValue {
     private final String _textValue;
     private final int _errorCode;
 
-    private CellValue(final CellType cellType, final double numberValue, final boolean booleanValue, final String textValue, final int errorCode) {
+    private CellValue(
+            final CellType cellType,
+            final double numberValue,
+            final boolean booleanValue,
+            final String textValue,
+            final int errorCode) {
         _cellType = cellType;
         _numberValue = numberValue;
         _booleanValue = booleanValue;

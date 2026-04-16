@@ -1,11 +1,10 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.poi.ss;
 
-import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
-import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.List;
+import java.util.function.BiConsumer;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.Cell;
@@ -19,11 +18,17 @@ import org.apache.poi.ss.util.SheetUtil;
 import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.List;
-import java.util.function.BiConsumer;
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
+import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
 
+/**
+ * {@link SheetWriter} implementation backed by POI's {@link Cell} API. Handles cell value writing,
+ * style application, column width adjustment, and merge regions.
+ */
 @Slf4j
 public final class POISheetWriter implements SheetWriter {
 
@@ -94,7 +99,8 @@ public final class POISheetWriter implements SheetWriter {
         consumer.accept(cell, value);
         final Column column = _schema.findColumn(_reference);
         if (column != null) {
-            cell.setCellStyle(_schema.getDataRow() > row ? _styles.getHeaderStyle(column) : _styles.getStyle(column));
+            cell.setCellStyle(_schema.getDataRow() > row
+                    ? _styles.getHeaderStyle(column) : _styles.getStyle(column));
         }
         _lastRow = Math.max(_lastRow, row);
         if (log.isTraceEnabled()) {
@@ -108,7 +114,8 @@ public final class POISheetWriter implements SheetWriter {
         final List<Column> columns = _schema.getColumns(filter);
         for (final Column column : columns) {
             int col = _schema.columnIndexOf(column);
-            if (!filter.relativize(column.getPointer()).contains(ColumnPointer.array())) {
+            if (column.isMerge() &&
+                    !filter.relativize(column.getPointer()).contains(ColumnPointer.array())) {
                 final CellRangeAddress region = new CellRangeAddress(row, row + size - 1, col, col);
                 if (log.isTraceEnabled()) {
                     log.trace(region.formatAsString());

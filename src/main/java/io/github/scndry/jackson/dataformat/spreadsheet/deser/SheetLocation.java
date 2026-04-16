@@ -1,10 +1,20 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.deser;
 
-import com.fasterxml.jackson.core.JsonLocation;
-import com.fasterxml.jackson.core.io.ContentReference;
 import lombok.EqualsAndHashCode;
 import org.apache.poi.ss.util.CellReference;
 
+import com.fasterxml.jackson.core.JsonLocation;
+import com.fasterxml.jackson.core.io.ContentReference;
+
+/**
+ * {@link JsonLocation} subclass that reports position as a
+ * spreadsheet row and column (zero-based) instead of byte/char
+ * offsets. The cell address (e.g. "B3") is included in the
+ * offset description.
+ *
+ * @see SheetParser
+ * @see SheetMappingIterator
+ */
 @EqualsAndHashCode(callSuper = true)
 public final class SheetLocation extends JsonLocation {
 

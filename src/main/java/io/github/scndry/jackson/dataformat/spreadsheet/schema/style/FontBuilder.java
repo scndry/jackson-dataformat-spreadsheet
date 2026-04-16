@@ -1,6 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema.style;
 
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.ColorConfigurer.FontColor;
+import java.util.function.Function;
+
 import org.apache.poi.common.usermodel.fonts.FontCharset;
 import org.apache.poi.hssf.usermodel.HSSFFont;
 import org.apache.poi.ss.usermodel.Font;
@@ -10,8 +11,11 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.DefaultIndexedColorMap;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 
-import java.util.function.Function;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.ColorConfigurer.FontColor;
 
+/**
+ * Fluent builder for constructing POI {@link Font} objects with configurable properties such as name, size, style, and color.
+ */
 public final class FontBuilder extends NestedBuilder<CellStyleBuilder> implements Builder<Font> {
 
     private final FontColor _color = new FontColor(XSSFFont::setColor, HSSFFont::setColor);
@@ -64,8 +68,8 @@ public final class FontBuilder extends NestedBuilder<CellStyleBuilder> implement
     public FontBuilder bold() { return bold(true); }
     public FontBuilder bold(boolean bold) { _bold = bold; return this; }
     FontBuilder color(byte[] color) { _color.rgb = color; return this; }
-    FontBuilder underline(FontUnderline underline) { _underline = underline; return this; }
-    FontBuilder charSet(FontCharset charSet) { _charSet = charSet; return this; }
+    public FontBuilder underline(FontUnderline underline) { _underline = underline; return this; }
+    public FontBuilder charSet(FontCharset charSet) { _charSet = charSet; return this; }
     public FontBuilder color(int rgb) { return color((rgb & 0xFF0000) >> 16, (rgb & 0xFF00) >> 8, rgb & 0xFF); }
     public FontBuilder color(int r, int g, int b) { return color(new byte[]{(byte) r, (byte) g, (byte) b}); }
     public FontBuilder color(IndexedColors color) { return color(DefaultIndexedColorMap.getDefaultRGB(color.getIndex())); }

@@ -1,5 +1,9 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
+import java.io.IOException;
+
+import org.apache.poi.ss.usermodel.Sheet;
+
 import com.fasterxml.jackson.core.FormatSchema;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.PrettyPrinter;
@@ -8,12 +12,18 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SequenceWriter;
 import com.fasterxml.jackson.databind.SerializationConfig;
+
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetGenerator;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetOutput;
-import org.apache.poi.ss.usermodel.Sheet;
 
-import java.io.IOException;
-
+/**
+ * {@link ObjectWriter} extension that adds spreadsheet-specific
+ * write methods accepting {@link Sheet} and {@link SheetOutput}
+ * targets.
+ *
+ * @see SpreadsheetMapper
+ * @see SheetGenerator
+ */
 public final class SpreadsheetWriter extends ObjectWriter {
 
     SpreadsheetWriter(final SpreadsheetMapper mapper, final SerializationConfig config,
@@ -25,7 +35,10 @@ public final class SpreadsheetWriter extends ObjectWriter {
         super(mapper, config);
     }
 
-    SpreadsheetWriter(final SpreadsheetMapper mapper, final SerializationConfig config, final FormatSchema s) {
+    SpreadsheetWriter(
+            final SpreadsheetMapper mapper,
+            final SerializationConfig config,
+            final FormatSchema s) {
         super(mapper, config, s);
     }
 

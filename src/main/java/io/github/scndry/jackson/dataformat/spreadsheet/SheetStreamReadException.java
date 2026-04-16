@@ -3,8 +3,15 @@ package io.github.scndry.jackson.dataformat.spreadsheet;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.exc.StreamReadException;
 import com.fasterxml.jackson.core.util.RequestPayload;
+
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetParser;
 
+/**
+ * {@link StreamReadException} subclass thrown when an error
+ * occurs during spreadsheet parsing.
+ *
+ * @see SheetParser
+ */
 @SuppressWarnings("java:S110")
 public final class SheetStreamReadException extends StreamReadException {
 

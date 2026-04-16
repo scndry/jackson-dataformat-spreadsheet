@@ -1,18 +1,25 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.poi.ss;
 
-import io.github.scndry.jackson.dataformat.spreadsheet.deser.CellValue;
-import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetReader;
-import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetToken;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.format.CellFormat;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellAddress;
 
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
+import io.github.scndry.jackson.dataformat.spreadsheet.deser.CellValue;
+import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetReader;
+import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetToken;
 
+/**
+ * {@link SheetReader} implementation backed by POI's {@link Sheet}/{@link Row}/{@link Cell} object model.
+ * Used for XLS files and direct {@link Sheet} input.
+ *
+ * @see io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.SSMLSheetReader
+ */
 @Slf4j
 public final class POISheetReader implements SheetReader {
 
@@ -22,6 +29,7 @@ public final class POISheetReader implements SheetReader {
     private Iterator<Cell> _cellIterator;
     private SheetToken _next;
     private Cell _cell;
+    private Cell _nextCell;
     private int _rowIndex = -1;
     private int _columnIndex = -1;
     private boolean _closed;
@@ -108,12 +116,12 @@ public final class POISheetReader implements SheetReader {
                 final Row row = _rowIterator.next();
                 _rowIndex = row.getRowNum();
                 _cellIterator = row.cellIterator();
-                _next = _cellIterator.hasNext() ? SheetToken.CELL_VALUE : SheetToken.ROW_END;
+                _next = _advanceToNonBlank() ? SheetToken.CELL_VALUE : SheetToken.ROW_END;
                 break;
             case CELL_VALUE:
-                _cell = _cellIterator.next();
+                _cell = _nextCell;
                 _columnIndex = _cell.getColumnIndex();
-                _next = _cellIterator.hasNext() ? SheetToken.CELL_VALUE : SheetToken.ROW_END;
+                _next = _advanceToNonBlank() ? SheetToken.CELL_VALUE : SheetToken.ROW_END;
                 break;
             case ROW_END:
                 _cell = null;
@@ -134,9 +142,24 @@ public final class POISheetReader implements SheetReader {
         return token;
     }
 
+    private boolean _advanceToNonBlank() {
+        while (_cellIterator.hasNext()) {
+            final Cell next = _cellIterator.next();
+            if (CellFormat.ultimateType(next) != CellType.BLANK) {
+                _nextCell = next;
+                return true;
+            }
+        }
+        _nextCell = null;
+        return false;
+    }
+
     private String _formattedString(final double value, final CellStyle style) {
         if (style != null && style.getDataFormatString() != null) {
-            return _formatter.formatRawCellContents(value, style.getDataFormat(), style.getDataFormatString());
+            return _formatter.formatRawCellContents(
+                    value,
+                    style.getDataFormat(),
+                    style.getDataFormatString());
         }
         return null;
     }

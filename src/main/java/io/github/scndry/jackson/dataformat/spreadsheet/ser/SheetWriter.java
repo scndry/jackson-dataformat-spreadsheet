@@ -1,13 +1,22 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.ser;
 
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
-import org.apache.poi.ss.SpreadsheetVersion;
-import org.apache.poi.ss.util.CellAddress;
-
 import java.io.IOException;
 import java.io.OutputStream;
 
+import org.apache.poi.ss.SpreadsheetVersion;
+import org.apache.poi.ss.util.CellAddress;
+
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+
+/**
+ * Low-level interface for writing values into spreadsheet cells.
+ * Implementations handle cell creation, styling, column merging,
+ * and final workbook output.
+ *
+ * @see SheetGenerator
+ * @see SpreadsheetSchema
+ */
 public interface SheetWriter extends AutoCloseable {
 
     SpreadsheetVersion getSpreadsheetVersion();

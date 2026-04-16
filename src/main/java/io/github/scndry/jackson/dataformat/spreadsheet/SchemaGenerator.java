@@ -1,5 +1,11 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.util.CellAddress;
+
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -8,6 +14,7 @@ import com.fasterxml.jackson.databind.exc.InvalidDefinitionException;
 import com.fasterxml.jackson.databind.ser.DefaultSerializerProvider;
 import com.fasterxml.jackson.databind.ser.SerializerFactory;
 import com.fasterxml.jackson.databind.util.ClassUtil;
+
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
@@ -15,20 +22,27 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.ColumnNameResolver;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.FormatVisitorWrapper;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.util.CellAddress;
 
-import java.util.ArrayList;
-import java.util.List;
-
+/**
+ * Generates a {@link SpreadsheetSchema} from a
+ * {@link DataGrid}-annotated type by introspecting its
+ * serialization structure. Configurable via fluent builder
+ * methods for origin, styles, column naming, and header usage.
+ *
+ * @see SpreadsheetSchema
+ * @see DataGrid
+ */
 @Slf4j
 public final class SchemaGenerator {
 
     private final GeneratorSettings _generatorSettings;
 
     public SchemaGenerator() {
-        _generatorSettings = new GeneratorSettings(CellAddress.A1, new StylesBuilder(), ColumnNameResolver.NULL);
+        _generatorSettings = new GeneratorSettings(
+                CellAddress.A1,
+                new StylesBuilder(),
+                ColumnNameResolver.NULL,
+                true);
     }
 
     private SchemaGenerator(final GeneratorSettings generatorSettings) {
@@ -47,7 +61,14 @@ public final class SchemaGenerator {
         return new SchemaGenerator(_generatorSettings.with(resolver));
     }
 
-    SpreadsheetSchema generate(final JavaType type, final DefaultSerializerProvider provider, final SerializerFactory factory)
+    public SchemaGenerator withUseHeader(final boolean useHeader) {
+        return new SchemaGenerator(_generatorSettings.with(useHeader));
+    }
+
+    SpreadsheetSchema generate(
+            final JavaType type,
+            final DefaultSerializerProvider provider,
+            final SerializerFactory factory)
             throws JsonMappingException {
         _verifyType(type, provider);
         final FormatVisitorWrapper visitor = new FormatVisitorWrapper();
@@ -66,49 +87,89 @@ public final class SchemaGenerator {
                 log.trace(column.toString());
             }
         }
-        return new SpreadsheetSchema(columns, _generatorSettings._stylesBuilder, _generatorSettings._origin);
+        return new SpreadsheetSchema(
+                columns,
+                _generatorSettings._stylesBuilder,
+                _generatorSettings._origin,
+                _generatorSettings._useHeader);
     }
 
-    private void _verifyType(final JavaType type, final DefaultSerializerProvider provider) throws JsonMappingException {
+    private void _verifyType(
+            final JavaType type,
+            final DefaultSerializerProvider provider) throws JsonMappingException {
         if (type.isArrayType() || type.isCollectionLikeType()) {
             throw _invalidSchemaDefinition(type, "can NOT be a Collection or array type");
         }
         if (!provider.getConfig().introspect(type).getClassAnnotations().has(DataGrid.class)) {
-            throw _invalidSchemaDefinition(type, "MUST be annotated with `@" + DataGrid.class.getSimpleName() + '`');
+            throw _invalidSchemaDefinition(
+                    type,
+                    "MUST be annotated with `@" + DataGrid.class.getSimpleName() + '`');
         }
     }
 
-    private JsonMappingException _invalidSchemaDefinition(final JavaType type, final String message) {
+    private JsonMappingException _invalidSchemaDefinition(
+            final JavaType type,
+            final String message) {
         return _invalidSchemaDefinition(type, "Root type of a schema " + message, null);
     }
 
-    private JsonMappingException _invalidSchemaDefinition(final JavaType type, final Throwable cause) {
+    private JsonMappingException _invalidSchemaDefinition(
+            final JavaType type,
+            final Throwable cause) {
         return _invalidSchemaDefinition(type, cause.getMessage(), cause);
     }
 
-    private JsonMappingException _invalidSchemaDefinition(final JavaType type, final String problem, final Throwable cause) {
-        final String msg = String.format("Failed to generate schema of type '%s' for %s, problem: %s", SpreadsheetSchema.SCHEMA_TYPE,
+    private JsonMappingException _invalidSchemaDefinition(
+            final JavaType type,
+            final String problem,
+            final Throwable cause) {
+        final String msg = String.format(
+                "Failed to generate schema of type '%s' for %s, problem: %s",
+                SpreadsheetSchema.SCHEMA_TYPE,
                 ClassUtil.getTypeDescription(type), problem);
         return InvalidDefinitionException.from((JsonGenerator) null, msg, type).withCause(cause);
     }
 
-    @RequiredArgsConstructor
     static final class GeneratorSettings {
 
         private final CellAddress _origin;
         private final Styles.Builder _stylesBuilder;
         private final ColumnNameResolver _columnNameResolver;
+        private final boolean _useHeader;
+
+        GeneratorSettings(final CellAddress origin, final Styles.Builder stylesBuilder,
+                          final ColumnNameResolver columnNameResolver, final boolean useHeader) {
+            _origin = origin;
+            _stylesBuilder = stylesBuilder;
+            _columnNameResolver = columnNameResolver;
+            _useHeader = useHeader;
+        }
 
         private GeneratorSettings with(final CellAddress origin) {
-            return _origin.equals(origin) ? this : new GeneratorSettings(origin, _stylesBuilder, _columnNameResolver);
+            return _origin.equals(origin)
+                    ? this
+                    : new GeneratorSettings(origin, _stylesBuilder,
+                            _columnNameResolver, _useHeader);
         }
 
         private GeneratorSettings with(final Styles.Builder styles) {
-            return _stylesBuilder.equals(styles) ? this : new GeneratorSettings(_origin, styles, _columnNameResolver);
+            return _stylesBuilder.equals(styles)
+                    ? this
+                    : new GeneratorSettings(_origin, styles,
+                            _columnNameResolver, _useHeader);
         }
 
         private GeneratorSettings with(final ColumnNameResolver resolver) {
-            return _columnNameResolver.equals(resolver) ? this : new GeneratorSettings(_origin, _stylesBuilder, resolver);
+            return _columnNameResolver.equals(resolver)
+                    ? this : new GeneratorSettings(_origin, _stylesBuilder, resolver, _useHeader);
+        }
+
+        private GeneratorSettings with(final boolean useHeader) {
+            return _useHeader == useHeader ? this : new GeneratorSettings(
+                    _origin,
+                    _stylesBuilder,
+                    _columnNameResolver,
+                    useHeader);
         }
     }
 }

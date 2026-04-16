@@ -1,37 +1,63 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+
+import org.apache.poi.ss.usermodel.Sheet;
+
 import com.fasterxml.jackson.core.FormatSchema;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.deser.DataFormatReaders;
+
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetInput;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetParser;
-import org.apache.poi.ss.usermodel.Sheet;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-
+/**
+ * {@link ObjectReader} extension that adds spreadsheet-specific
+ * read methods accepting {@link Sheet} and {@link SheetInput}
+ * sources, and returns {@link SheetMappingIterator} for row-level
+ * iteration.
+ *
+ * @see SpreadsheetMapper
+ * @see SheetMappingIterator
+ */
 public final class SpreadsheetReader extends ObjectReader {
 
     SpreadsheetReader(final SpreadsheetMapper mapper, final DeserializationConfig config) {
         super(mapper, config);
     }
 
-    SpreadsheetReader(final SpreadsheetMapper mapper, final DeserializationConfig config, final JavaType valueType,
-                      final Object valueToUpdate, final FormatSchema schema,
-                      final InjectableValues injectableValues) {
+    SpreadsheetReader(final SpreadsheetMapper mapper,
+            final DeserializationConfig config,
+            final JavaType valueType,
+            final Object valueToUpdate,
+            final FormatSchema schema,
+            final InjectableValues injectableValues) {
         super(mapper, config, valueType, valueToUpdate, schema, injectableValues);
     }
 
     @SuppressWarnings("java:S107")
-    private SpreadsheetReader(final SpreadsheetReader base, final DeserializationConfig config, final JavaType valueType,
-                              final JsonDeserializer<Object> rootDeser, final Object valueToUpdate,
-                              final FormatSchema schema, final InjectableValues injectableValues,
-                              final DataFormatReaders dataFormatReaders) {
-        super(base, config, valueType, rootDeser, valueToUpdate, schema, injectableValues, dataFormatReaders);
+    private SpreadsheetReader(final SpreadsheetReader base,
+            final DeserializationConfig config,
+            final JavaType valueType,
+            final JsonDeserializer<Object> rootDeser,
+            final Object valueToUpdate,
+            final FormatSchema schema,
+            final InjectableValues injectableValues,
+            final DataFormatReaders dataFormatReaders) {
+        super(
+                base,
+                config,
+                valueType,
+                rootDeser,
+                valueToUpdate,
+                schema,
+                injectableValues,
+                dataFormatReaders);
     }
 
     private SpreadsheetReader(final SpreadsheetReader base, final DeserializationConfig config) {
@@ -64,18 +90,32 @@ public final class SpreadsheetReader extends ObjectReader {
     }
 
     @Override
-    protected SpreadsheetReader _new(final ObjectReader base, final DeserializationConfig config, final JavaType valueType,
-                                     final JsonDeserializer<Object> rootDeser, final Object valueToUpdate,
-                                     final FormatSchema schema, final InjectableValues injectableValues,
-                                     final DataFormatReaders dataFormatReaders) {
+    protected SpreadsheetReader _new(
+            final ObjectReader base,
+            final DeserializationConfig config,
+            final JavaType valueType,
+            final JsonDeserializer<Object> rootDeser,
+            final Object valueToUpdate,
+            final FormatSchema schema,
+            final InjectableValues injectableValues,
+            final DataFormatReaders dataFormatReaders) {
         return new SpreadsheetReader((SpreadsheetReader) base, config, valueType,
                 rootDeser, valueToUpdate, schema, injectableValues, dataFormatReaders);
     }
 
     @Override
-    protected <T> SheetMappingIterator<T> _newIterator(final JsonParser p, final DeserializationContext ctxt,
-                                                       final JsonDeserializer<?> deser, final boolean parserManaged) {
-        return new SheetMappingIterator<>(_valueType, p, ctxt, deser, parserManaged, _valueToUpdate);
+    protected <T> SheetMappingIterator<T> _newIterator(
+            final JsonParser p,
+            final DeserializationContext ctxt,
+            final JsonDeserializer<?> deser,
+            final boolean parserManaged) {
+        return new SheetMappingIterator<>(
+                _valueType,
+                p,
+                ctxt,
+                deser,
+                parserManaged,
+                _valueToUpdate);
     }
 
     /*
@@ -143,12 +183,14 @@ public final class SpreadsheetReader extends ObjectReader {
 
     @SuppressWarnings({"unchecked", "RedundantSuppression"})
     public <T> SheetMappingIterator<T> readValues(final Sheet src) throws IOException {
-        return (SheetMappingIterator<T>) _bindAndReadValues(_considerFilter(createParser(src), true));
+        return (SheetMappingIterator<T>) _bindAndReadValues(
+                _considerFilter(createParser(src), true));
     }
 
     @SuppressWarnings({"unchecked", "RedundantSuppression"})
     public <T> SheetMappingIterator<T> readValues(final SheetInput<?> src) throws IOException {
-        return (SheetMappingIterator<T>) _bindAndReadValues(_considerFilter(createParser(src), true));
+        return (SheetMappingIterator<T>) _bindAndReadValues(
+                _considerFilter(createParser(src), true));
     }
 
     @Override

@@ -1,5 +1,8 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema.style;
 
+/**
+ * Base class for nested builders that supports fluent chaining back to a parent builder via {@link #end()}.
+ */
 abstract class NestedBuilder<B extends Builder<?>> {
 
     private B _builder;

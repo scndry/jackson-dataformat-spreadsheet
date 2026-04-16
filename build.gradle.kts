@@ -1,15 +1,17 @@
 plugins {
     id("java-library")
     id("maven-publish")
+    id("jacoco")
+    id("me.champeau.jmh") version "0.6.8"
 }
 
 group = "io.github.scndry"
-version = "0.0.1-SNAPSHOT"
+version = "1.0.0"
 description = "Support for reading and writing Spreadsheet via Jackson abstractions."
 
 val title = "Jackson dataformat: Spreadsheet"
-val jacksonVersion = "2.14.2"
-val poiVersion = "5.2.3"
+val jacksonVersion = "2.21.2"
+val poiVersion = "5.5.1"
 val snapshots = version.toString().endsWith("SNAPSHOT")
 
 repositories {
@@ -19,28 +21,38 @@ repositories {
 dependencies {
     api("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     api("org.apache.poi:poi-ooxml:$poiVersion")
-    implementation("org.slf4j:slf4j-api:2.0.6")
+    implementation("com.fasterxml:aalto-xml:1.3.4")
+    implementation("org.slf4j:slf4j-api:2.0.17")
+    compileOnly("com.h2database:h2:2.2.224")
 }
 
 dependencies {
-    testImplementation("com.navercorp.fixturemonkey:fixture-monkey:0.5.2")
-    testImplementation("org.assertj:assertj-core:3.23.1")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.2")
-    testRuntimeOnly("ch.qos.logback:logback-classic:1.3.5")
-    testRuntimeOnly("org.apache.logging.log4j:log4j-to-slf4j:2.19.0")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.2")
+    testImplementation("org.assertj:assertj-core:3.27.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.11.4")
+    testRuntimeOnly("ch.qos.logback:logback-classic:1.3.15")
+    testRuntimeOnly("org.apache.logging.log4j:log4j-to-slf4j:2.24.3")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.11.4")
 }
 
 dependencies {
-    annotationProcessor("org.projectlombok:lombok:1.18.24")
-    compileOnly("org.projectlombok:lombok:1.18.24")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.24")
-    testCompileOnly("org.projectlombok:lombok:1.18.24")
+    annotationProcessor("org.projectlombok:lombok:1.18.36")
+    compileOnly("org.projectlombok:lombok:1.18.36")
+    testAnnotationProcessor("org.projectlombok:lombok:1.18.36")
+    testCompileOnly("org.projectlombok:lombok:1.18.36")
+}
+
+dependencies {
+    jmh("com.alibaba:easyexcel:4.0.3") { exclude(group = "org.apache.poi") }
+    jmh("org.dhatim:fastexcel:0.20.0")
+    jmh("org.dhatim:fastexcel-reader:0.20.0")
+    jmh("com.h2database:h2:2.2.224")
+    jmh("com.fasterxml.woodstox:woodstox-core:7.1.0")
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(8))
+    }
     withJavadocJar()
     withSourcesJar()
 }
@@ -61,7 +73,7 @@ publishing {
                 }
                 developers {
                     developer {
-                        name.set("Ryan S. Yang")
+                        name.set("Seongman Yang")
                         email.set("scndryan@gmail.com")
                         url.set("https://scndry.github.io")
                     }
@@ -76,12 +88,11 @@ publishing {
     }
     repositories {
         maven {
-            if ("repository" in properties) {
-                name = properties["repository"] as String
-                url = uri(properties[if (snapshots) "${name}Snapshots" else "${name}Releases"] as String)
-                credentials(PasswordCredentials::class)
-            } else {
-                url = uri(layout.buildDirectory.dir(if (snapshots) "publications/snapshots" else "publications/releases"))
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/scndry/jackson-dataformat-spreadsheet")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: findProperty("gpr.user") as String?
+                password = System.getenv("GITHUB_TOKEN") ?: findProperty("gpr.key") as String?
             }
         }
     }
@@ -89,6 +100,16 @@ publishing {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+jmh {
+    profilers.add("gc")
+}
+
+tasks.jacocoTestReport {
+    reports {
+        csv.required.set(true)
+    }
 }
 
 tasks.withType<Javadoc> {

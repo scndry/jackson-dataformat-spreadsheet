@@ -1,263 +1,250 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.xmlbeans.*;
-import org.apache.xmlbeans.impl.common.StaxHelper;
-
-import javax.xml.namespace.QName;
-import javax.xml.stream.XMLEventReader;
+import java.io.InputStream;
 import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
-import javax.xml.stream.events.*;
-import java.io.BufferedInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.util.Deque;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.regex.Pattern;
 
-import static org.apache.poi.schemas.ooxml.system.ooxml.TypeSystemHolder.typeSystem;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.CTCell;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.STCellFormulaType;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.STCellType;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.SpreadsheetML;
 
-@Slf4j
+/**
+ * Lightweight StAX reader for OOXML SpreadsheetML.
+ * Provides Matcher-based navigation, attribute access, and string content reading.
+ */
 final class XmlElementReader implements AutoCloseable {
 
-    private static final Pattern STRICT_NS_PATTERN = Pattern.compile("http://purl\\.oclc\\.org/ooxml/(\\w+)/(\\w+)");
-    private static final XmlOptions DEFAULT_XML_OPTIONS;
+    private static final XMLInputFactory XML_INPUT_FACTORY;
 
     static {
-        DEFAULT_XML_OPTIONS = new XmlOptions();
-        DEFAULT_XML_OPTIONS.setLoadDTDGrammar(false);
-        DEFAULT_XML_OPTIONS.setLoadExternalDTD(false);
+        XML_INPUT_FACTORY = XMLInputFactory.newInstance();
+        XML_INPUT_FACTORY.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+        XML_INPUT_FACTORY.setProperty(XMLInputFactory.SUPPORT_DTD, false);
     }
 
-    private final SchemaType _elementType;
-    private final XMLEventReader _reader;
-    private final Deque<XmlObject> _deque;
-    private SchemaType _context;
-    private XmlObject _lastObject;
+    private final XMLStreamReader _xml;
     private boolean _closed;
 
     XmlElementReader(final InputStream src) {
-        final XMLInputFactory factory = StaxHelper.newXMLInputFactory(DEFAULT_XML_OPTIONS);
-        _deque = new LinkedList<>();
         try {
-            final InputStream source = src.markSupported() ? src : new BufferedInputStream(src);
-            source.mark(Integer.MAX_VALUE);
-            _elementType = _findElementType(source, factory);
-            source.reset();
-            _reader = factory.createXMLEventReader(source);
-            _deque.addFirst(typeSystem.newInstance(_elementType, DEFAULT_XML_OPTIONS));
+            _xml = XML_INPUT_FACTORY.createXMLStreamReader(src);
         } catch (XMLStreamException e) {
-            throw new IllegalStateException(e);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            throw new IllegalStateException("Failed to initialize XML reader", e);
         }
     }
 
-    private static SchemaType _findElementType(final InputStream src, final XMLInputFactory factory) throws XMLStreamException {
-        final XMLStreamReader reader = factory.createXMLStreamReader(src);
-        while (!reader.isStartElement()) reader.next();
-        final QName name = _transitionalName(reader.getName());
-        typeSystem.findType(name);
-        SchemaType type = typeSystem.findDocumentType(name);
-        if (type == null) {
-            type = typeSystem.findType(name);
-        }
-        if (type == null) {
-            throw new IllegalArgumentException("Cannot find type for " + name);
-        }
-        return type;
-    }
+    // ---------------------------------------------------------------
+    // Navigation
+    // ---------------------------------------------------------------
 
-    private static QName _transitionalName(final QName name) {
-        final java.util.regex.Matcher matcher = STRICT_NS_PATTERN.matcher(name.getNamespaceURI());
-        if (matcher.matches()) {
-            final String namespaceURI = matcher.replaceAll("http://schemas.openxmlformats.org/$1/2006/$2");
-            return new QName(namespaceURI, name.getLocalPart(), name.getPrefix());
-        }
-        return name;
-    }
-
-    public SchemaType getElementType() {
-        return _elementType;
-    }
-
-    public void markContext() {
-        _context = _deque.getFirst().schemaType();
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T extends XmlObject> T current() {
-        return (T) _deque.getFirst().copy();
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T extends XmlObject> T last() {
-        return (T) _lastObject.copy();
-    }
-
-    public <T extends XmlObject> T collect() {
-        markContext();
-        nextUntil(_context.isDocumentType() ? Matcher.endDocumentOf(_context) : Matcher.endElementOf(_context));
-        return last();
-    }
-
-    public XMLEvent nextUntil(final Matcher... matchers) {
-        while (_reader.hasNext()) {
-            final XMLEvent event = next();
-            for (final Matcher matcher : matchers) {
-                final XmlObject object = event.isEndElement() || event.isEndDocument() ? last() : current();
-                if (matcher.matches(event, object)) {
-                    return event;
+    /** Navigate to the first occurrence of the named start element. */
+    void navigateTo(final String localName) {
+        try {
+            while (_xml.hasNext()) {
+                _xml.next();
+                if (_xml.isStartElement() && localName.equals(_xml.getLocalName())) {
+                    return;
                 }
             }
-        }
-        return null;
-    }
-
-    public XMLEvent next() {
-        try {
-            final XMLEvent event = _reader.nextEvent();
-            if (event.isStartDocument()) {
-                _handle((StartDocument) event);
-            } else if (event.isStartElement()) {
-                _handle(event.asStartElement());
-            } else if (event.isCharacters()) {
-                _handle(event.asCharacters());
-            } else if (event.isEndElement()) {
-                _handle(event.asEndElement());
-            } else if (event.isEndDocument()) {
-                _handle((EndDocument) event);
-            }
-            return event;
         } catch (XMLStreamException e) {
-            throw new IllegalStateException(e);
+            throw new IllegalStateException("Failed to navigate to <" + localName + ">", e);
+        }
+        throw new IllegalStateException("Element <" + localName + "> not found");
+    }
+
+    /** Advance until one of the matchers matches. Returns the matched Matcher,
+            or {@code null} if stream ends. */
+    Matcher nextUntil(final Matcher... matchers) {
+        try {
+            while (_xml.hasNext()) {
+                final int event = _xml.next();
+                if (event != XMLStreamConstants.START_ELEMENT &&
+                        event != XMLStreamConstants.END_ELEMENT) continue;
+                final String localName = _xml.getLocalName();
+                for (final Matcher matcher : matchers) {
+                    if (matcher.matches(event, localName)) {
+                        return matcher;
+                    }
+                }
+            }
+            return null;
+        } catch (XMLStreamException e) {
+            throw new IllegalStateException("Failed to advance XML reader", e);
         }
     }
 
-    public boolean isClosed() {
+    // ---------------------------------------------------------------
+    // Attribute access
+    // ---------------------------------------------------------------
+
+    String attribute(final String name) {
+        return _xml.getAttributeValue(null, name);
+    }
+
+    String attribute(final String namespace, final String name) {
+        return _xml.getAttributeValue(namespace, name);
+    }
+
+    int intAttribute(final String name) {
+        return Integer.parseInt(_xml.getAttributeValue(null, name));
+    }
+
+    // ---------------------------------------------------------------
+    // String content reading (CT_Rst content model)
+    // ---------------------------------------------------------------
+
+    /**
+     * Read concatenated text from all {@code <t>} elements within the current element.
+     * Works for both {@code <si>} (shared strings) and {@code <is>} (inline strings)
+     * which share the same content model: plain {@code <t>} or rich text {@code <r><t>}.
+     */
+    String readStringContent() {
+        try {
+            final TextCollector collector = new TextCollector();
+            _collectText(collector);
+            return collector.result();
+        } catch (XMLStreamException e) {
+            throw new IllegalStateException("Failed to read string content", e);
+        }
+    }
+
+    private void _collectText(final TextCollector collector) throws XMLStreamException {
+        while (_xml.nextTag() == XMLStreamConstants.START_ELEMENT) {
+            final String name = _xml.getLocalName();
+            if (SpreadsheetML.TEXT.equals(name)) {
+                collector.append(_xml.getElementText());
+            } else if (SpreadsheetML.RICH_TEXT_RUN.equals(name)) {
+                _collectText(collector);
+            } else {
+                skipElement();
+            }
+        }
+    }
+
+    private static final class TextCollector {
+        private StringBuilder _sb;
+        private String _first;
+
+        void append(final String text) {
+            if (_first == null) {
+                _first = text;
+            } else {
+                if (_sb == null) _sb = new StringBuilder(_first);
+                _sb.append(text);
+            }
+        }
+
+        String result() {
+            return _sb != null ? _sb.toString() : _first;
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Cell collection (CT_Cell — ECMA-376 §18.3.1.4)
+    // ---------------------------------------------------------------
+
+    /** Collect cell attributes and children into a lightweight {@link CTCell}. */
+    CTCell collectCell() {
+        try {
+            final String r = _xml.getAttributeValue(null, SpreadsheetML.ATTR_REF);
+            final STCellType t = STCellType
+                    .of(_xml.getAttributeValue(null, SpreadsheetML.ATTR_TYPE));
+            String v = null;
+            STCellFormulaType ft = null;
+            String is = null;
+
+            while (_xml.nextTag() == XMLStreamConstants.START_ELEMENT) {
+                switch (_xml.getLocalName()) {
+                    case SpreadsheetML.VALUE:
+                        v = _xml.getElementText();
+                        break;
+                    case SpreadsheetML.FORMULA:
+                        ft = STCellFormulaType
+                                .of(_xml.getAttributeValue(null, SpreadsheetML.ATTR_TYPE));
+                        _xml.getElementText();
+                        break;
+                    case SpreadsheetML.INLINE_STRING:
+                        is = readStringContent();
+                        break;
+                    default:
+                        skipElement();
+                        break;
+                }
+            }
+            return new CTCell(r, t, v, ft, is);
+        } catch (XMLStreamException e) {
+            throw new IllegalStateException("Failed to read cell", e);
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Utilities
+    // ---------------------------------------------------------------
+
+    /** Skip the current element and all its children. */
+    void skipElement() {
+        try {
+            int depth = 1;
+            while (depth > 0) {
+                switch (_xml.next()) {
+                    case XMLStreamConstants.START_ELEMENT: depth++; break;
+                    case XMLStreamConstants.END_ELEMENT:   depth--; break;
+                }
+            }
+        } catch (XMLStreamException e) {
+            throw new IllegalStateException("Failed to skip element", e);
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Lifecycle
+    // ---------------------------------------------------------------
+
+    boolean isClosed() {
         return _closed;
     }
 
     @Override
     public void close() {
         try {
-            _reader.close();
-            _deque.clear();
-            _lastObject = null;
+            _xml.close();
             _closed = true;
         } catch (XMLStreamException e) {
-            throw new IllegalStateException(e);
+            throw new IllegalStateException("Failed to close XML reader", e);
         }
     }
 
-    private void _append(final QName name, final XmlObject object) {
-        final XmlObject parent = _deque.getFirst();
-        try (final XmlCursor cursor = object.newCursor();
-             final XmlCursor parentCursor = parent.newCursor()) {
-            parentCursor.toEndToken();
-            parentCursor.beginElement(name);
-            while (cursor.hasNextToken()) {
-                if (cursor.isStartdoc()) cursor.toNextToken();
-                else cursor.moveXml(parentCursor);
-            }
-        }
-    }
+    // ---------------------------------------------------------------
+    // Matcher
+    // ---------------------------------------------------------------
 
-    private void _handle(final StartDocument event) throws XMLStreamException {
-        if (log.isTraceEnabled()) {
-            log.trace("Start document: {}", event);
-        }
-    }
+    static final class Matcher {
 
-    private void _handle(final StartElement event) throws XMLStreamException {
-        if (log.isTraceEnabled()) {
-            log.trace("Start element: {}", event);
-        }
-        final QName name = _transitionalName(event.getName());
-        final XmlObject parent = _deque.getFirst();
-        final SchemaProperty property = parent.schemaType().getElementProperty(name);
-        SchemaType type = null;
-        try {
-            type = property == null ? null : property.getType();
-        } catch (SchemaTypeLoaderException e) {
-            log.info(e.getMessage());
-        }
-        if (type == null) {
-            XMLEvent next;
-            do {
-                next = _reader.nextEvent(); // skip unknowns
-            } while (!next.isEndElement() || !_transitionalName(next.asEndElement().getName()).equals(name));
-            return;
-        }
-        final XmlObject object = typeSystem.newInstance(type, DEFAULT_XML_OPTIONS);
-        try (final XmlCursor cursor = object.newCursor()) {
-            cursor.toNextToken();
-            for (final Iterator<?> attrs = event.getAttributes(); attrs.hasNext(); ) {
-                final Attribute attribute = (Attribute) attrs.next();
-                final QName attributeName = attribute.getName();
-                final SchemaProperty attributeProperty = type.getAttributeProperty(attributeName);
-                if (attributeProperty == null) continue;
-                cursor.insertAttributeWithValue(attributeName, attribute.getValue());
-            }
-        }
-        _deque.addFirst(object);
-    }
+        private final int _eventType;
+        private final String _localName;
 
-    private void _handle(final Characters event) throws XMLStreamException {
-        if (log.isTraceEnabled()) {
-            log.trace("Characters: {}", event);
-        }
-        final XmlObject current = _deque.getFirst();
-        if (current instanceof XmlAnySimpleType) {
-            final XmlAnySimpleType object = (XmlAnySimpleType) current;
-            object.setStringValue(object.getStringValue() + event.getData());
-        }
-    }
-
-    private void _handle(final EndElement event) throws XMLStreamException {
-        if (log.isTraceEnabled()) {
-            log.trace("End element: {}", event);
-        }
-        final QName name = _transitionalName(event.getName());
-        _lastObject = _deque.removeFirst();
-        if (_context != null) {
-            if (_lastObject.schemaType().equals(_context)) {
-                _context = null;
-            } else {
-                _append(name, _lastObject);
-            }
-        }
-    }
-
-    private void _handle(final EndDocument event) throws XMLStreamException {
-        if (log.isTraceEnabled()) {
-            log.trace("End document: {}", event);
-        }
-        _lastObject = _deque.removeFirst();
-    }
-
-    interface Matcher {
-
-        static Matcher startElementOf(final SchemaType schemaType) {
-            return create(StartElement.class, schemaType);
+        private Matcher(final int eventType, final String localName) {
+            _eventType = eventType;
+            _localName = localName;
         }
 
-        static Matcher endElementOf(final SchemaType schemaType) {
-            return create(EndElement.class, schemaType);
+        static Matcher startElement(final String localName) {
+            return new Matcher(XMLStreamConstants.START_ELEMENT, localName);
         }
 
-        static Matcher endDocumentOf(final SchemaType schemaType) {
-            return create(EndDocument.class, schemaType);
+        static Matcher endElement(final String localName) {
+            return new Matcher(XMLStreamConstants.END_ELEMENT, localName);
         }
 
-        static Matcher create(final Class<? extends XMLEvent> eventType, final SchemaType schemaType) {
-            return (event, object) -> eventType.isInstance(event) && object.schemaType().equals(schemaType);
+        boolean matches(final int eventType, final String localName) {
+            return _eventType == eventType && _localName.equals(localName);
         }
 
-        boolean matches(XMLEvent event, XmlObject object);
+        boolean isEndElement() {
+            return _eventType == XMLStreamConstants.END_ELEMENT;
+        }
     }
 }

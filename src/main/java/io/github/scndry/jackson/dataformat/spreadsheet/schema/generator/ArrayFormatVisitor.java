@@ -6,22 +6,31 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.jsonFormatVisitors.JsonArrayFormatVisitor;
 import com.fasterxml.jackson.databind.jsonFormatVisitors.JsonFormatTypes;
 import com.fasterxml.jackson.databind.jsonFormatVisitors.JsonFormatVisitable;
+
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 
+/**
+ * {@link JsonArrayFormatVisitor} that handles array and collection properties during spreadsheet schema generation.
+ */
 final class ArrayFormatVisitor extends JsonArrayFormatVisitor.Base {
 
     private final FormatVisitorWrapper _wrapper;
     private final JavaType _type;
 
-    ArrayFormatVisitor(final FormatVisitorWrapper wrapper, final JavaType type, final SerializerProvider provider) {
+    ArrayFormatVisitor(
+            final FormatVisitorWrapper wrapper,
+            final JavaType type,
+            final SerializerProvider provider) {
         super(provider);
         _wrapper = wrapper;
         _type = type;
     }
 
     @Override
-    public void itemsFormat(final JsonFormatVisitable handler, final JavaType elementType) throws JsonMappingException {
+    public void itemsFormat(
+            final JsonFormatVisitable handler,
+            final JavaType elementType) throws JsonMappingException {
         final ColumnPointer pointer = _wrapper.getPointer().resolveArray();
         final FormatVisitorWrapper visitor = new FormatVisitorWrapper(_wrapper, pointer);
         handler.acceptJsonFormatVisitor(visitor, elementType);

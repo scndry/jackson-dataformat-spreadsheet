@@ -3,14 +3,23 @@ package io.github.scndry.jackson.dataformat.spreadsheet.schema;
 import java.util.Iterator;
 import java.util.stream.Stream;
 
+/**
+ * Hierarchical path that identifies a column's position within
+ * a nested JSON structure. Supports resolution, relativization,
+ * and iteration over path segments, similar to
+ * {@link java.nio.file.Path} for file systems.
+ *
+ * @see Column
+ * @see SpreadsheetSchema
+ */
 public interface ColumnPointer extends Iterable<ColumnPointer> {
 
     static ColumnPointer empty() {
-        return PathPointer.EMPTY;
+        return SegmentPointer.EMPTY;
     }
 
     static ColumnPointer array() {
-        return PathPointer.ARRAY;
+        return SegmentPointer.ARRAY;
     }
 
     ColumnPointer resolve(String other);

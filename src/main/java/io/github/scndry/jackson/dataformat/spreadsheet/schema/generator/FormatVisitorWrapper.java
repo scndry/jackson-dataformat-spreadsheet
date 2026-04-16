@@ -1,5 +1,11 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema.generator;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
+import lombok.extern.slf4j.Slf4j;
+
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.SerializerProvider;
@@ -7,18 +13,19 @@ import com.fasterxml.jackson.databind.jsonFormatVisitors.JsonArrayFormatVisitor;
 import com.fasterxml.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper;
 import com.fasterxml.jackson.databind.jsonFormatVisitors.JsonMapFormatVisitor;
 import com.fasterxml.jackson.databind.jsonFormatVisitors.JsonObjectFormatVisitor;
+
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
-import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
+/**
+ * Top-level {@link JsonFormatVisitorWrapper} that delegates to object and array visitors to collect column metadata for a spreadsheet schema.
+ */
 @Slf4j
-public final class FormatVisitorWrapper extends JsonFormatVisitorWrapper.Base implements Iterable<Column> {
+public final class FormatVisitorWrapper
+        extends JsonFormatVisitorWrapper.Base
+        implements Iterable<Column> {
 
     private final ColumnPointer _pointer;
     private final DataGrid.Value _grid;
@@ -33,7 +40,11 @@ public final class FormatVisitorWrapper extends JsonFormatVisitorWrapper.Base im
         this(pointer, base._grid, base._column, base._provider);
     }
 
-    FormatVisitorWrapper(final ColumnPointer pointer, final DataGrid.Value sheet, final DataColumn.Value column, final SerializerProvider provider) {
+    FormatVisitorWrapper(
+            final ColumnPointer pointer,
+            final DataGrid.Value sheet,
+            final DataColumn.Value column,
+            final SerializerProvider provider) {
         super(provider);
         _pointer = pointer;
         _grid = sheet;
@@ -42,12 +53,14 @@ public final class FormatVisitorWrapper extends JsonFormatVisitorWrapper.Base im
     }
 
     @Override
-    public JsonObjectFormatVisitor expectObjectFormat(final JavaType type) throws JsonMappingException {
+    public JsonObjectFormatVisitor expectObjectFormat(
+            final JavaType type) throws JsonMappingException {
         return new ObjectFormatVisitor(this, _provider);
     }
 
     @Override
-    public JsonArrayFormatVisitor expectArrayFormat(final JavaType type) throws JsonMappingException {
+    public JsonArrayFormatVisitor expectArrayFormat(
+            final JavaType type) throws JsonMappingException {
         return new ArrayFormatVisitor(this, type, _provider);
     }
 

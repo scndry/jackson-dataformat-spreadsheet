@@ -1,19 +1,31 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.ser;
 
-import com.fasterxml.jackson.core.*;
-import com.fasterxml.jackson.core.base.GeneratorBase;
-import com.fasterxml.jackson.core.io.IOContext;
-import io.github.scndry.jackson.dataformat.spreadsheet.PackageVersion;
-import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamContext;
-import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamWriteException;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import lombok.extern.slf4j.Slf4j;
+
+import com.fasterxml.jackson.core.*;
+import com.fasterxml.jackson.core.base.GeneratorBase;
+import com.fasterxml.jackson.core.io.IOContext;
+
+import io.github.scndry.jackson.dataformat.spreadsheet.PackageVersion;
+import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamContext;
+import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamWriteException;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+
+/**
+ * {@link com.fasterxml.jackson.core.JsonGenerator} implementation
+ * that writes Jackson tokens into spreadsheet cells via a
+ * {@link SheetWriter}. Requires a {@link SpreadsheetSchema} to
+ * map JSON structure to cell positions.
+ *
+ * @see SheetWriter
+ * @see SpreadsheetSchema
+ */
 @Slf4j
 public final class SheetGenerator extends GeneratorBase {
 
@@ -31,7 +43,11 @@ public final class SheetGenerator extends GeneratorBase {
     private SpreadsheetSchema _schema;
     private SheetStreamContext _outputContext;
 
-    public SheetGenerator(final IOContext ctxt, final int features, final ObjectCodec codec, final SheetWriter writer) {
+    public SheetGenerator(
+            final IOContext ctxt,
+            final int features,
+            final ObjectCodec codec,
+            final SheetWriter writer) {
         super(features, codec);
         _ioContext = ctxt;
         _writer = writer;
@@ -57,7 +73,9 @@ public final class SheetGenerator extends GeneratorBase {
         if (_schema != null) return;
         _schema = (SpreadsheetSchema) schema;
         _writer.setSchema(_schema);
-        _writer.writeHeaders();
+        if (_schema.usesHeader()) {
+            _writer.writeHeaders();
+        }
         _outputContext = SheetStreamContext.createRootContext(_schema);
     }
 
@@ -99,11 +117,10 @@ public final class SheetGenerator extends GeneratorBase {
 
     @Override
     public void writeEndObject() throws IOException {
-        // final int size = _outputContext.size()
+        final int size = _outputContext.size();
         _outputContext = _closeStruct(END_OBJECT);
-        // final ColumnPointer pointer = _outputContext.currentPointer()
-        // TODO support merge column in scope to optional features via annotation
-        // _writer.mergeScopedColumns(pointer, _outputContext.getRow(), size)
+        final ColumnPointer pointer = _outputContext.currentPointer();
+        _writer.mergeScopedColumns(pointer, _outputContext.getRow(), size);
     }
 
     @Override
@@ -118,18 +135,27 @@ public final class SheetGenerator extends GeneratorBase {
     }
 
     @Override
-    public void writeString(final char[] buffer, final int offset, final int len) throws IOException {
+    public void writeString(
+            final char[] buffer,
+            final int offset,
+            final int len) throws IOException {
         _verifyValueWrite(WRITE_STRING);
         _writer.writeString(new String(buffer, offset, len));
     }
 
     @Override
-    public void writeRawUTF8String(final byte[] buffer, final int offset, final int len) throws IOException {
+    public void writeRawUTF8String(
+            final byte[] buffer,
+            final int offset,
+            final int len) throws IOException {
         _reportUnsupportedOperation();
     }
 
     @Override
-    public void writeUTF8String(final byte[] buffer, final int offset, final int len) throws IOException {
+    public void writeUTF8String(
+            final byte[] buffer,
+            final int offset,
+            final int len) throws IOException {
         _reportUnsupportedOperation();
     }
 
@@ -154,7 +180,11 @@ public final class SheetGenerator extends GeneratorBase {
     }
 
     @Override
-    public void writeBinary(final Base64Variant bv, final byte[] data, final int offset, final int len) throws IOException {
+    public void writeBinary(
+            final Base64Variant bv,
+            final byte[] data,
+            final int offset,
+            final int len) throws IOException {
         _reportUnsupportedOperation();
     }
 
@@ -191,7 +221,8 @@ public final class SheetGenerator extends GeneratorBase {
     @Override
     public void writeNumber(final BigDecimal v) throws IOException {
         _verifyValueWrite(WRITE_NUMBER);
-        _writer.writeString(isEnabled(StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN) ? v.toPlainString() : v.toString());
+        _writer.writeString(isEnabled(StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN)
+                ? v.toPlainString() : v.toString());
     }
 
     @Override
@@ -244,7 +275,11 @@ public final class SheetGenerator extends GeneratorBase {
         _outputContext.writeValue();
         _writer.setReference(_outputContext.currentReference());
         if (log.isTraceEnabled()) {
-            log.trace("{} {} {}", typeMsg, _outputContext.currentReference(), _outputContext.pathAsPointer(true));
+            log.trace(
+                    "{} {} {}",
+                    typeMsg,
+                    _outputContext.currentReference(),
+                    _outputContext.pathAsPointer(true));
         }
     }
 
@@ -258,7 +293,8 @@ public final class SheetGenerator extends GeneratorBase {
 
     private void _checkSchemaSet() throws IOException {
         if (_schema == null) {
-            throw new SheetStreamWriteException("No schema of type '" + SpreadsheetSchema.SCHEMA_TYPE + "' set, can not generate", this);
+            throw new SheetStreamWriteException("No schema of type '" +
+                    SpreadsheetSchema.SCHEMA_TYPE + "' set, can not generate", this);
         }
     }
 }

@@ -1,7 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema.style;
 
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.ColorBinder.HSSFColorBinder;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.ColorBinder.XSSFColorBinder;
+import java.util.function.Consumer;
+
 import org.apache.poi.hssf.usermodel.HSSFCellStyle;
 import org.apache.poi.hssf.usermodel.HSSFFont;
 import org.apache.poi.ss.SpreadsheetVersion;
@@ -11,8 +11,12 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 
-import java.util.function.Consumer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.ColorBinder.HSSFColorBinder;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.ColorBinder.XSSFColorBinder;
 
+/**
+ * Abstract color handler that applies RGB colors to POI objects, supporting both XSSF and HSSF color models.
+ */
 abstract class ColorConfigurer<T, X extends T, H extends T> {
 
     protected final XSSFColorBinder<X> _xssf;
@@ -35,14 +39,19 @@ abstract class ColorConfigurer<T, X extends T, H extends T> {
         return t -> _hssf.bind((H) t, _hssf.color(workbook, rgb));
     }
 
-    static final class CellStyleColor extends ColorConfigurer<CellStyle, XSSFCellStyle, HSSFCellStyle> {
-        public CellStyleColor(final XSSFColorBinder<XSSFCellStyle> xssf, final HSSFColorBinder<HSSFCellStyle> hssf) {
+    static final class CellStyleColor
+            extends ColorConfigurer<CellStyle, XSSFCellStyle, HSSFCellStyle> {
+        public CellStyleColor(
+                final XSSFColorBinder<XSSFCellStyle> xssf,
+                final HSSFColorBinder<HSSFCellStyle> hssf) {
             super(xssf, hssf);
         }
     }
 
     static final class FontColor extends ColorConfigurer<Font, XSSFFont, HSSFFont> {
-        public FontColor(final XSSFColorBinder<XSSFFont> xssf, final HSSFColorBinder<HSSFFont> hssf) {
+        public FontColor(
+                final XSSFColorBinder<XSSFFont> xssf,
+                final HSSFColorBinder<HSSFFont> hssf) {
             super(xssf, hssf);
         }
     }

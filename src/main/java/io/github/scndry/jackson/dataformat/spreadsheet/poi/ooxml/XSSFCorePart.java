@@ -1,5 +1,9 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.openxml4j.opc.OPCPackage;
@@ -8,15 +12,15 @@ import org.apache.poi.openxml4j.opc.PackageRelationship;
 import org.apache.poi.openxml4j.opc.PackageRelationshipCollection;
 import org.apache.poi.xssf.usermodel.XSSFRelation;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.util.regex.Pattern;
-
+/**
+ * Wrapper around an OPC {@link PackagePart} representing the workbook core part.
+ * Handles relationship resolution and Strict/Transitional namespace detection.
+ *
+ * @see PackageUtil
+ */
 @Slf4j
 final class XSSFCorePart {
 
-    private static final Pattern TRANSITIONAL_NS_PATTERN = Pattern.compile("http://schemas\\.openxmlformats\\.org/(\\w+)/2006/(\\w+)");
     private final PackagePart _part;
     private final boolean _strictFormat;
 
@@ -64,7 +68,7 @@ final class XSSFCorePart {
 
     private String _relationshipType(final XSSFRelation rel) {
         if (_strictFormat) {
-            return TRANSITIONAL_NS_PATTERN.matcher(rel.getRelation()).replaceFirst("http://purl.oclc.org/ooxml/$1/$2");
+            return OoxmlNamespace.toStrict(rel.getRelation());
         }
         return rel.getRelation();
     }

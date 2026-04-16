@@ -1,10 +1,5 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema.style;
 
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
-import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.Workbook;
-
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDate;
@@ -14,6 +9,15 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Workbook;
+
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
+
+/**
+ * Registry of named {@link CellStyleBuilder} instances that builds a {@link Styles} collection from a {@link Workbook}.
+ */
 public final class StylesBuilder implements Styles.Builder, Builder<Styles> {
 
     private final Map<Object, CellStyleBuilder> _builders;
@@ -60,7 +64,11 @@ public final class StylesBuilder implements Styles.Builder, Builder<Styles> {
     }
 
     public CellStyleBuilder cellStyle(final String name, final String cloneStyleFrom) {
-        return cellStyle(name, _builders.get(cloneStyleFrom).copy());
+        final CellStyleBuilder source = _builders.get(cloneStyleFrom);
+        if (source == null) {
+            throw new IllegalArgumentException("Style '" + cloneStyleFrom + "' is not registered");
+        }
+        return cellStyle(name, source.copy());
     }
 
     @Override
@@ -96,7 +104,14 @@ public final class StylesBuilder implements Styles.Builder, Builder<Styles> {
         }
 
         private CellStyle _findStyle(final String name, final Column column) {
-            return _styles.getOrDefault(name, _styles.get(column.getType().getRawClass()));
+            if (!name.isEmpty()) {
+                final CellStyle style = _styles.get(name);
+                if (style == null) {
+                    throw new IllegalStateException("Style '" + name + "' is not registered");
+                }
+                return style;
+            }
+            return _styles.get(column.getType().getRawClass());
         }
     }
 }

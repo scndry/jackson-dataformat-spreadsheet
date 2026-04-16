@@ -1,14 +1,20 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema.style;
 
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.ColorConfigurer.CellStyleColor;
+import java.util.function.Function;
+
 import org.apache.poi.hssf.usermodel.HSSFCellStyle;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.DefaultIndexedColorMap;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 
-import java.util.function.Function;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.ColorConfigurer.CellStyleColor;
 
-public final class CellStyleBuilder extends NestedBuilder<StylesBuilder> implements Builder<CellStyle> {
+/**
+ * Fluent builder for constructing POI {@link CellStyle} objects with configurable borders, alignment, fill, font, and data format.
+ */
+public final class CellStyleBuilder
+        extends NestedBuilder<StylesBuilder>
+        implements Builder<CellStyle> {
 
     public static final String CONVENIENCE_FORMAT_GENERAL = "General";
     public static final String CONVENIENCE_FORMAT_TEXT = "@";
@@ -19,12 +25,24 @@ public final class CellStyleBuilder extends NestedBuilder<StylesBuilder> impleme
     public static final String CONVENIENCE_FORMAT_DATE = "yyyy-mm-dd";
     public static final String CONVENIENCE_FORMAT_DATE_TIME = "yyyy-mm-dd hh:mm:ss";
 
-    private final CellStyleColor _leftBorderColor = new CellStyleColor(XSSFCellStyle::setLeftBorderColor, HSSFCellStyle::setLeftBorderColor);
-    private final CellStyleColor _rightBorderColor = new CellStyleColor(XSSFCellStyle::setRightBorderColor, HSSFCellStyle::setRightBorderColor);
-    private final CellStyleColor _topBorderColor = new CellStyleColor(XSSFCellStyle::setTopBorderColor, HSSFCellStyle::setTopBorderColor);
-    private final CellStyleColor _bottomBorderColor = new CellStyleColor(XSSFCellStyle::setBottomBorderColor, HSSFCellStyle::setBottomBorderColor);
-    private final CellStyleColor _fillBackgroundColor = new CellStyleColor(XSSFCellStyle::setFillBackgroundColor, HSSFCellStyle::setFillBackgroundColor);
-    private final CellStyleColor _fillForegroundColor = new CellStyleColor(XSSFCellStyle::setFillForegroundColor, HSSFCellStyle::setFillForegroundColor);
+    private final CellStyleColor _leftBorderColor = new CellStyleColor(
+            XSSFCellStyle::setLeftBorderColor,
+            HSSFCellStyle::setLeftBorderColor);
+    private final CellStyleColor _rightBorderColor = new CellStyleColor(
+            XSSFCellStyle::setRightBorderColor,
+            HSSFCellStyle::setRightBorderColor);
+    private final CellStyleColor _topBorderColor = new CellStyleColor(
+            XSSFCellStyle::setTopBorderColor,
+            HSSFCellStyle::setTopBorderColor);
+    private final CellStyleColor _bottomBorderColor = new CellStyleColor(
+            XSSFCellStyle::setBottomBorderColor,
+            HSSFCellStyle::setBottomBorderColor);
+    private final CellStyleColor _fillBackgroundColor = new CellStyleColor(
+            XSSFCellStyle::setFillBackgroundColor,
+            HSSFCellStyle::setFillBackgroundColor);
+    private final CellStyleColor _fillForegroundColor = new CellStyleColor(
+            XSSFCellStyle::setFillForegroundColor,
+            HSSFCellStyle::setFillForegroundColor);
     private String _dataFormat;
     private boolean _hidden;
     private boolean _locked;
@@ -131,14 +149,14 @@ public final class CellStyleBuilder extends NestedBuilder<StylesBuilder> impleme
     CellStyleBuilder bottomBorderColor(byte[] bottomBorderColor) { _bottomBorderColor.rgb = bottomBorderColor; return this; }
     CellStyleBuilder fillBackgroundColor(byte[] fillBackgroundColor) { _fillBackgroundColor.rgb = fillBackgroundColor; return this; }
     CellStyleBuilder fillForegroundColor(byte[] fillForegroundColor) { _fillForegroundColor.rgb = fillForegroundColor; return this; }
-    CellStyleBuilder alignment(HorizontalAlignment alignment) { _alignment = alignment; return this; }
-    CellStyleBuilder verticalAlignment(VerticalAlignment verticalAlignment) { _verticalAlignment = verticalAlignment; return this; }
-    CellStyleBuilder border(BorderStyle border) { return borderLeft(border).borderRight(border).borderTop(border). borderBottom(border); }
-    CellStyleBuilder borderLeft(BorderStyle borderLeft) { _borderLeft = borderLeft; return this; }
-    CellStyleBuilder borderRight(BorderStyle borderRight) { _borderRight = borderRight; return this; }
-    CellStyleBuilder borderTop(BorderStyle borderTop) { _borderTop = borderTop; return this; }
-    CellStyleBuilder borderBottom(BorderStyle borderBottom) { _borderBottom = borderBottom; return this; }
-    CellStyleBuilder fillPattern(FillPatternType fillPattern) { _fillPattern = fillPattern; return this; }
+    public CellStyleBuilder alignment(HorizontalAlignment alignment) { _alignment = alignment; return this; }
+    public CellStyleBuilder verticalAlignment(VerticalAlignment verticalAlignment) { _verticalAlignment = verticalAlignment; return this; }
+    public CellStyleBuilder border(BorderStyle border) { return borderLeft(border).borderRight(border).borderTop(border). borderBottom(border); }
+    public CellStyleBuilder borderLeft(BorderStyle borderLeft) { _borderLeft = borderLeft; return this; }
+    public CellStyleBuilder borderRight(BorderStyle borderRight) { _borderRight = borderRight; return this; }
+    public CellStyleBuilder borderTop(BorderStyle borderTop) { _borderTop = borderTop; return this; }
+    public CellStyleBuilder borderBottom(BorderStyle borderBottom) { _borderBottom = borderBottom; return this; }
+    public CellStyleBuilder fillPattern(FillPatternType fillPattern) { _fillPattern = fillPattern; return this; }
     public CellStyleBuilder borderColor(int rgb) { return borderColor((rgb & 0xFF0000) >> 16, (rgb & 0xFF00) >> 8, rgb & 0xFF); }
     public CellStyleBuilder borderColor(int r, int g, int b) { return borderColor(new byte[]{(byte) r, (byte) g, (byte) b}); }
     public CellStyleBuilder borderColor(IndexedColors color) { return borderColor(DefaultIndexedColorMap.getDefaultRGB(color.getIndex())); }

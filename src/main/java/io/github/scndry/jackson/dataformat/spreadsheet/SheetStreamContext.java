@@ -1,10 +1,20 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
-import com.fasterxml.jackson.core.JsonStreamContext;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import org.apache.poi.ss.util.CellAddress;
 
+import com.fasterxml.jackson.core.JsonStreamContext;
+
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+
+/**
+ * {@link JsonStreamContext} extension that tracks the current
+ * row, column, and {@link ColumnPointer} position during
+ * spreadsheet reading and writing.
+ *
+ * @see SpreadsheetSchema
+ * @see ColumnPointer
+ */
 public abstract class SheetStreamContext extends JsonStreamContext {
 
     protected static final int INITIAL_INDEX = -1;

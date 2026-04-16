@@ -1,11 +1,22 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema;
 
-import com.fasterxml.jackson.databind.JavaType;
-import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
-import lombok.EqualsAndHashCode;
-
 import java.util.StringJoiner;
 
+import lombok.EqualsAndHashCode;
+
+import com.fasterxml.jackson.databind.JavaType;
+
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
+
+/**
+ * Metadata for a single spreadsheet column within a
+ * {@link SpreadsheetSchema}. Holds a {@link ColumnPointer}
+ * identifying the column's position in the JSON tree and the
+ * {@link DataColumn.Value} annotation values.
+ *
+ * @see SpreadsheetSchema
+ * @see ColumnPointer
+ */
 @EqualsAndHashCode
 public final class Column {
 
@@ -42,6 +53,10 @@ public final class Column {
 
     public DataColumn.Value getValue() {
         return _value;
+    }
+
+    public boolean isMerge() {
+        return _value.isMerge();
     }
 
     public JavaType getType() {

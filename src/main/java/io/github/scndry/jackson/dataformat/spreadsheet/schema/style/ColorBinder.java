@@ -7,6 +7,9 @@ import org.apache.poi.ss.usermodel.Color;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 
+/**
+ * Strategy for binding RGB color values to POI objects, with sub-interfaces for XSSF and HSSF color models.
+ */
 interface ColorBinder<T, C extends Color> {
 
     void bind(T t, C c);

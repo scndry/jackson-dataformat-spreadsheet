@@ -1,36 +1,41 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 
-import io.github.scndry.jackson.dataformat.spreadsheet.deser.CellValue;
-import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetReader;
-import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetToken;
-import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.XmlElementReader.Matcher;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.NoSuchElementException;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.openxml4j.exceptions.InvalidOperationException;
 import org.apache.poi.openxml4j.opc.PackagePart;
 import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.FormulaError;
-import org.apache.poi.ss.usermodel.RichTextString;
 import org.apache.poi.ss.util.CellAddress;
-import org.apache.poi.xssf.model.SharedStrings;
-import org.apache.poi.xssf.usermodel.XSSFRichTextString;
-import org.apache.xmlbeans.SchemaType;
-import org.openxmlformats.schemas.spreadsheetml.x2006.main.*;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.util.NoSuchElementException;
-import java.util.Objects;
+import io.github.scndry.jackson.dataformat.spreadsheet.deser.CellValue;
+import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetReader;
+import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetToken;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.XmlElementReader.Matcher;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.CTCell;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.STCellFormulaType;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.SpreadsheetML;
 
+/**
+ * StAX-based XLSX sheet reader implementing {@link SheetReader} for the streaming SpreadsheetML path.
+ * Parses sheet XML directly via {@link XmlElementReader} without POI's object model.
+ *
+ * @see io.github.scndry.jackson.dataformat.spreadsheet.poi.ss.POISheetReader
+ * @see XmlElementReader
+ */
 @Slf4j
 public final class SSMLSheetReader implements SheetReader {
 
-    private static final Matcher START_SHEET_DATA = Matcher.startElementOf(CTSheetData.type);
-    private static final Matcher END_SHEET_DATA = Matcher.endElementOf(CTSheetData.type);
-    private static final Matcher START_ROW = Matcher.startElementOf(CTRow.type);
-    private static final Matcher END_ROW = Matcher.endElementOf(CTRow.type);
-    private static final Matcher START_CELL = Matcher.startElementOf(CTCell.type);
+    private static final Matcher START_SHEET_DATA = Matcher.startElement(SpreadsheetML.SHEET_DATA);
+    private static final Matcher START_ROW = Matcher.startElement(SpreadsheetML.ROW);
+    private static final Matcher END_ROW = Matcher.endElement(SpreadsheetML.ROW);
+    private static final Matcher START_CELL = Matcher.startElement(SpreadsheetML.CELL);
+    private static final Matcher END_SHEET_DATA = Matcher.endElement(SpreadsheetML.SHEET_DATA);
 
-    private final SharedStrings _strings;
+    private final SharedStringLookup _strings;
     private final XmlElementReader _reader;
     private final SSMLWorkbook _workbook;
     private final PackagePart _sheet;
@@ -40,21 +45,26 @@ public final class SSMLSheetReader implements SheetReader {
     private int _rowIndex = -1;
     private int _columnIndex = -1;
 
-    public SSMLSheetReader(final PackagePart worksheetPart, final SSMLWorkbook workbook) {
+    public SSMLSheetReader(
+            final PackagePart worksheetPart,
+            final SSMLWorkbook workbook,
+            final boolean fileBackedSharedStrings) {
         _sheet = worksheetPart;
         _workbook = workbook;
         try {
             final PackagePart sharedStrings = _workbook.getSharedStringsPart();
-            _strings = sharedStrings == null ? new BlankSharedStrings() : new LazySharedStrings(sharedStrings);
-            _reader = new XmlElementReader(_sheet.getInputStream());
-            final SchemaType type = _reader.getElementType();
-            if (!type.equals(WorksheetDocument.type)) {
-                throw new IllegalArgumentException("Unexpected package part: " + type);
+            if (sharedStrings == null) {
+                _strings = BlankSharedStringLookup.INSTANCE;
+            } else if (fileBackedSharedStrings) {
+                _strings = new FileBackedSharedStringLookup(sharedStrings);
+            } else {
+                _strings = new InMemorySharedStringLookup(sharedStrings);
             }
+            _reader = new XmlElementReader(_sheet.getInputStream());
+            _reader.nextUntil(START_SHEET_DATA);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        _reader.nextUntil(START_SHEET_DATA);
         _next = SheetToken.SHEET_DATA_START;
     }
 
@@ -77,29 +87,29 @@ public final class SSMLSheetReader implements SheetReader {
     public CellValue getCellValue() {
         if (_cell == null) return null;
         final String value = _cell.getV();
-        final CTCellFormula formula = _cell.getF();
-        final STCellType.Enum cellType = _cell.getT();
-        switch (cellType.intValue()) {
-            case STCellType.INT_B:
-                return CellValue.valueOf(value.equals("1"));
-            case STCellType.INT_N:
-                if (formula == null) {
-                    return value == null ? CellValue.BLANK : new CellValue(Double.parseDouble(value), value);
+
+        switch (_cell.getT()) {
+            case BOOLEAN:
+                return CellValue.valueOf("1".equals(value));
+            case NUMBER:
+                if (_cell.getFt() == null) {
+                    return value == null ? CellValue.BLANK : new CellValue(
+                            Double.parseDouble(value),
+                            value);
                 }
-                final STCellFormulaType.Enum formularType = formula.getT();
-                if (formularType.equals(STCellFormulaType.SHARED)) {
+                if (_cell.getFt() == STCellFormulaType.SHARED) {
                     return new CellValue(Double.parseDouble(value));
                 }
-                throw new UnsupportedOperationException("Unexpected cell formular type: " + formularType);
-            case STCellType.INT_E:
+                throw new UnsupportedOperationException("Unexpected formula type: " +
+                        _cell.getFt());
+            case ERROR:
                 return CellValue.getError(FormulaError.forString(value).getCode());
-            case STCellType.INT_S:
-                return new CellValue(_strings.getItemAt(Integer.parseInt(value)).toString());
-            case STCellType.INT_STR:
+            case SHARED_STRING:
+                return new CellValue(_strings.getItemAt(Integer.parseInt(value)));
+            case FORMULA_STRING:
                 return new CellValue(value);
-            case STCellType.INT_INLINE_STR:
-                final XSSFRichTextString text = _cell.isSetIs() ? new XSSFRichTextString(_cell.getIs()) : new XSSFRichTextString(value);
-                return new CellValue(text.toString());
+            case INLINE_STRING:
+                return _cell.getIs() != null ? new CellValue(_cell.getIs()) : new CellValue(value);
             default:
                 throw new IllegalStateException();
         }
@@ -122,10 +132,17 @@ public final class SSMLSheetReader implements SheetReader {
 
     @Override
     public void close() throws IOException {
+        try {
+            _strings.close();
+        } catch (Exception e) {
+            throw new IOException("Failed to close shared strings", e);
+        }
         _workbook.close();
         try {
             _sheet.close();
-        } catch (InvalidOperationException e) { /* ignore */ }
+        } catch (InvalidOperationException e) {
+            // PackagePart.close() throws if the package is already closed by _workbook.close()
+        }
         _reader.close();
     }
 
@@ -140,26 +157,26 @@ public final class SSMLSheetReader implements SheetReader {
         final SheetToken token = _next;
         switch (token) {
             case SHEET_DATA_START:
-                _next = _reader.nextUntil(START_ROW) == null ? SheetToken.SHEET_DATA_END : SheetToken.ROW_START;
+                _next = _matched(
+                        START_ROW,
+                        END_SHEET_DATA) ? SheetToken.ROW_START : SheetToken.SHEET_DATA_END;
                 break;
             case ROW_START:
-                final CTRow row = _reader.current();
-                _rowIndex = (int) row.getR() - 1;
-                _next = Objects.requireNonNull(_reader.nextUntil(START_CELL, END_ROW))
-                        .isEndElement() ? SheetToken.ROW_END : SheetToken.CELL_VALUE;
+                _rowIndex = _reader.intAttribute(SpreadsheetML.ATTR_REF) - 1;
+                _next = _matched(START_CELL, END_ROW) ? SheetToken.CELL_VALUE : SheetToken.ROW_END;
                 break;
             case CELL_VALUE:
-                _cell = _reader.collect();
+                _cell = _reader.collectCell();
                 _reference = new CellAddress(_cell.getR());
                 _columnIndex = _reference.getColumn();
-                _next = Objects.requireNonNull(_reader.nextUntil(START_CELL, END_ROW))
-                        .isEndElement() ? SheetToken.ROW_END : SheetToken.CELL_VALUE;
+                _next = _matched(START_CELL, END_ROW) ? SheetToken.CELL_VALUE : SheetToken.ROW_END;
                 break;
             case ROW_END:
                 _cell = null;
                 _reference = null;
-                _next = Objects.requireNonNull(_reader.nextUntil(START_ROW, END_SHEET_DATA))
-                        .isEndElement() ? SheetToken.SHEET_DATA_END : SheetToken.ROW_START;
+                _next = _matched(
+                        START_ROW,
+                        END_SHEET_DATA) ? SheetToken.ROW_START : SheetToken.SHEET_DATA_END;
                 break;
             case SHEET_DATA_END:
                 _next = null;
@@ -175,21 +192,8 @@ public final class SSMLSheetReader implements SheetReader {
         return token;
     }
 
-    static class BlankSharedStrings implements SharedStrings {
-
-        @Override
-        public RichTextString getItemAt(final int idx) {
-            return new XSSFRichTextString("");
-        }
-
-        @Override
-        public int getCount() {
-            return 0;
-        }
-
-        @Override
-        public int getUniqueCount() {
-            return 0;
-        }
+    private boolean _matched(final Matcher start, final Matcher end) {
+        final Matcher hit = _reader.nextUntil(start, end);
+        return hit != null && !hit.isEndElement();
     }
 }

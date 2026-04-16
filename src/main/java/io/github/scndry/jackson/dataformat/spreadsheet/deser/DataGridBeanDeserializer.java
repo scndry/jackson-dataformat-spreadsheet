@@ -1,5 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.deser;
 
+import java.io.IOException;
+
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.BeanDescription;
@@ -9,10 +11,12 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.deser.BeanDeserializerModifier;
 import com.fasterxml.jackson.databind.deser.std.DelegatingDeserializer;
 import com.fasterxml.jackson.databind.util.Annotations;
+
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 
-import java.io.IOException;
-
+/**
+ * Delegating deserializer that wraps a standard bean deserializer to handle row boundaries for {@link DataGrid}-annotated POJOs.
+ */
 public final class DataGridBeanDeserializer extends DelegatingDeserializer {
 
     public DataGridBeanDeserializer(final JsonDeserializer<?> d) {
@@ -20,7 +24,9 @@ public final class DataGridBeanDeserializer extends DelegatingDeserializer {
     }
 
     @Override
-    public Object deserialize(final JsonParser p, final DeserializationContext ctxt) throws IOException {
+    public Object deserialize(
+            final JsonParser p,
+            final DeserializationContext ctxt) throws IOException {
         if (p.currentToken() == JsonToken.VALUE_NULL) {
             return null;
         }
@@ -34,7 +40,10 @@ public final class DataGridBeanDeserializer extends DelegatingDeserializer {
 
     public static final class Modifier extends BeanDeserializerModifier {
         @Override
-        public JsonDeserializer<?> modifyDeserializer(final DeserializationConfig config, final BeanDescription beanDesc, final JsonDeserializer<?> deserializer) {
+        public JsonDeserializer<?> modifyDeserializer(
+                final DeserializationConfig config,
+                final BeanDescription beanDesc,
+                final JsonDeserializer<?> deserializer) {
             final Annotations annotations = beanDesc.getClassAnnotations();
             if (annotations.has(DataGrid.class)) {
                 return new DataGridBeanDeserializer(deserializer);
