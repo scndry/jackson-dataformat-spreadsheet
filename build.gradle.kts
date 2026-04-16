@@ -28,10 +28,10 @@ dependencies {
 
 dependencies {
     testImplementation("org.assertj:assertj-core:3.27.7")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.11.4")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:6.0.3")
     testRuntimeOnly("ch.qos.logback:logback-classic:1.3.15")
     testRuntimeOnly("org.apache.logging.log4j:log4j-to-slf4j:2.24.3")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.11.4")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:6.0.3")
 }
 
 dependencies {
