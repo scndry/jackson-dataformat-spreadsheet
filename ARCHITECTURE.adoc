@@ -10,23 +10,23 @@ A Jackson streaming implementation for SpreadsheetML.
 Extends `ParserMinimalBase`, `GeneratorBase`, and `JsonFactory` -- not a POI wrapper.
 
 ----
-                   ┌──────────────────────────────────────────────────┐
-                   │              SpreadsheetMapper                   │
-                   │          (extends ObjectMapper)                  │
-                   └──────────────┬───────────────┬───────────────────┘
+                   ┌───────────────────────────────────────────┐
+                   │              SpreadsheetMapper            │
+                   │          (extends ObjectMapper)           │
+                   └──────────────┬───────────────┬────────────┘
                                   │               │
                    ┌──────────────▼──┐   ┌────────▼────────────┐
                    │   SheetParser   │   │   SheetGenerator    │
-                   │(ParserMinimal-  │   │  (GeneratorBase)    │
-                   │     Base)       │   │                     │
-                   └──────┬─────────┘   └──────────┬──────────┘
+                   │ (ParserMinimal- │   │   (GeneratorBase)   │
+                   │       Base)     │   │                     │
+                   └──────┬──────────┘   └─────────┬───────────┘
                           │                        │
-               ┌──────────▼──────────┐  ┌──────────▼──────────┐
-               │    SheetReader      │  │    SheetWriter      │
-               │    (interface)      │  │    (interface)      │
-               └───┬─────────┬──────┘  └──────────┬──────────┘
+               ┌──────────▼──────────┐   ┌─────────▼───────────┐
+               │     SheetReader     │   │     SheetWriter     │
+               │     (interface)     │   │     (interface)     │
+               └───┬─────────┬───────┘   └─────────┬───────────┘
                    │         │                     │
-          ┌────────▼──┐ ┌───▼──────────┐  ┌───────▼──────────┐
+          ┌────────▼──┐ ┌────▼─────────┐  ┌────────▼──────────┐
           │ POISheet- │ │ SSMLSheet-   │  │  POISheetWriter   │
           │  Reader   │ │   Reader     │  │                   │
           │  (XLS)    │ │  (XLSX/StAX) │  │                   │

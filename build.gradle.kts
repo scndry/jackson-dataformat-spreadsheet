@@ -1,6 +1,8 @@
+import com.vanniktech.maven.publish.SonatypeHost
+
 plugins {
     id("java-library")
-    id("maven-publish")
+    id("com.vanniktech.maven.publish") version "0.30.0"
     id("jacoco")
     id("me.champeau.jmh") version "0.6.8"
 }
@@ -27,7 +29,7 @@ dependencies {
 }
 
 dependencies {
-    testImplementation("org.assertj:assertj-core:3.27.3")
+    testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.11.4")
     testRuntimeOnly("ch.qos.logback:logback-classic:1.3.15")
     testRuntimeOnly("org.apache.logging.log4j:log4j-to-slf4j:2.24.3")
@@ -35,10 +37,10 @@ dependencies {
 }
 
 dependencies {
-    annotationProcessor("org.projectlombok:lombok:1.18.36")
-    compileOnly("org.projectlombok:lombok:1.18.36")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.36")
-    testCompileOnly("org.projectlombok:lombok:1.18.36")
+    annotationProcessor("org.projectlombok:lombok:1.18.44")
+    compileOnly("org.projectlombok:lombok:1.18.44")
+    testAnnotationProcessor("org.projectlombok:lombok:1.18.44")
+    testCompileOnly("org.projectlombok:lombok:1.18.44")
 }
 
 dependencies {
@@ -46,54 +48,41 @@ dependencies {
     jmh("org.dhatim:fastexcel:0.20.0")
     jmh("org.dhatim:fastexcel-reader:0.20.0")
     jmh("com.h2database:h2:2.2.224")
-    jmh("com.fasterxml.woodstox:woodstox-core:7.1.0")
+    jmh("com.fasterxml.woodstox:woodstox-core:7.1.1")
 }
 
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(8))
     }
-    withJavadocJar()
-    withSourcesJar()
+    // javadocJar and sourcesJar provided by com.vanniktech.maven.publish
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-            pom {
-                name.set(title)
-                description.set(project.description)
-                url.set("https://github.com/scndry/jackson-dataformat-spreadsheet")
-                licenses {
-                    license {
-                        name.set("The Apache License, Version 2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                    }
-                }
-                developers {
-                    developer {
-                        name.set("Seongman Yang")
-                        email.set("scndryan@gmail.com")
-                        url.set("https://scndry.github.io")
-                    }
-                }
-                scm {
-                    connection.set("scm:git:git://github.com/scndry/jackson-dataformat-spreadsheet.git")
-                    developerConnection.set("scm:git:ssh://github.com/scndry/jackson-dataformat-spreadsheet.git")
-                    url.set("https://github.com/scndry/jackson-dataformat-spreadsheet")
-                }
+mavenPublishing {
+    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    signAllPublications()
+
+    pom {
+        name.set(title)
+        description.set(project.description)
+        url.set("https://github.com/scndry/jackson-dataformat-spreadsheet")
+        licenses {
+            license {
+                name.set("The Apache License, Version 2.0")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
             }
         }
-    }
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/scndry/jackson-dataformat-spreadsheet")
-            credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: findProperty("gpr.user") as String?
-                password = System.getenv("GITHUB_TOKEN") ?: findProperty("gpr.key") as String?
+        developers {
+            developer {
+                name.set("Seongman Yang")
+                email.set("scndryan@gmail.com")
+                url.set("https://scndry.github.io")
             }
+        }
+        scm {
+            connection.set("scm:git:git://github.com/scndry/jackson-dataformat-spreadsheet.git")
+            developerConnection.set("scm:git:ssh://github.com/scndry/jackson-dataformat-spreadsheet.git")
+            url.set("https://github.com/scndry/jackson-dataformat-spreadsheet")
         }
     }
 }
