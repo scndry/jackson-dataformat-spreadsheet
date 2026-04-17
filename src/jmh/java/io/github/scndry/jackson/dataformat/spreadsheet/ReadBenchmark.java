@@ -1,6 +1,8 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import com.alibaba.excel.EasyExcel;
+import com.poiji.bind.Poiji;
+import com.poiji.option.PoijiOptions;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -16,8 +18,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Realistic read benchmark: mixed types, shared string table (XSSFWorkbook).
- * Simulates data exported from Excel/Google Sheets.
+ * Realistic read benchmark: mixed types, shared string table
+ * (XSSFWorkbook). Simulates data exported from Excel/Google Sheets.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -37,7 +39,9 @@ public class ReadBenchmark {
             "Home", "Garden", "Toys", "Health", "Automotive"
     };
 
-    private static final String[] STATUSES = {"Active", "Inactive", "Pending", "Archived"};
+    private static final String[] STATUSES = {
+            "Active", "Inactive", "Pending", "Archived"
+    };
 
     @DataGrid
     public static class Product {
@@ -51,11 +55,26 @@ public class ReadBenchmark {
         public Product() {}
     }
 
+    // Poiji requires its own annotated class
+    public static class PoijiProduct {
+        @com.poiji.annotation.ExcelCellName("name")
+        public String name;
+        @com.poiji.annotation.ExcelCellName("category")
+        public String category;
+        @com.poiji.annotation.ExcelCellName("quantity")
+        public int quantity;
+        @com.poiji.annotation.ExcelCellName("price")
+        public double price;
+        @com.poiji.annotation.ExcelCellName("inStock")
+        public boolean inStock;
+        @com.poiji.annotation.ExcelCellName("status")
+        public String status;
+    }
+
     @Setup(Level.Trial)
     public void setUp() throws IOException {
         file = File.createTempFile("bench-read-", ".xlsx");
         file.deleteOnExit();
-        // XSSFWorkbook to ensure shared string table (like real Excel files)
         try (XSSFWorkbook wb = new XSSFWorkbook()) {
             Sheet sheet = wb.createSheet("Products");
             Row header = sheet.createRow(0);
@@ -112,8 +131,18 @@ public class ReadBenchmark {
     }
 
     @Benchmark
+    public void poiji(Blackhole bh) {
+        List<PoijiProduct> values = Poiji.fromExcel(
+                file, PoijiProduct.class,
+                PoijiOptions.PoijiOptionsBuilder.settings().build());
+        bh.consume(values);
+    }
+
+    @Benchmark
     public void easyExcel(Blackhole bh) throws IOException {
-        List<Product> values = EasyExcel.read(file).head(Product.class).headRowNumber(1).sheet().doReadSync();
+        List<Product> values = EasyExcel.read(file)
+                .head(Product.class).headRowNumber(1)
+                .sheet().doReadSync();
         bh.consume(values);
     }
 
@@ -125,9 +154,11 @@ public class ReadBenchmark {
                 Product p = new Product();
                 p.name = row.getCellText(0);
                 p.category = row.getCellText(1);
-                p.quantity = (int) Double.parseDouble(row.getCellText(2));
+                p.quantity = (int) Double.parseDouble(
+                        row.getCellText(2));
                 p.price = Double.parseDouble(row.getCellText(3));
-                p.inStock = Boolean.parseBoolean(row.getCellText(4));
+                p.inStock = Boolean.parseBoolean(
+                        row.getCellText(4));
                 p.status = row.getCellText(5);
                 bh.consume(p);
             });

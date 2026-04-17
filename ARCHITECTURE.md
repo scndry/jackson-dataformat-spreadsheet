@@ -1,17 +1,20 @@
-= Architecture
-:toc:
-:toc-placement!:
+# Architecture
 
-toc::[]
+A Jackson streaming dataformat module for SpreadsheetML — same pattern as `jackson-dataformat-csv`, applied to spreadsheets.
 
-== Overview
+| jackson-dataformat-csv | jackson-dataformat-spreadsheet |
+|---|---|
+| `CsvMapper extends ObjectMapper` | `SpreadsheetMapper extends ObjectMapper` |
+| `CsvParser extends CsvParserBase extends ParserMinimalBase` | `SheetParser extends ParserMinimalBase` |
+| `CsvGenerator extends GeneratorBase` | `SheetGenerator extends GeneratorBase` |
+| `CsvFactory extends JsonFactory` | `SpreadsheetFactory extends JsonFactory` |
+| `CsvSchema` via `FormatVisitor` | `SpreadsheetSchema` via `FormatVisitor` |
+| `CsvParser.Feature implements FormatFeature` | `SheetParser.Feature implements FormatFeature` |
+| `CsvMapper.Builder extends MapperBuilder` | `SpreadsheetMapper.Builder extends MapperBuilder` |
 
-A Jackson streaming implementation for SpreadsheetML.
-Extends `ParserMinimalBase`, `GeneratorBase`, and `JsonFactory` -- not a POI wrapper.
-
-----
+```
                    ┌───────────────────────────────────────────┐
-                   │              SpreadsheetMapper            │
+                   │            SpreadsheetMapper              │
                    │          (extends ObjectMapper)           │
                    └──────────────┬───────────────┬────────────┘
                                   │               │
@@ -31,42 +34,55 @@ Extends `ParserMinimalBase`, `GeneratorBase`, and `JsonFactory` -- not a POI wra
           │  Reader   │ │   Reader     │  │                   │
           │  (XLS)    │ │  (XLSX/StAX) │  │                   │
           └───────────┘ └──────────────┘  └───────────────────┘
-----
+```
 
-== Design Decisions
+## Scope
 
-=== Pull-Pull Streaming
+This module handles **data binding between POJOs and spreadsheet cells**. Nothing more.
 
-Jackson is a pull parser -- the client calls `nextToken()`.
-StAX is a pull parser -- the client calls `next()`.
+| This module | POI (or user code) |
+|---|---|
+| POJO → flat cells (write) | Workbook lifecycle, file I/O |
+| Flat cells → POJO (read) | Charts, images, pivot tables |
+| Nested object flattening/reconstruction | Formulas, conditional formatting |
+| Header generation, cell styling | Macros (.xlsm) |
+| Schema generation from class structure | Cell-level random access |
+
+`Sheet` is an I/O type — like `OutputStream` in jackson-core. The module reads from and writes to a POI `Sheet` but does not manage the `Workbook` lifecycle. Users open a workbook with POI, pass a `Sheet` to the mapper, and close the workbook themselves. This enables template-based writing, multi-sheet workbooks, and post-processing with POI — all outside the module's concern.
+
+## Design Decisions
+
+### Pull-Pull Streaming
+
+Jackson is a pull parser — the client calls `nextToken()`.
+StAX is a pull parser — the client calls `next()`.
 This library bridges the two naturally:
 
-----
+```
 Jackson (pull)          SheetParser (pull)         StAX (pull)
     │                        │                        │
     ├─ nextToken() ─────────►├─ SheetReader.next() ──►├─ XMLStreamReader.next()
     │◄─ VALUE_STRING ────────┤◄─ CELL_VALUE ──────────┤◄─ START_ELEMENT <c>
     │                        │                        │
-----
+```
 
-No buffering, no threading, no adapter -- pull aligns with pull.
+No buffering, no threading, no adapter — pull aligns with pull.
 
-The alternative is SAX (push model), which POI's https://poi.apache.org/components/spreadsheet/how-to.html#event_api[Event API^] uses.
+The alternative is SAX (push model), which [POI's Event API](https://poi.apache.org/components/spreadsheet/how-to.html#event_api) uses.
 SAX pushes events to a handler callback, but Jackson pulls tokens from a parser.
-Bridging push→pull requires an intermediate buffer or a separate thread -- complexity that defeats the purpose of streaming.
+Bridging push→pull requires an intermediate buffer or a separate thread — complexity that defeats the purpose of streaming.
 
 This library bypasses POI's Event API entirely and parses OOXML XML directly via StAX.
 
-=== OOXML Type Safety
+### OOXML Type Safety
 
-Cell type resolution uses lightweight enum types modeled after the ECMA-376 XSD -- not string comparison:
+Cell type resolution uses lightweight enum types modeled after the ECMA-376 XSD — not string comparison:
 
-[source,java]
-----
+```java
 // NOT this:
 if ("s".equals(cell.getT())) { ... }
 
-// THIS -- compile-time checked, spec-named:
+// THIS — compile-time checked, spec-named:
 switch (cell.getT()) {
     case SHARED_STRING:
     case NUMBER:
@@ -74,64 +90,44 @@ switch (cell.getT()) {
     case ERROR:
     ...
 }
-----
+```
 
 All OOXML identifiers (element names, attribute names, namespace URIs) are centralized in `SpreadsheetML`:
 
-[source,java]
-----
+```java
 // Single source of truth — ECMA-376 section references in Javadoc
 Matcher START_ROW  = Matcher.startElement(SpreadsheetML.ROW);
 Matcher START_CELL = Matcher.startElement(SpreadsheetML.CELL);
-----
+```
 
-Types in the `schemas` package correspond directly to ECMA-376 type definitions:
+Types in the `spec` package correspond directly to ECMA-376 type definitions:
 
-[cols="1,2"]
-|===
-|Class |ECMA-376
+| Class | ECMA-376 |
+|---|---|
+| `CTCell` | CT_Cell (§18.3.1.4) |
+| `STCellType` | ST_CellType (§18.18.11) |
+| `STCellFormulaType` | ST_CellFormulaType (§18.18.6) |
+| `SpreadsheetML` | Element/attribute/namespace constants |
 
-|`CTCell` |CT_Cell (§18.3.1.4)
-|`STCellType` |ST_CellType (§18.18.11)
-|`STCellFormulaType` |ST_CellFormulaType (§18.18.6)
-|`SpreadsheetML` |Element/attribute/namespace constants
-|===
-
-These are hand-written lightweight POJOs -- no XMLBeans runtime, no schema validation overhead, no `XmlCursor` or DOM construction.
+These are hand-written lightweight POJOs — no XMLBeans runtime, no schema validation overhead, no `XmlCursor` or DOM construction.
 Raw StAX performance with spec-level type safety.
 
-=== Why Not POI's Event API?
-
-POI provides two read paths for XLSX:
-
-[cols="1,3"]
-|===
-|UserModel API |Full workbook in memory. Simple but O(n) memory.
-|Event API (SAX) |Streaming, low memory. But push-model -- incompatible with Jackson's pull contract.
-|===
-
-This library takes a third path: **direct StAX parsing of the OOXML XML** inside the ZIP package.
-Same streaming benefit as the Event API, but pull-model -- naturally composable with Jackson.
-
-The `SheetReader` interface abstracts this away.
-POI's UserModel is still used for XLS (no XML to parse) and for all writes (via `SXSSFWorkbook` for streaming).
-
-== Token Model
+## Token Model
 
 The core problem: mapping flat `(row, column)` cells to hierarchical Jackson tokens.
 
-=== Cell to Token Translation
+### Cell to Token Translation
 
 A spreadsheet with nested POJO schema `Employee { Address address; Employment employment; }`:
 
-----
+```
 Column index:    0     1        2             3              4
 Column pointer:  /id   /name   /address/zip  /address/city  /employment/title
-----
+```
 
 For one row of cell values `[1, "Alice", "12345", "Seoul", "SRE"]`, the parser emits:
 
-----
+```
 START_OBJECT
   FIELD_NAME "id"
   VALUE_NUMBER_INT 1
@@ -150,43 +146,43 @@ START_OBJECT
     VALUE_STRING "SRE"
   END_OBJECT
 END_OBJECT
-----
+```
 
 One flat row of cells becomes a nested object tree.
-Jackson's data-binding layer deserializes this token stream into `Employee` -- no special deserializer needed.
+Jackson's data-binding layer deserializes this token stream into `Employee` — no special deserializer needed.
 
-=== ColumnPointer
+### ColumnPointer
 
 `ColumnPointer` is the mechanism that drives this translation.
 Each schema column has a pointer representing its path in the object hierarchy:
 
-----
-ColumnPointer.empty().resolve("address").resolve("zip")   → address/zip
+```
+ColumnPointer.empty().resolve("address").resolve("zip")              → address/zip
 ColumnPointer.empty().resolve("address").resolve("zip").getParent()  → address
-pointer1.relativize(pointer2)                             → relative path between two
-----
+pointer1.relativize(pointer2)                                        → relative path
+```
 
 When the parser moves from one cell to the next, it computes the relative path between the current and previous `ColumnPointer`.
-If the parent changes (e.g., `/address/city` → `/employment/title`), the parser emits `END_OBJECT` for the old scope and `START_OBJECT` + `FIELD_NAME` for the new one.
+If the parent changes (e.g., `address/city` → `employment/title`), the parser emits `END_OBJECT` for the old scope and `START_OBJECT` + `FIELD_NAME` for the new one.
 
-=== SheetToken
+### SheetToken
 
 The low-level token enum bridging `SheetReader` and `SheetParser`:
 
-----
+```
 SHEET_DATA_START  →  START_ARRAY
 ROW_START         →  START_OBJECT
 CELL_VALUE        →  FIELD_NAME + value token(s)
 ROW_END           →  END_OBJECT (× nesting depth)
 SHEET_DATA_END    →  END_ARRAY
-----
+```
 
 `SheetReader` produces `SheetToken`.
 `SheetParser` consumes `SheetToken` and emits `JsonToken` with proper nesting.
 
-== Read Path
+## Read Path
 
-----
+```
 mapper.readValue(file, Employee.class)
   │
   ├─ schemaGenerator.generate(Employee.class)
@@ -204,47 +200,52 @@ mapper.readValue(file, Employee.class)
        ├─ ColumnPointer scope tracking
        ├─ JsonToken emission (with nesting)
        └─ Jackson BeanDeserializer consumes tokens → Employee
-----
+```
 
-=== Dual Reader Strategy
+### Dual Reader Strategy
 
-Both implement `SheetReader`:
+Both implement `SheetReader`. Format is auto-detected via ZIP magic bytes (`FileMagic.OOXML`).
 
-[cols="1,2,2"]
-|===
-| |SSMLSheetReader |POISheetReader
+| | SSMLSheetReader | POISheetReader |
+|---|---|---|
+| Format | XLSX (OOXML) | XLS / XLSX (any POI-supported) |
+| Parsing | StAX `XMLStreamReader` on raw XML | POI `Sheet` / `Row` / `Cell` API |
+| Memory | Streaming — constant regardless of file size | Full workbook in memory |
+| Cell types | OOXML `STCellType` schema enum | POI `CellType` enum via `CellFormat` |
+| Shared strings | Custom `SharedStringLookup` (lazy StAX) | POI's built-in `SharedStringsTable` |
+| When used | Auto-detected for XLSX files | XLS files, or direct `Sheet` input |
 
-|Format
-|XLSX (OOXML)
-|XLS / XLSX (any POI-supported)
+When the input is an `InputStream`, OOXML files are copied to a temporary file — ZIP random access requires seekable I/O.
 
-|Parsing
-|StAX `XMLStreamReader` on raw XML
-|POI `Sheet` / `Row` / `Cell` API
+### SharedStrings
 
-|Memory
-|Streaming -- constant regardless of file size
-|Full workbook in memory
+XLSX files store all string cell values in a shared string table (`xl/sharedStrings.xml`).
+POI's `SharedStringsTable` wraps each entry in `XSSFRichTextString` with per-entry object allocation.
 
-|Cell types
-|OOXML `STCellType` schema enum
-|POI `CellType` enum via `CellFormat`
+This library uses `SharedStringLookup`, a custom interface that returns `String` directly — no `RichTextString` wrapping:
 
-|Shared strings
-|Custom `SharedStringLookup` impl (lazy StAX)
-|POI's built-in `SharedStringsTable`
+```java
+// POI's interface
+public interface SharedStrings {
+    RichTextString getItemAt(int idx);
+}
 
-|When used
-|Auto-detected via ZIP magic bytes
-|XLS files, or direct `Sheet` input
-|===
+// This library's interface
+public interface SharedStringLookup {
+    String getItemAt(int idx);
+}
+```
 
-`SpreadsheetFactory` auto-selects the strategy via `PackageUtil.isOOXML()` (ZIP magic number detection).
-OOXML `InputStream` is copied to a temp file first -- ZIP random access requires seekable I/O.
+Two implementations:
 
-== Write Path
+- **InMemorySharedStringLookup** (default) — All character data in a single `char[]` buffer with `int[]` offset/length arrays. Eliminates per-String object overhead. Entries are parsed lazily via StAX — only when first accessed.
+- **FileBackedSharedStringLookup** — H2 MVStore with 4 MB heap cache. Constant heap usage regardless of table size. Prevents OOM when the SST exceeds available heap.
 
-----
+Result: lowest memory allocation among all tested libraries at 100K rows. See [BENCHMARK.md](BENCHMARK.md).
+
+## Write Path
+
+```
 mapper.writeValue(file, employee)
   │
   ├─ SpreadsheetFactory.createGenerator(file)
@@ -264,13 +265,15 @@ mapper.writeValue(file, employee)
        │    └─ mergeScopedColumns(pointer, row, size)
        └─ close()
             └─ Workbook.write(OutputStream) → XLSX file
-----
+```
 
-== Schema Generation
+The write path delegates entirely to POI's `SXSSFWorkbook`. Reimplementing OOXML ZIP packaging, cell style serialization, and formula handling would duplicate POI with no benefit — `SXSSFWorkbook` already streams.
 
-Uses Jackson's `JsonFormatVisitor` -- the same mechanism Jackson uses internally for JSON Schema generation:
+## Schema Generation
 
-----
+Uses Jackson's `JsonFormatVisitor` — the same mechanism Jackson uses internally for JSON Schema generation:
+
+```
 schemaGenerator.generate(Employee.class)
   │
   ├─ serializerProvider.acceptJsonFormatVisitor(type, visitor)
@@ -290,8 +293,25 @@ schemaGenerator.generate(Employee.class)
   │              └─ recursive visit for element type
   │
   └─ SpreadsheetSchema(columns, origin, useHeader, styles)
-----
+```
+
+## POI Boundary
+
+The read path and the write path have different relationships with POI:
+
+| | POI | This library |
+|---|---|---|
+| **XLSX read** | ZIP package open (`OPCPackage`) | XML parsing (StAX), SharedStrings, cell type resolution |
+| **XLS read** | Everything (`HSSFWorkbook`, `Sheet`, `Row`, `Cell`) | Token translation only |
+| **Write** | Everything (`SXSSFWorkbook`, `CellStyle`, `Font`) | Schema-driven cell routing, merge logic |
+| **Styling** | `CellStyle` / `Font` API | `StylesBuilder` (fluent builder layer) |
+
+The XLSX read path is where the most significant optimization exists — bypassing POI's UserModel and Event API entirely for direct StAX parsing.
+
+`POICompat` provides a reflection-based shim for APIs that differ across POI versions (`Date1904Support.isDate1904()` in POI 4.1.1+, `OPCPackage.isStrictOoxmlFormat()` in POI 5.1.0+). Methods are looked up at class load time; missing methods fall back to safe defaults.
+
+---
 
 Public API surface: `SpreadsheetMapper`, `SheetInput`, `SheetOutput`, `@DataGrid`, `@DataColumn`, `SpreadsheetSchema`, `SheetParser.Feature`.
 
-Everything under `poi/` is implementation detail -- swappable without affecting the streaming contract.
+Everything under `poi/` is implementation detail — swappable without affecting the streaming contract.

@@ -1,6 +1,8 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import com.alibaba.excel.EasyExcel;
+import com.poiji.bind.Poiji;
+import com.poiji.option.PoijiOptions;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -17,7 +19,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Memory-focused benchmark with realistic mixed-type data and shared string table.
+ * Memory-focused benchmark with realistic mixed-type data
+ * and shared string table.
  * GC profiler is enabled by default in build.gradle.kts.
  */
 @State(Scope.Benchmark)
@@ -38,7 +41,9 @@ public class MemoryBenchmark {
             "Home", "Garden", "Toys", "Health", "Automotive"
     };
 
-    private static final String[] STATUSES = {"Active", "Inactive", "Pending", "Archived"};
+    private static final String[] STATUSES = {
+            "Active", "Inactive", "Pending", "Archived"
+    };
 
     @DataGrid
     public static class Product {
@@ -50,6 +55,21 @@ public class MemoryBenchmark {
         public String status;
 
         public Product() {}
+    }
+
+    public static class PoijiProduct {
+        @com.poiji.annotation.ExcelCellName("name")
+        public String name;
+        @com.poiji.annotation.ExcelCellName("category")
+        public String category;
+        @com.poiji.annotation.ExcelCellName("quantity")
+        public int quantity;
+        @com.poiji.annotation.ExcelCellName("price")
+        public double price;
+        @com.poiji.annotation.ExcelCellName("inStock")
+        public boolean inStock;
+        @com.poiji.annotation.ExcelCellName("status")
+        public String status;
     }
 
     @Setup(Level.Trial)
@@ -114,8 +134,18 @@ public class MemoryBenchmark {
     }
 
     @Benchmark
+    public void poiji(Blackhole bh) {
+        List<PoijiProduct> values = Poiji.fromExcel(
+                file, PoijiProduct.class,
+                PoijiOptions.PoijiOptionsBuilder.settings().build());
+        bh.consume(values);
+    }
+
+    @Benchmark
     public void easyExcel(Blackhole bh) throws IOException {
-        List<Product> values = EasyExcel.read(file).head(Product.class).headRowNumber(1).sheet().doReadSync();
+        List<Product> values = EasyExcel.read(file)
+                .head(Product.class).headRowNumber(1)
+                .sheet().doReadSync();
         bh.consume(values);
     }
 
@@ -128,9 +158,11 @@ public class MemoryBenchmark {
                 Product p = new Product();
                 p.name = row.getCellText(0);
                 p.category = row.getCellText(1);
-                p.quantity = (int) Double.parseDouble(row.getCellText(2));
+                p.quantity = (int) Double.parseDouble(
+                        row.getCellText(2));
                 p.price = Double.parseDouble(row.getCellText(3));
-                p.inStock = Boolean.parseBoolean(row.getCellText(4));
+                p.inStock = Boolean.parseBoolean(
+                        row.getCellText(4));
                 p.status = row.getCellText(5);
                 entries.add(p);
             });
