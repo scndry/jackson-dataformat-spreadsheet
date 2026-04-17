@@ -4,6 +4,8 @@
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.scndry/jackson-dataformat-spreadsheet)](https://central.sonatype.com/artifact/io.github.scndry/jackson-dataformat-spreadsheet)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
+> _Let's get rid of the Spread Sh!t._
+
 **A Java library (Jackson extension) for reading and writing Excel spreadsheets (XLSX/XLS) as POJOs.**
 
 Map spreadsheet rows to Java objects with `ObjectMapper` — the same API you use for JSON, CSV, and XML. No cell-level iteration, no column index counting, no manual type casting.
