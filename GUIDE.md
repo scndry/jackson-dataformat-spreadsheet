@@ -327,12 +327,15 @@ Order order = new Order(1, Arrays.asList(
 mapper.writeValue(output, order);
 ```
 
+```
++----------+---------+-----+-------+
 | Order ID | Product | Qty | Total |
-|----------|---------|-----|-------|
-| 1 | Apple | 3 | 8 |
-| | Banana | 5 | |
-
-`Order ID` and `Total` cells are merged vertically.
++----------+---------+-----+-------+
+|          | Apple   |   3 |       |
+|    1     +---------+-----+   8   |
+|          | Banana  |   5 |       |
++----------+---------+-----+-------+
+```
 
 ## Annotations
 
