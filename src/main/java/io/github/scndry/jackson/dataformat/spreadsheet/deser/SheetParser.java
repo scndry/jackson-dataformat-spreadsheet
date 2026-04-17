@@ -170,17 +170,7 @@ public final class SheetParser extends ParserMinimalBase {
             case CELL_VALUE:
                 _reference = _reader.getReference();
                 _value = _reader.getCellValue();
-                final Column column = _schema.getColumn(_reference);
-                final ColumnPointer pointer = _parsingContext
-                        .relativePointer(column.getPointer().getParent());
-                for (final ColumnPointer p : pointer) {
-                    if (p.isParent()) {
-                        _nextTokens.add(JsonToken.END_OBJECT);
-                    } else {
-                        _nextTokens.add(JsonToken.FIELD_NAME);
-                        _nextTokens.add(JsonToken.START_OBJECT);
-                    }
-                }
+                _emitScopeTokens(_schema.getColumn(_reference));
                 _nextTokens.add(JsonToken.FIELD_NAME);
                 _nextTokens.add(_scalarValueToken());
                 break;
@@ -196,6 +186,18 @@ public final class SheetParser extends ParserMinimalBase {
         }
     }
 
+    private void _emitScopeTokens(final Column column) {
+        final ColumnPointer pointer = _parsingContext.relativePointer(column.getPointer().getParent());
+        for (final ColumnPointer p : pointer) {
+            if (p.isParent()) {
+                _nextTokens.add(JsonToken.END_OBJECT);
+            } else {
+                _nextTokens.add(JsonToken.FIELD_NAME);
+                _nextTokens.add(JsonToken.START_OBJECT);
+            }
+        }
+    }
+
     // Reads next SheetToken, skipping rows/columns outside schema bounds.
     private SheetToken _readNext() {
         if (!_reader.hasNext()) {
@@ -208,11 +210,10 @@ public final class SheetParser extends ParserMinimalBase {
                 if (token == SheetToken.SHEET_DATA_END) break;
             }
         }
-        if (token == SheetToken.CELL_VALUE) {
-            while (!_schema.isInColumnBounds(_reader.getColumn())) {
-                token = _reader.next();
-                if (token != SheetToken.CELL_VALUE) break;
-            }
+        if (token != SheetToken.CELL_VALUE) return token;
+        while (!_schema.isInColumnBounds(_reader.getColumn())) {
+            token = _reader.next();
+            if (token != SheetToken.CELL_VALUE) break;
         }
         return token;
     }
@@ -239,13 +240,14 @@ public final class SheetParser extends ParserMinimalBase {
     private void _handleEmptyObject() {
         if (_nextTokens.size() != 2) return;
         final Iterator<JsonToken> iterator = _nextTokens.iterator();
-        if (iterator.next() == JsonToken.START_OBJECT && iterator.next() == JsonToken.END_OBJECT) {
-            _nextTokens.clear();
-            if (isEnabled(Feature.BREAK_ON_BLANK_ROW)) {
-                _nextTokens.add(null);
-            } else if (isEnabled(Feature.BLANK_ROW_AS_NULL)) {
-                _nextTokens.add(JsonToken.VALUE_NULL);
-            }
+        if (iterator.next() != JsonToken.START_OBJECT || iterator.next() != JsonToken.END_OBJECT) {
+            return;
+        }
+        _nextTokens.clear();
+        if (isEnabled(Feature.BREAK_ON_BLANK_ROW)) {
+            _nextTokens.add(null);
+        } else if (isEnabled(Feature.BLANK_ROW_AS_NULL)) {
+            _nextTokens.add(JsonToken.VALUE_NULL);
         }
     }
 

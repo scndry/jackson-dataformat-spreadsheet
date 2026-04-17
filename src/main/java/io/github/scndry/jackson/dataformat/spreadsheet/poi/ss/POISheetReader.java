@@ -13,6 +13,7 @@ import org.apache.poi.ss.util.CellAddress;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.CellValue;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetReader;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetToken;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
 
 /**
  * {@link SheetReader} implementation backed by POI's {@link Sheet}/{@link Row}/{@link Cell} object model.
@@ -47,8 +48,7 @@ public final class POISheetReader implements SheetReader {
 
     @Override
     public boolean isDate1904() {
-        final Workbook workbook = _sheet.getWorkbook();
-        return workbook instanceof Date1904Support && ((Date1904Support) workbook).isDate1904();
+        return POICompat.isDate1904(_sheet.getWorkbook());
     }
 
     @Override

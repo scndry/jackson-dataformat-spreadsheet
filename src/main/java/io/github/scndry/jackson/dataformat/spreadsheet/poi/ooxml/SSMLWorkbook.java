@@ -3,7 +3,6 @@ package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -39,8 +38,7 @@ public final class SSMLWorkbook implements AutoCloseable {
         _corePart = corePart;
         _sheets = new ArrayList<>();
         boolean date1904 = false;
-        final XmlElementReader reader = new XmlElementReader(_corePart.getInputStream());
-        try {
+        try (XmlElementReader reader = new XmlElementReader(_corePart.getInputStream())) {
             reader.navigateTo(SpreadsheetML.WORKBOOK);
             final Matcher hit = reader.nextUntil(START_WORKBOOK_PR, START_SHEET, END_SHEETS);
             if (hit == START_WORKBOOK_PR) {
@@ -58,8 +56,6 @@ public final class SSMLWorkbook implements AutoCloseable {
                 if (m == null || m.isEndElement()) break;
                 _addSheet(reader);
             }
-        } finally {
-            reader.close();
         }
         _date1904 = date1904;
         _worksheetRels = _corePart.getRelationships(XSSFRelation.WORKSHEET);

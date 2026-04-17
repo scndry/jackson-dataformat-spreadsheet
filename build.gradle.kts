@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "io.github.scndry"
-version = "1.0.0"
+version = "1.0.1"
 description = "Support for reading and writing Spreadsheet via Jackson abstractions."
 
 val title = "Jackson dataformat: Spreadsheet"
@@ -45,10 +45,10 @@ dependencies {
 
 dependencies {
     jmh("com.alibaba:easyexcel:4.0.3") { exclude(group = "org.apache.poi") }
+    jmh("com.github.ozlerhakan:poiji:5.4.0") { exclude(group = "org.apache.poi") }
     jmh("org.dhatim:fastexcel:0.20.0")
     jmh("org.dhatim:fastexcel-reader:0.20.0")
     jmh("com.h2database:h2:2.2.224")
-    jmh("com.fasterxml.woodstox:woodstox-core:7.1.1")
 }
 
 java {
@@ -56,6 +56,12 @@ java {
         languageVersion.set(JavaLanguageVersion.of(8))
     }
     // javadocJar and sourcesJar provided by com.vanniktech.maven.publish
+}
+
+tasks.named<JavaCompile>("compileJmhJava") {
+    javaCompiler.set(javaToolchains.compilerFor {
+        languageVersion.set(JavaLanguageVersion.of(11))
+    })
 }
 
 mavenPublishing {

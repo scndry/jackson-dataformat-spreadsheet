@@ -8,7 +8,6 @@ import java.util.function.BiConsumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Date1904Support;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellAddress;
@@ -19,6 +18,7 @@ import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
@@ -113,15 +113,14 @@ public final class POISheetWriter implements SheetWriter {
         if (size <= 1) return;
         final List<Column> columns = _schema.getColumns(filter);
         for (final Column column : columns) {
-            int col = _schema.columnIndexOf(column);
-            if (column.isMerge() &&
-                    !filter.relativize(column.getPointer()).contains(ColumnPointer.array())) {
-                final CellRangeAddress region = new CellRangeAddress(row, row + size - 1, col, col);
-                if (log.isTraceEnabled()) {
-                    log.trace(region.formatAsString());
-                }
-                _sheet.addMergedRegion(region);
+            if (!column.isMerge()) continue;
+            if (filter.relativize(column.getPointer()).contains(ColumnPointer.array())) continue;
+            final int col = _schema.columnIndexOf(column);
+            final CellRangeAddress region = new CellRangeAddress(row, row + size - 1, col, col);
+            if (log.isTraceEnabled()) {
+                log.trace(region.formatAsString());
             }
+            _sheet.addMergedRegion(region);
         }
     }
 
@@ -149,11 +148,10 @@ public final class POISheetWriter implements SheetWriter {
             } else {
                 width = value.getWidth();
             }
-            if (width > 0) {
-                width *= 256;
-                width = Math.min(width, MAX_COLUMN_WIDTH);
-                _sheet.setColumnWidth(col, (int) width);
-            }
+            if (width <= 0) continue;
+            width *= 256;
+            width = Math.min(width, MAX_COLUMN_WIDTH);
+            _sheet.setColumnWidth(col, (int) width);
         }
     }
 
@@ -168,10 +166,6 @@ public final class POISheetWriter implements SheetWriter {
 
     @Override
     public boolean isDate1904() {
-        final Workbook workbook = _sheet.getWorkbook();
-        if (workbook instanceof Date1904Support) {
-            return ((Date1904Support) workbook).isDate1904();
-        }
-        return false;
+        return POICompat.isDate1904(_sheet.getWorkbook());
     }
 }
