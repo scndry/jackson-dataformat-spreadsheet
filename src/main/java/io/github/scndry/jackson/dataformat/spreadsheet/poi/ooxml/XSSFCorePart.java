@@ -12,6 +12,8 @@ import org.apache.poi.openxml4j.opc.PackageRelationship;
 import org.apache.poi.openxml4j.opc.PackageRelationshipCollection;
 import org.apache.poi.xssf.usermodel.XSSFRelation;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
+
 /**
  * Wrapper around an OPC {@link PackagePart} representing the workbook core part.
  * Handles relationship resolution and Strict/Transitional namespace detection.
@@ -26,7 +28,7 @@ final class XSSFCorePart {
 
     XSSFCorePart(final PackagePart corePart) {
         _part = corePart;
-        _strictFormat = corePart.getPackage().isStrictOoxmlFormat();
+        _strictFormat = POICompat.isStrictOoxmlFormat(corePart.getPackage());
     }
 
     public InputStream getInputStream() {

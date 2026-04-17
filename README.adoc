@@ -28,7 +28,7 @@ toc::[]
 
 * Java 8+
 * Jackson 2.14.0+ (verified)
-* Apache POI 5.1.0+ (verified)
+* Apache POI 4.1.1+ (verified, Strict OOXML requires 5.1.0+)
 
 == Installation
 
