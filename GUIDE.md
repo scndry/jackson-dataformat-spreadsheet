@@ -439,6 +439,8 @@ class Invoice {
 | `date()` | `"yyyy-mm-dd"` |
 | `dateTime()` | `"yyyy-mm-dd hh:mm:ss"` |
 
+Custom patterns can be passed directly via `dataFormat(String)`. See [Number format codes](https://support.microsoft.com/en-us/office/number-format-codes-5026bbd6-04bc-48cd-bf33-80f18b4eae68) for the full syntax.
+
 ### Excel Dates
 
 Excel stores dates as numeric serial values. `ExcelDateModule` is registered by default, automatically converting between Java date types and Excel date numbers.
