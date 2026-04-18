@@ -55,13 +55,13 @@ But this is not a POI replacement. POI types (`Sheet`, `Workbook`) are first-cla
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.0.1"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.0.2"
 ```
 
 ## Quick Start
@@ -395,6 +395,51 @@ class Bar {
 |--------|-------|----------|
 | bar.foo.a | `"highlight"` (from @DataColumn) | `FALSE` (from Foo's @DataGrid) |
 | bar.foo.b | `"base"` (from Bar's @DataGrid) | `FALSE` (from Foo's @DataGrid) |
+
+### Jackson Annotations
+
+`SpreadsheetMapper` extends `ObjectMapper`. Standard Jackson annotations work on `@DataGrid` classes.
+
+**Supported:**
+
+| Annotation | Read | Write | Effect |
+|---|:---:|:---:|---|
+| `@JsonProperty` | Yes | Yes | Column name |
+| `@JsonIgnore` | Yes | Yes | Exclude column |
+| `@JsonIgnoreProperties` | Yes | Yes | Class-level multi-field exclusion |
+| `@JsonCreator` | Yes | — | Constructor-based deserialization |
+| `@JsonPropertyOrder` | Yes | Yes | Column order |
+| `@JsonInclude(NON_NULL)` | — | Yes | Skip null cells |
+| `@JsonNaming` | Yes | Yes | Naming strategy (SNAKE_CASE, etc.) |
+| `@JsonGetter` / `@JsonSetter` | Yes | Yes | Custom accessor names |
+| `@JsonAutoDetect` | Yes | Yes | Private field access |
+| `@JsonValue` / `@JsonCreator` on enum | Yes | Yes | Custom enum cell values |
+| `@JsonEnumDefaultValue` | Yes | — | Unknown enum fallback |
+| `@JsonSerialize` / `@JsonDeserialize` | Yes | Yes | Custom type conversion |
+| `@JsonFormat(shape = STRING)` | — | Yes | Force string cell for numeric types |
+| `@JsonUnwrapped` | Yes | Yes | Flatten without parent prefix in headers |
+| `@JsonIncludeProperties` | Yes | Yes | Whitelist fields |
+| `@JsonFilter` | — | Yes | Programmatic column filtering |
+| `@JsonView` | — | Yes | View-based column filtering (via `sheetWriterFor(type, view)`) |
+| `@JsonTypeInfo` + `@JsonSubTypes` | — | Yes | Polymorphic types (`As.PROPERTY`, union schema) |
+| Mix-in | Yes | Yes | Apply `@DataGrid` + annotations to third-party classes |
+
+**Not supported:**
+
+| Annotation | Reason |
+|---|---|
+| `@JsonAlias` | Column matching is positional (schema order), not header-name-based |
+| `@JsonAnySetter` / `@JsonAnyGetter` | Dynamic properties cannot map to a fixed schema |
+
+**`@JsonView` usage:**
+
+```java
+// sheetWriterFor(type, view) generates view-filtered schema
+mapper.sheetWriterFor(Report.class, Views.Summary.class)
+    .writeValue(file, reports);
+```
+
+Note: `mapper.writerWithView()` does not work — it bypasses schema generation. Use `sheetWriterFor(type, view)` instead.
 
 ## Styling
 

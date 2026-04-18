@@ -333,7 +333,12 @@ public final class SheetParser extends ParserMinimalBase {
 
     @Override
     public NumberType getNumberType() throws IOException {
-        throw new UnsupportedOperationException();
+        if (_value.noFractionalPart()) {
+            final long v = (long) _value.getNumberValue();
+            return (v <= Integer.MAX_VALUE && v >= Integer.MIN_VALUE)
+                    ? NumberType.INT : NumberType.LONG;
+        }
+        return NumberType.DOUBLE;
     }
 
     @Override
