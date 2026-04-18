@@ -4,6 +4,8 @@
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.scndry/jackson-dataformat-spreadsheet)](https://central.sonatype.com/artifact/io.github.scndry/jackson-dataformat-spreadsheet)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
+> _Let's get rid of the Spread Sh!t._
+
 **A Java library (Jackson extension) for reading and writing Excel spreadsheets (XLSX/XLS) as POJOs.**
 
 Map spreadsheet rows to Java objects with `ObjectMapper` — the same API you use for JSON, CSV, and XML. No cell-level iteration, no column index counting, no manual type casting.
@@ -38,13 +40,13 @@ Available on Maven Central:
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.0.1"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.0.2"
 ```
 
 ### Requirements
@@ -235,7 +237,7 @@ Comparable to FastExcel on read throughput at 100K rows, with the lowest memory 
 XLSX (OOXML) and XLS (legacy). XLSX uses StAX streaming; XLS uses POI object model.
 
 **Q: Is it production-ready?**
-Yes. Version 1.0.1 is on Maven Central. Java 8+, Jackson 2.14+, POI 4.1.1+.
+Yes. Version 1.0.2 is on Maven Central. Java 8+, Jackson 2.14+, POI 4.1.1+.
 
 ## License
 

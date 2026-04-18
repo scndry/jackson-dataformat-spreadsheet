@@ -446,6 +446,12 @@ public final class SpreadsheetMapper extends ObjectMapper {
         return writer(sheetSchemaFor(type));
     }
 
+    public SpreadsheetWriter sheetWriterFor(
+            final Class<?> type,
+            final Class<?> view) throws JsonMappingException {
+        return (SpreadsheetWriter) writer(sheetSchemaFor(type, view)).withView(view);
+    }
+
     /*
     /**********************************************************
     /* Public API: constructing SpreadsheetReaders
@@ -478,6 +484,15 @@ public final class SpreadsheetMapper extends ObjectMapper {
         return _schemaGenerator.generate(
                 constructType(type),
                 _serializerProvider(_serializationConfig),
+                _serializerFactory);
+    }
+
+    public SpreadsheetSchema sheetSchemaFor(
+            final Class<?> type,
+            final Class<?> view) throws JsonMappingException {
+        return _schemaGenerator.generate(
+                constructType(type),
+                _serializerProvider(_serializationConfig.withView(view)),
                 _serializerFactory);
     }
 
