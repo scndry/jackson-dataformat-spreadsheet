@@ -23,20 +23,19 @@ jobs:
       - name: Build and test
         run: ./gradlew check --console=plain
 
-      - name: Import GPG key
+      - name: Publish to Maven Central
         run: |
           echo "${{ secrets.GPG_SECRET_KEY }}" | base64 -d | gpg --batch --import
-          gpg --batch --yes --pinentry-mode loopback --passphrase "${{ secrets.GPG_PASSPHRASE }}" \
-            --export-secret-keys > /home/runner/.gnupg/secring.gpg
-
-      - name: Publish to Maven Central
-        run: ./gradlew publishAndReleaseToMavenCentral --console=plain
+          ASCII_KEY=$(gpg --batch --yes --pinentry-mode loopback \
+            --passphrase "${{ secrets.GPG_PASSPHRASE }}" \
+            --armor --export-secret-keys "${{ secrets.GPG_KEY_ID }}")
+          export ORG_GRADLE_PROJECT_signingInMemoryKey="$ASCII_KEY"
+          ./gradlew publishAndReleaseToMavenCentral --console=plain
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.OSSRH_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.OSSRH_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.GPG_KEY_ID }}
-          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
-          ORG_GRADLE_PROJECT_signingSecretKeyRingFile: /home/runner/.gnupg/secring.gpg
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
