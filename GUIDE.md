@@ -382,7 +382,7 @@ Customizes individual column properties. Unset attributes inherit from the enclo
 | `maxWidth` | `255` | Maximum column width |
 | `merge` | `DEFAULT` | Merge cells vertically |
 
-`autoSize` may not be accurate for fullwidth forms like CJK characters.
+`autoSize` may not be accurate for [fullwidth forms](https://en.wikipedia.org/wiki/Halfwidth_and_fullwidth_forms) like [CJK characters](https://en.wikipedia.org/wiki/CJK_characters).
 
 ### Attribute Resolution Order
 
