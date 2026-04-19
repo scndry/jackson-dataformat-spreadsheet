@@ -55,13 +55,13 @@ But this is not a POI replacement. POI types (`Sheet`, `Workbook`) are first-cla
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.0.2</version>
+    <version>1.0.3</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.0.2"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.0.3"
 ```
 
 ## Quick Start
@@ -117,6 +117,8 @@ Output (`products.xlsx`):
 
 ## Reading
 
+Read an Excel file into Java POJOs:
+
 ```java
 SpreadsheetMapper mapper = new SpreadsheetMapper();
 
@@ -130,14 +132,16 @@ List<Product> list = mapper.readValues(file, Product.class);
 SheetInput<File> input = SheetInput.source(file, "Products");
 List<Product> list = mapper.readValues(input, Product.class);
 
-// Specific sheet by index
-SheetInput<File> input = SheetInput.source(file, 2);
+// Specific sheet by index (0-based)
+SheetInput<File> input = SheetInput.source(file, 0);
 List<Product> list = mapper.readValues(input, Product.class);
 
 // From InputStream
 SheetInput<InputStream> input = SheetInput.source(stream, "Products");
 List<Product> list = mapper.readValues(input, Product.class);
 ```
+
+Columns are matched by position, not by header name. The spreadsheet's column order must match the field declaration order in the class.
 
 ### Streaming Read
 
@@ -298,7 +302,9 @@ Employee e = mapper.readValue(file, Employee.class);
 mapper.writeValue(file, employees, Employee.class);
 ```
 
-The schema is generated from the class hierarchy via Jackson's `FormatVisitor`. Each nested object's fields become contiguous columns. No manual column index mapping needed.
+The schema is generated from the class hierarchy. Each nested object's fields become contiguous columns. No manual column index mapping needed.
+
+By default, nested field headers use the path from the parent (e.g., `address/zipcode`). Use `@DataColumn("Zipcode")` to set a custom header name.
 
 ### Nested Lists
 
@@ -337,6 +343,14 @@ mapper.writeValue(output, order);
 +----------+---------+-----+-------+
 ```
 
+The [SXSSFWorkbook row access window](https://poi.apache.org/apidocs/4.1/org/apache/poi/xssf/streaming/SXSSFWorkbook.html#SXSSFWorkbook-int-) is adjusted automatically to fit the list size. If you see `"Cannot write to row N (already flushed)"`, the nested list expanded beyond the window. Increase it:
+
+```java
+SpreadsheetMapper mapper = new SpreadsheetMapper(
+    new SpreadsheetFactory(() -> new SXSSFWorkbook(500),
+        SpreadsheetFactory.DEFAULT_SHEET_PARSER_FEATURE_FLAGS));
+```
+
 ## Annotations
 
 ### @DataGrid
@@ -359,7 +373,7 @@ Customizes individual column properties. Unset attributes inherit from the enclo
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
-| `value` | `""` (field name) | Column header name |
+| `value` | field name | Column header name |
 | `style` | `""` | Cell style for data cells |
 | `headerStyle` | `""` | Cell style for the header cell |
 | `width` | `-1` (auto) | Column width in character units |
@@ -417,7 +431,7 @@ class Bar {
 | `@JsonEnumDefaultValue` | Yes | — | Unknown enum fallback |
 | `@JsonSerialize` / `@JsonDeserialize` | Yes | Yes | Custom type conversion |
 | `@JsonFormat(shape = STRING)` | — | Yes | Force string cell for numeric types |
-| `@JsonUnwrapped` | Yes | Yes | Flatten without parent prefix in headers |
+| `@JsonUnwrapped` | Yes | Yes | Flatten nested object — headers use leaf name (`x`) instead of path (`inner/x`) |
 | `@JsonIncludeProperties` | Yes | Yes | Whitelist fields |
 | `@JsonFilter` | — | Yes | Programmatic column filtering |
 | `@JsonView` | — | Yes | View-based column filtering (via `sheetWriterFor(type, view)`) |
@@ -597,9 +611,9 @@ At 100K rows (mixed types, shared string table):
 
 Lowest memory allocation among all libraries. See [BENCHMARK.md](BENCHMARK.md) for full results.
 
-### File-Backed SharedStrings
+### Low-Memory Mode for Large Files
 
-For extremely large XLSX files where the shared string table exceeds available heap:
+For extremely large XLSX files that cause `OutOfMemoryError`:
 
 ```java
 SpreadsheetMapper mapper = SpreadsheetMapper.builder()

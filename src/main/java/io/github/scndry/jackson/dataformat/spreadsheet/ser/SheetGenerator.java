@@ -96,12 +96,16 @@ public final class SheetGenerator extends GeneratorBase {
     @Override
     public void writeStartArray(final Object forValue, final int size) throws IOException {
         _verifyValueWrite(START_ARRAY);
+        if (size > 0) {
+            _writer.ensureRowWindow(size);
+        }
         _outputContext = _outputContext.createChildArrayContext(size);
     }
 
     @Override
     public void writeEndArray() throws IOException {
         _outputContext = _closeStruct(END_ARRAY);
+        _writer.restoreRowWindow();
     }
 
     @Override

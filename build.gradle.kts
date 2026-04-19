@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "io.github.scndry"
-version = "1.0.2"
+version = "1.0.3"
 description = "Support for reading and writing Spreadsheet via Jackson abstractions."
 
 val title = "Jackson dataformat: Spreadsheet"
@@ -34,6 +34,7 @@ dependencies {
     testRuntimeOnly("ch.qos.logback:logback-classic:1.3.15")
     testRuntimeOnly("org.apache.logging.log4j:log4j-to-slf4j:2.24.3")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.11.4")
+    testRuntimeOnly("com.h2database:h2:2.2.224")
 }
 
 dependencies {
