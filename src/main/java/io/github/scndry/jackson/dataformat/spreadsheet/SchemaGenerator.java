@@ -1,11 +1,5 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.util.CellAddress;
-
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -14,7 +8,6 @@ import com.fasterxml.jackson.databind.exc.InvalidDefinitionException;
 import com.fasterxml.jackson.databind.ser.DefaultSerializerProvider;
 import com.fasterxml.jackson.databind.ser.SerializerFactory;
 import com.fasterxml.jackson.databind.util.ClassUtil;
-
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
@@ -22,16 +15,12 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.ColumnNameResolver;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.FormatVisitorWrapper;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.util.CellAddress;
 
-/**
- * Generates a {@link SpreadsheetSchema} from a
- * {@link DataGrid}-annotated type by introspecting its
- * serialization structure. Configurable via fluent builder
- * methods for origin, styles, column naming, and header usage.
- *
- * @see SpreadsheetSchema
- * @see DataGrid
- */
+import java.util.ArrayList;
+import java.util.List;
+
 @Slf4j
 public final class SchemaGenerator {
 
@@ -42,7 +31,7 @@ public final class SchemaGenerator {
                 CellAddress.A1,
                 new StylesBuilder(),
                 ColumnNameResolver.NULL,
-                true);
+                SpreadsheetSchema.DEFAULT_FEATURES);
     }
 
     private SchemaGenerator(final GeneratorSettings generatorSettings) {
@@ -61,8 +50,12 @@ public final class SchemaGenerator {
         return new SchemaGenerator(_generatorSettings.with(resolver));
     }
 
-    public SchemaGenerator withUseHeader(final boolean useHeader) {
-        return new SchemaGenerator(_generatorSettings.with(useHeader));
+    public SchemaGenerator withUseHeader(final boolean state) {
+        return new SchemaGenerator(_generatorSettings.with(SpreadsheetSchema.FEATURE_USE_HEADER, state));
+    }
+
+    public SchemaGenerator withColumnReordering(final boolean state) {
+        return new SchemaGenerator(_generatorSettings.with(SpreadsheetSchema.FEATURE_COLUMN_REORDERING, state));
     }
 
     SpreadsheetSchema generate(
@@ -91,7 +84,7 @@ public final class SchemaGenerator {
                 columns,
                 _generatorSettings._stylesBuilder,
                 _generatorSettings._origin,
-                _generatorSettings._useHeader);
+                _generatorSettings._features);
     }
 
     private void _verifyType(
@@ -135,41 +128,39 @@ public final class SchemaGenerator {
         private final CellAddress _origin;
         private final Styles.Builder _stylesBuilder;
         private final ColumnNameResolver _columnNameResolver;
-        private final boolean _useHeader;
+        private final int _features;
 
         GeneratorSettings(final CellAddress origin, final Styles.Builder stylesBuilder,
-                          final ColumnNameResolver columnNameResolver, final boolean useHeader) {
+                          final ColumnNameResolver columnNameResolver, final int features) {
             _origin = origin;
             _stylesBuilder = stylesBuilder;
             _columnNameResolver = columnNameResolver;
-            _useHeader = useHeader;
+            _features = features;
         }
 
         private GeneratorSettings with(final CellAddress origin) {
             return _origin.equals(origin)
                     ? this
-                    : new GeneratorSettings(origin, _stylesBuilder,
-                            _columnNameResolver, _useHeader);
+                    : new GeneratorSettings(origin, _stylesBuilder, _columnNameResolver, _features);
         }
 
         private GeneratorSettings with(final Styles.Builder styles) {
             return _stylesBuilder.equals(styles)
                     ? this
-                    : new GeneratorSettings(_origin, styles,
-                            _columnNameResolver, _useHeader);
+                    : new GeneratorSettings(_origin, styles, _columnNameResolver, _features);
         }
 
         private GeneratorSettings with(final ColumnNameResolver resolver) {
             return _columnNameResolver.equals(resolver)
-                    ? this : new GeneratorSettings(_origin, _stylesBuilder, resolver, _useHeader);
+                    ? this
+                    : new GeneratorSettings(_origin, _stylesBuilder, resolver, _features);
         }
 
-        private GeneratorSettings with(final boolean useHeader) {
-            return _useHeader == useHeader ? this : new GeneratorSettings(
-                    _origin,
-                    _stylesBuilder,
-                    _columnNameResolver,
-                    useHeader);
+        private GeneratorSettings with(final int flag, final boolean state) {
+            final int f = state ? (_features | flag) : (_features & ~flag);
+            return f == _features
+                    ? this
+                    : new GeneratorSettings(_origin, _stylesBuilder, _columnNameResolver, f);
         }
     }
 }

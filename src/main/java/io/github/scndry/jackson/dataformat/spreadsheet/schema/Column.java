@@ -20,14 +20,23 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
 @EqualsAndHashCode
 public final class Column {
 
+    private static final String[] NO_ALIASES = new String[0];
+
     private final ColumnPointer _pointer;
     private final DataColumn.Value _value;
     private final JavaType _type;
+    private final String[] _aliases;
 
     public Column(final ColumnPointer pointer, final DataColumn.Value value, final JavaType type) {
+        this(pointer, value, type, NO_ALIASES);
+    }
+
+    public Column(final ColumnPointer pointer, final DataColumn.Value value,
+                  final JavaType type, final String[] aliases) {
         this._pointer = pointer;
         this._value = value;
         this._type = type;
+        this._aliases = aliases;
     }
 
     public ColumnPointer getPointer() {
@@ -49,6 +58,14 @@ public final class Column {
             return _pointer.toString();
         }
         return name;
+    }
+
+    public boolean matchesName(final String header) {
+        if (getName().equals(header)) return true;
+        for (final String alias : _aliases) {
+            if (alias.equals(header)) return true;
+        }
+        return false;
     }
 
     public DataColumn.Value getValue() {

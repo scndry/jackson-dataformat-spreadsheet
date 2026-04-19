@@ -49,21 +49,10 @@ class UnitTest {
 
         @Test
         void dataRowWithoutHeader() throws Exception {
-            SpreadsheetSchema schema = mapper.sheetSchemaFor(Simple.class).withUseHeader(false);
+            SpreadsheetMapper noHeader = mapper.rebuild().useHeader(false).build();
+            SpreadsheetSchema schema = noHeader.sheetSchemaFor(Simple.class);
             assertThat(schema.usesHeader()).isFalse();
             assertThat(schema.getDataRow()).isEqualTo(0);
-        }
-
-        @Test
-        void withUseHeaderSameInstance() throws Exception {
-            SpreadsheetSchema schema = mapper.sheetSchemaFor(Simple.class);
-            assertThat(schema.withUseHeader(true)).isSameAs(schema);
-        }
-
-        @Test
-        void withUseHeaderNewInstance() throws Exception {
-            SpreadsheetSchema schema = mapper.sheetSchemaFor(Simple.class);
-            assertThat(schema.withUseHeader(false)).isNotSameAs(schema);
         }
 
         @Test

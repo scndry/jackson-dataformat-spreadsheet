@@ -55,13 +55,13 @@ But this is not a POI replacement. POI types (`Sheet`, `Workbook`) are first-cla
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.0.3</version>
+    <version>1.1.0</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.0.3"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.1.0"
 ```
 
 ## Quick Start
@@ -141,7 +141,7 @@ SheetInput<InputStream> input = SheetInput.source(stream, "Products");
 List<Product> list = mapper.readValues(input, Product.class);
 ```
 
-Columns are matched by position, not by header name. The spreadsheet's column order must match the field declaration order in the class.
+By default, columns are matched by position — the spreadsheet's column order must match the field declaration order. Enable `columnReordering(true)` to match by header name instead (see [Column Reordering](#column-reordering)).
 
 ### Streaming Read
 
@@ -382,7 +382,7 @@ Customizes individual column properties. Unset attributes inherit from the enclo
 | `maxWidth` | `255` | Maximum column width |
 | `merge` | `DEFAULT` | Merge cells vertically |
 
-`autoSize` may not be accurate for fullwidth forms like CJK characters.
+`autoSize` may not be accurate for [fullwidth forms](https://en.wikipedia.org/wiki/Halfwidth_and_fullwidth_forms) like [CJK characters](https://en.wikipedia.org/wiki/CJK_characters).
 
 ### Attribute Resolution Order
 
@@ -434,26 +434,26 @@ class Bar {
 | `@JsonUnwrapped` | Yes | Yes | Flatten nested object — headers use leaf name (`x`) instead of path (`inner/x`) |
 | `@JsonIncludeProperties` | Yes | Yes | Whitelist fields |
 | `@JsonFilter` | — | Yes | Programmatic column filtering |
-| `@JsonView` | — | Yes | View-based column filtering (via `sheetWriterFor(type, view)`) |
+| `@JsonAlias` | Yes | — | Alternative header names for reading (requires `columnReordering(true)`) |
+| `@JsonView` | — | Yes | View-based column filtering (via `sheetWriterForWithView(type, view)`) |
 | `@JsonTypeInfo` + `@JsonSubTypes` | — | Yes | Polymorphic types (`As.PROPERTY`, union schema) |
 | Mix-in | Yes | Yes | Apply `@DataGrid` + annotations to third-party classes |
 
-**Not supported:**
+**Limited:**
 
 | Annotation | Reason |
 |---|---|
-| `@JsonAlias` | Column matching is positional (schema order), not header-name-based |
 | `@JsonAnySetter` / `@JsonAnyGetter` | Dynamic properties cannot map to a fixed schema |
 
 **`@JsonView` usage:**
 
 ```java
-// sheetWriterFor(type, view) generates view-filtered schema
+// sheetWriterForWithView(type, view) generates view-filtered schema
 mapper.sheetWriterFor(Report.class, Views.Summary.class)
     .writeValue(file, reports);
 ```
 
-Note: `mapper.writerWithView()` does not work — it bypasses schema generation. Use `sheetWriterFor(type, view)` instead.
+Note: `mapper.writerWithView()` does not work — it bypasses schema generation. Use `sheetWriterForWithView(type, view)` instead.
 
 ## Styling
 
@@ -537,6 +537,18 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 SpreadsheetSchema schema = mapper.sheetSchemaFor(Entry.class)
     .withUseHeader(false);
 ```
+
+### Column Reordering
+
+By default, columns are matched by position. Enable `columnReordering` to match by header name instead:
+
+```java
+SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+    .columnReordering(true)
+    .build();
+```
+
+The header row is read and schema columns are reordered to match the file's column order. Extra columns in the file are ignored. Missing columns get default values. `@JsonAlias` names are also checked during header matching.
 
 ### Column Names
 

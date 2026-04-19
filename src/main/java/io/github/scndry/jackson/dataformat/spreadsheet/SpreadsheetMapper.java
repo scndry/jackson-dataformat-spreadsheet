@@ -292,6 +292,14 @@ public final class SpreadsheetMapper extends ObjectMapper {
         return setSchemaGenerator(_schemaGenerator.withColumnNameResolver(resolver));
     }
 
+    public SpreadsheetMapper setUseHeader(final boolean state) {
+        return setSchemaGenerator(_schemaGenerator.withUseHeader(state));
+    }
+
+    public SpreadsheetMapper setColumnReordering(final boolean state) {
+        return setSchemaGenerator(_schemaGenerator.withColumnReordering(state));
+    }
+
     /*
     /**********************************************************
     /* Configuration, other
@@ -446,10 +454,10 @@ public final class SpreadsheetMapper extends ObjectMapper {
         return writer(sheetSchemaFor(type));
     }
 
-    public SpreadsheetWriter sheetWriterFor(
+    public SpreadsheetWriter sheetWriterForWithView(
             final Class<?> type,
             final Class<?> view) throws JsonMappingException {
-        return (SpreadsheetWriter) writer(sheetSchemaFor(type, view)).withView(view);
+        return (SpreadsheetWriter) writer(sheetSchemaForWithView(type, view)).withView(view);
     }
 
     /*
@@ -487,7 +495,7 @@ public final class SpreadsheetMapper extends ObjectMapper {
                 _serializerFactory);
     }
 
-    public SpreadsheetSchema sheetSchemaFor(
+    public SpreadsheetSchema sheetSchemaForWithView(
             final Class<?> type,
             final Class<?> view) throws JsonMappingException {
         return _schemaGenerator.generate(
@@ -562,7 +570,12 @@ public final class SpreadsheetMapper extends ObjectMapper {
         }
 
         public Builder useHeader(final boolean state) {
-            _mapper.setSchemaGenerator(_mapper.getSchemaGenerator().withUseHeader(state));
+            _mapper.setUseHeader(state);
+            return _this();
+        }
+
+        public Builder columnReordering(final boolean state) {
+            _mapper.setColumnReordering(state);
             return _this();
         }
     }
