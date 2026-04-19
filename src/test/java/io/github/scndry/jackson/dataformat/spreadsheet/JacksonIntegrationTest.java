@@ -859,7 +859,7 @@ class JacksonIntegrationTest {
                 .build();
 
         File file = tempFile("view.xlsx");
-        viewMapper.sheetWriterFor(WithViews.class, Views.Summary.class)
+        viewMapper.sheetWriterForWithView(WithViews.class, Views.Summary.class)
                 .writeValue(file, Arrays.asList(
                         new WithViews("Apple", "A fruit", 10)));
 
@@ -1094,12 +1094,116 @@ class JacksonIntegrationTest {
     }
 
     // ----------------------------------------------------------------
-    // Not supported: @JsonAlias
+    // Column matching is positional
+    // ----------------------------------------------------------------
+
+    @DataGrid
+    static class WithReorderedColumns {
+        public String name;
+        public int quantity;
+
+        public WithReorderedColumns() {}
+    }
+
+    @Test
+    void columnMatching_isPositional_byDefault() throws Exception {
+        File file = tempFile("reordered.xlsx");
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("quantity");
+            header.createCell(1).setCellValue("name");
+            Row data = sheet.createRow(1);
+            data.createCell(0).setCellValue(10);
+            data.createCell(1).setCellValue("Apple");
+            try (OutputStream os = new FileOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+
+        assertThatThrownBy(() -> mapper.readValues(file, WithReorderedColumns.class))
+                .hasMessageContaining("quantity");
+    }
+
+    @Test
+    void columnReordering_matchesByHeaderName() throws Exception {
+        File file = tempFile("reorder-match.xlsx");
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("quantity");
+            header.createCell(1).setCellValue("name");
+            Row data = sheet.createRow(1);
+            data.createCell(0).setCellValue(10);
+            data.createCell(1).setCellValue("Apple");
+            try (OutputStream os = new FileOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+
+        SpreadsheetMapper reorderMapper = SpreadsheetMapper.builder()
+                .columnReordering(true).build();
+        List<WithReorderedColumns> read = reorderMapper.readValues(
+                file, WithReorderedColumns.class);
+        assertThat(read.get(0).name).isEqualTo("Apple");
+        assertThat(read.get(0).quantity).isEqualTo(10);
+    }
+
+    @Test
+    void columnReordering_extraColumnsIgnored() throws Exception {
+        File file = tempFile("reorder-extra.xlsx");
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("quantity");
+            header.createCell(1).setCellValue("extra");
+            header.createCell(2).setCellValue("name");
+            Row data = sheet.createRow(1);
+            data.createCell(0).setCellValue(10);
+            data.createCell(1).setCellValue("ignored");
+            data.createCell(2).setCellValue("Apple");
+            try (OutputStream os = new FileOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+
+        SpreadsheetMapper reorderMapper = SpreadsheetMapper.builder()
+                .columnReordering(true).build();
+        List<WithReorderedColumns> read = reorderMapper.readValues(
+                file, WithReorderedColumns.class);
+        assertThat(read.get(0).name).isEqualTo("Apple");
+        assertThat(read.get(0).quantity).isEqualTo(10);
+    }
+
+    @Test
+    void columnReordering_fewerColumnsInFile() throws Exception {
+        File file = tempFile("reorder-fewer.xlsx");
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("name");
+            Row data = sheet.createRow(1);
+            data.createCell(0).setCellValue("Apple");
+            try (OutputStream os = new FileOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+
+        SpreadsheetMapper reorderMapper = SpreadsheetMapper.builder()
+                .columnReordering(true).build();
+        List<WithReorderedColumns> read = reorderMapper.readValues(
+                file, WithReorderedColumns.class);
+        assertThat(read.get(0).name).isEqualTo("Apple");
+        assertThat(read.get(0).quantity).isEqualTo(0);
+    }
+
+    // ----------------------------------------------------------------
+    // @JsonAlias — with columnReordering
     // ----------------------------------------------------------------
 
     @DataGrid
     static class WithAlias {
-        @JsonAlias({"Product Name", "product_name", "PRODUCT"})
+        @JsonAlias({"Product Name", "product_name"})
         public String name;
         public int quantity;
 
@@ -1107,8 +1211,8 @@ class JacksonIntegrationTest {
     }
 
     @Test
-    void jsonAlias_notSupported_positionalMatching() throws Exception {
-        File file = tempFile("json-alias.xlsx");
+    void jsonAlias_matchesHeaderWithColumnReordering() throws Exception {
+        File file = tempFile("alias-reorder.xlsx");
         try (XSSFWorkbook wb = new XSSFWorkbook()) {
             Sheet sheet = wb.createSheet();
             Row header = sheet.createRow(0);
@@ -1122,8 +1226,11 @@ class JacksonIntegrationTest {
             }
         }
 
-        assertThatThrownBy(() -> mapper.readValues(file, WithAlias.class))
-                .hasMessageContaining("quantity");
+        SpreadsheetMapper reorderMapper = SpreadsheetMapper.builder()
+                .columnReordering(true).build();
+        List<WithAlias> read = reorderMapper.readValues(file, WithAlias.class);
+        assertThat(read.get(0).name).isEqualTo("Apple");
+        assertThat(read.get(0).quantity).isEqualTo(10);
     }
 
     // ----------------------------------------------------------------

@@ -5,9 +5,11 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.CellType;
@@ -49,6 +51,7 @@ public final class SheetParser extends ParserMinimalBase {
     private SheetStreamContext _parsingContext;
     private CellAddress _reference;
     private CellValue _value;
+    private boolean _headerProcessed;
 
     public SheetParser(
             final IOContext ctxt,
@@ -170,7 +173,9 @@ public final class SheetParser extends ParserMinimalBase {
             case CELL_VALUE:
                 _reference = _reader.getReference();
                 _value = _reader.getCellValue();
-                _emitScopeTokens(_schema.getColumn(_reference));
+                final Column column = _schema.findColumn(_reference);
+                if (column == null) break; // unmatched column (reordering)
+                _emitScopeTokens(column);
                 _nextTokens.add(JsonToken.FIELD_NAME);
                 _nextTokens.add(_scalarValueToken());
                 break;
@@ -205,6 +210,12 @@ public final class SheetParser extends ParserMinimalBase {
         }
         SheetToken token = _reader.next();
         if (token == SheetToken.ROW_START) {
+            if (!_headerProcessed && _schema.usesHeader()
+                    && _schema.reordersColumns()
+                    && _reader.getRow() == _schema.getOriginRow()) {
+                _reorderSchemaByHeader();
+                _headerProcessed = true;
+            }
             while (!_schema.isInRowBounds(_reader.getRow())) {
                 token = _reader.next();
                 if (token == SheetToken.SHEET_DATA_END) break;
@@ -216,6 +227,22 @@ public final class SheetParser extends ParserMinimalBase {
             if (token != SheetToken.CELL_VALUE) break;
         }
         return token;
+    }
+
+    private void _reorderSchemaByHeader() {
+        final List<String> headers = new ArrayList<>();
+        while (_reader.hasNext()) {
+            final SheetToken t = _reader.next();
+            if (t == SheetToken.CELL_VALUE) {
+                final int col = _reader.getColumn() - _schema.getOriginColumn();
+                final String value = _reader.getCellValue().getStringValue();
+                while (headers.size() <= col) headers.add(null);
+                headers.set(col, value);
+            } else if (t == SheetToken.ROW_END) {
+                break;
+            }
+        }
+        _schema = _schema.reorderColumns(headers);
     }
 
     private JsonToken _scalarValueToken() throws StreamReadException {

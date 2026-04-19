@@ -1,5 +1,6 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,27 +22,26 @@ import com.fasterxml.jackson.core.FormatSchema;
 public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
 
     public static final String SCHEMA_TYPE = "spreadsheet";
+
+    public static final int FEATURE_USE_HEADER = 0x0001;
+    public static final int FEATURE_COLUMN_REORDERING = 0x0002;
+
+    public static final int DEFAULT_FEATURES = FEATURE_USE_HEADER;
+
     private final List<Column> _columns;
     private final Styles.Builder _stylesBuilder;
     private final CellAddress _origin;
-    private final boolean _useHeader;
-
-    public SpreadsheetSchema(
-            final List<Column> columns,
-            final Styles.Builder stylesBuilder,
-            final CellAddress origin) {
-        this(columns, stylesBuilder, origin, true);
-    }
+    private final int _features;
 
     public SpreadsheetSchema(
             final List<Column> columns,
             final Styles.Builder stylesBuilder,
             final CellAddress origin,
-            final boolean useHeader) {
+            final int features) {
         _columns = columns;
         _stylesBuilder = stylesBuilder;
         _origin = origin;
-        _useHeader = useHeader;
+        _features = features;
     }
 
     @Override
@@ -58,7 +58,11 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         if (_columns.isEmpty()) {
             return null;
         }
-        return getColumn(reference);
+        final int idx = reference.getColumn() - getOriginColumn();
+        if (idx < 0 || idx >= _columns.size()) {
+            return null;
+        }
+        return _columns.get(idx);
     }
 
     public Column getColumn(final CellAddress reference) {
@@ -66,19 +70,32 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     }
 
     public int getDataRow() {
-        return _origin.getRow() + (_useHeader ? 1 : 0);
+        return _origin.getRow() + (usesHeader() ? 1 : 0);
     }
 
     public boolean usesHeader() {
-        return _useHeader;
+        return (_features & FEATURE_USE_HEADER) != 0;
     }
 
-    public SpreadsheetSchema withUseHeader(final boolean state) {
-        return _useHeader == state ? this : new SpreadsheetSchema(
-                _columns,
-                _stylesBuilder,
-                _origin,
-                state);
+    public boolean reordersColumns() {
+        return (_features & FEATURE_COLUMN_REORDERING) != 0;
+    }
+
+    public SpreadsheetSchema reorderColumns(final List<String> headers) {
+        final List<Column> reordered = new ArrayList<>(headers.size());
+        for (final String header : headers) {
+            Column matched = null;
+            if (header != null) {
+                for (final Column col : _columns) {
+                    if (col != null && col.matchesName(header)) {
+                        matched = col;
+                        break;
+                    }
+                }
+            }
+            reordered.add(matched);
+        }
+        return new SpreadsheetSchema(reordered, _stylesBuilder, _origin, _features);
     }
 
     public int getOriginColumn() {
@@ -87,7 +104,8 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
 
     public int columnIndexOf(final ColumnPointer pointer) {
         for (int i = 0; i < _columns.size(); i++) {
-            if (_columns.get(i).matches(pointer)) {
+            final Column col = _columns.get(i);
+            if (col != null && col.matches(pointer)) {
                 return i + getOriginColumn();
             }
         }

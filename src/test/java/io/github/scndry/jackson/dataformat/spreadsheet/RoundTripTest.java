@@ -283,6 +283,61 @@ class RoundTripTest {
         assertThat(output).isEqualTo(input);
     }
 
+    // -- Primitive array / List fields --
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @DataGrid
+    static class WithIntArray {
+        String name;
+        int[] scores;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @DataGrid
+    static class WithStringList {
+        String name;
+        List<String> tags;
+    }
+
+    @Test
+    void primitiveArrayField() throws Exception {
+        File file = tempFile("int-array.xlsx");
+        mapper.writeValue(file, Arrays.asList(
+                new WithIntArray("Alice", new int[]{90, 85, 92})),
+                WithIntArray.class);
+
+        try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb =
+                     new org.apache.poi.xssf.usermodel.XSSFWorkbook(file)) {
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
+            // Alice on row 1, scores expand to 3 rows
+            assertThat(sheet.getRow(1).getCell(0).getStringCellValue()).isEqualTo("Alice");
+            assertThat((int) sheet.getRow(1).getCell(1).getNumericCellValue()).isEqualTo(90);
+            assertThat((int) sheet.getRow(2).getCell(1).getNumericCellValue()).isEqualTo(85);
+            assertThat((int) sheet.getRow(3).getCell(1).getNumericCellValue()).isEqualTo(92);
+        }
+    }
+
+    @Test
+    void stringListField() throws Exception {
+        File file = tempFile("string-list.xlsx");
+        mapper.writeValue(file, Arrays.asList(
+                new WithStringList("Alice", Arrays.asList("java", "kotlin", "scala"))),
+                WithStringList.class);
+
+        try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb =
+                     new org.apache.poi.xssf.usermodel.XSSFWorkbook(file)) {
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
+            assertThat(sheet.getRow(1).getCell(0).getStringCellValue()).isEqualTo("Alice");
+            assertThat(sheet.getRow(1).getCell(1).getStringCellValue()).isEqualTo("java");
+            assertThat(sheet.getRow(2).getCell(1).getStringCellValue()).isEqualTo("kotlin");
+            assertThat(sheet.getRow(3).getCell(1).getStringCellValue()).isEqualTo("scala");
+        }
+    }
+
     // -- useHeader=false + origin --
 
     @Test

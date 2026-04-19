@@ -149,14 +149,14 @@ public final class CellStyleBuilder
     CellStyleBuilder bottomBorderColor(byte[] bottomBorderColor) { _bottomBorderColor.rgb = bottomBorderColor; return this; }
     CellStyleBuilder fillBackgroundColor(byte[] fillBackgroundColor) { _fillBackgroundColor.rgb = fillBackgroundColor; return this; }
     CellStyleBuilder fillForegroundColor(byte[] fillForegroundColor) { _fillForegroundColor.rgb = fillForegroundColor; return this; }
-    public CellStyleBuilder alignment(HorizontalAlignment alignment) { _alignment = alignment; return this; }
-    public CellStyleBuilder verticalAlignment(VerticalAlignment verticalAlignment) { _verticalAlignment = verticalAlignment; return this; }
-    public CellStyleBuilder border(BorderStyle border) { return borderLeft(border).borderRight(border).borderTop(border). borderBottom(border); }
-    public CellStyleBuilder borderLeft(BorderStyle borderLeft) { _borderLeft = borderLeft; return this; }
-    public CellStyleBuilder borderRight(BorderStyle borderRight) { _borderRight = borderRight; return this; }
-    public CellStyleBuilder borderTop(BorderStyle borderTop) { _borderTop = borderTop; return this; }
-    public CellStyleBuilder borderBottom(BorderStyle borderBottom) { _borderBottom = borderBottom; return this; }
-    public CellStyleBuilder fillPattern(FillPatternType fillPattern) { _fillPattern = fillPattern; return this; }
+    CellStyleBuilder alignment(HorizontalAlignment alignment) { _alignment = alignment; return this; }
+    CellStyleBuilder verticalAlignment(VerticalAlignment verticalAlignment) { _verticalAlignment = verticalAlignment; return this; }
+    CellStyleBuilder border(BorderStyle border) { return borderLeft(border).borderRight(border).borderTop(border). borderBottom(border); }
+    CellStyleBuilder borderLeft(BorderStyle borderLeft) { _borderLeft = borderLeft; return this; }
+    CellStyleBuilder borderRight(BorderStyle borderRight) { _borderRight = borderRight; return this; }
+    CellStyleBuilder borderTop(BorderStyle borderTop) { _borderTop = borderTop; return this; }
+    CellStyleBuilder borderBottom(BorderStyle borderBottom) { _borderBottom = borderBottom; return this; }
+    CellStyleBuilder fillPattern(FillPatternType fillPattern) { _fillPattern = fillPattern; return this; }
     public CellStyleBuilder borderColor(int rgb) { return borderColor((rgb & 0xFF0000) >> 16, (rgb & 0xFF00) >> 8, rgb & 0xFF); }
     public CellStyleBuilder borderColor(int r, int g, int b) { return borderColor(new byte[]{(byte) r, (byte) g, (byte) b}); }
     public CellStyleBuilder borderColor(IndexedColors color) { return borderColor(DefaultIndexedColorMap.getDefaultRGB(color.getIndex())); }

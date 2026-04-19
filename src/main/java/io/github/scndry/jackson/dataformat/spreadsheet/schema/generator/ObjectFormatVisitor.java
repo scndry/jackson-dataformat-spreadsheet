@@ -7,6 +7,7 @@ import java.util.stream.BaseStream;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -74,19 +75,13 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
         serializer.acceptJsonFormatVisitor(visitor, type);
         if (visitor.isEmpty()) {
             final String columnName = _resolveColumnName(prop);
-            _wrapper.add(new Column(pointer, columnValue.withName(columnName), type));
+            final String[] aliases = _aliases(prop);
+            _wrapper.add(new Column(pointer, columnValue.withName(columnName), type, aliases));
         } else {
             _wrapper.addAll(visitor);
         }
     }
 
-    /**
-     * Generates a union schema for polymorphic types annotated with
-     * {@link JsonTypeInfo} ({@code include = As.PROPERTY} only) and
-     * {@link JsonSubTypes}. Adds the type discriminator column
-     * followed by the union of all subtype fields, deduplicated by
-     * {@link ColumnPointer}.
-     */
     private void _polymorphicProperty(
             final ColumnPointer pointer,
             final DataGrid.Value gridValue,
@@ -126,6 +121,11 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
             }
         }
         return _provider.findValueSerializer(prop.getType());
+    }
+
+    private String[] _aliases(final BeanProperty prop) {
+        final JsonAlias ann = prop.getAnnotation(JsonAlias.class);
+        return ann != null ? ann.value() : new String[0];
     }
 
     private String _resolveColumnName(final BeanProperty prop) {
