@@ -39,6 +39,10 @@ public interface SheetWriter extends AutoCloseable {
 
     void mergeScopedColumns(ColumnPointer pointer, int row, int size);
 
+    default void ensureRowWindow(int requiredRows) {}
+
+    default void restoreRowWindow() {}
+
     void write(OutputStream out) throws IOException;
 
     @Override

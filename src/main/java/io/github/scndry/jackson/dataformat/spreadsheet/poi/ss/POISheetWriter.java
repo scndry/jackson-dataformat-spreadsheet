@@ -39,6 +39,7 @@ public final class POISheetWriter implements SheetWriter {
     private CellAddress _reference;
     private Styles _styles;
     private int _lastRow;
+    private int _savedWindowSize = -1;
 
     public POISheetWriter(final Sheet sheet) {
         _sheet = sheet;
@@ -95,7 +96,22 @@ public final class POISheetWriter implements SheetWriter {
 
     private <T> void _write(final T value, final BiConsumer<Cell, T> consumer) {
         final int row = _reference.getRow();
-        final Cell cell = CellUtil.getCell(CellUtil.getRow(row, _sheet), _reference.getColumn());
+        final Cell cell;
+        try {
+            cell = CellUtil.getCell(CellUtil.getRow(row, _sheet), _reference.getColumn());
+        } catch (IllegalArgumentException e) {
+            if (_sheet instanceof SXSSFSheet) {
+                final int window = ((SXSSFWorkbook) _sheet.getWorkbook())
+                        .getRandomAccessWindowSize();
+                throw new IllegalStateException(
+                        "Cannot write to row " + row + " (already flushed)."
+                        + " The nested list exceeded the SXSSF row window (" + window + ")."
+                        + " Increase the window size via WorkbookProvider:"
+                        + " new SpreadsheetFactory(() -> new SXSSFWorkbook(" + (row + 100) + "), ...)",
+                        e);
+            }
+            throw e;
+        }
         consumer.accept(cell, value);
         final Column column = _schema.findColumn(_reference);
         if (column != null) {
@@ -106,6 +122,30 @@ public final class POISheetWriter implements SheetWriter {
         if (log.isTraceEnabled()) {
             log.trace("{} {} {}", _reference, cell.getCellType(), cell);
         }
+    }
+
+    @Override
+    public void ensureRowWindow(final int requiredRows) {
+        if (!(_sheet instanceof SXSSFSheet)) return;
+        final SXSSFSheet sxssf = (SXSSFSheet) _sheet;
+        final int current = sxssf.getWorkbook().getRandomAccessWindowSize();
+        if (current >= 0 && requiredRows > current) {
+            try {
+                sxssf.flushRows(1);
+            } catch (java.io.IOException e) {
+                throw new IllegalStateException(e);
+            }
+            _savedWindowSize = current;
+            sxssf.setRandomAccessWindowSize(requiredRows + 1);
+        }
+    }
+
+    @Override
+    public void restoreRowWindow() {
+        if (_savedWindowSize < 0) return;
+        if (!(_sheet instanceof SXSSFSheet)) return;
+        ((SXSSFSheet) _sheet).setRandomAccessWindowSize(_savedWindowSize);
+        _savedWindowSize = -1;
     }
 
     @Override
