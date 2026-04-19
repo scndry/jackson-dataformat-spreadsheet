@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Ordered by usage frequency. Documents which annotations
  * work and which structurally cannot.
  */
-class JacksonIntegrationTest {
+class JacksonAnnotationTest {
 
     SpreadsheetMapper mapper;
 
