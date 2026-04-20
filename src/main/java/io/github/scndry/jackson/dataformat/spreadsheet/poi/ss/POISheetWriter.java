@@ -8,6 +8,7 @@ import java.util.function.BiConsumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellAddress;
@@ -115,8 +116,11 @@ public final class POISheetWriter implements SheetWriter {
         consumer.accept(cell, value);
         final Column column = _schema.findColumn(_reference);
         if (column != null) {
-            cell.setCellStyle(_schema.getDataRow() > row
-                    ? _styles.getHeaderStyle(column) : _styles.getStyle(column));
+            final CellStyle style = _schema.getDataRow() > row
+                    ? _styles.getHeaderStyle(column) : _styles.getStyle(column);
+            if (style != null) {
+                cell.setCellStyle(style);
+            }
         }
         _lastRow = Math.max(_lastRow, row);
         if (log.isTraceEnabled()) {
