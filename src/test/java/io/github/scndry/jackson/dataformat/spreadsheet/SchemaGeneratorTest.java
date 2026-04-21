@@ -92,6 +92,18 @@ class SchemaGeneratorTest {
     }
 
     @Test
+    void noVisiblePropertiesThrows() {
+        @DataGrid class NoProps {
+            private int a;
+            private int b;
+        }
+        SpreadsheetMapper mapper = new SpreadsheetMapper();
+        assertThatThrownBy(() -> mapper.sheetSchemaFor(NoProps.class))
+                .isInstanceOf(InvalidDefinitionException.class)
+                .hasMessageContaining("no visible properties");
+    }
+
+    @Test
     void missingAnnotationThrows() {
         ColumnNameResolver resolver =
                 AnnotatedNameResolver.forValue(
