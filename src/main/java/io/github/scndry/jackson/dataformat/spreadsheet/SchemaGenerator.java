@@ -80,6 +80,10 @@ public final class SchemaGenerator {
                 log.trace(column.toString());
             }
         }
+        if (columns.isEmpty()) {
+            throw _invalidSchemaDefinition(type,
+                    "has no visible properties — check field visibility or add getters");
+        }
         return new SpreadsheetSchema(
                 columns,
                 _generatorSettings._stylesBuilder,

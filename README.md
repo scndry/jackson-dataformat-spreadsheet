@@ -13,8 +13,9 @@ Map spreadsheet rows to Java objects with `ObjectMapper` — the same API you us
 ## What It Does
 
 ```java
-// Read Excel to POJOs
 SpreadsheetMapper mapper = new SpreadsheetMapper();
+
+// Read Excel to POJOs
 List<Employee> employees = mapper.readValues(file, Employee.class);
 
 // Write POJOs to Excel
@@ -40,13 +41,13 @@ Available on Maven Central:
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.1.0"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.1.1"
 ```
 
 ### Requirements
@@ -121,15 +122,15 @@ No configuration needed. Read and write — both directions work.
 
 | Library | Read Time | Read Memory |
 |---------|-----------|-------------|
-| FastExcel | 209 ms | 406 MB |
-| jackson-spreadsheet | 220 ms | 395 MB |
-| EasyExcel | 296 ms | 418 MB |
-| Poiji | 889 ms | 2909 MB |
-| Apache POI UserModel | 1274 ms | 2347 MB |
+| jackson-spreadsheet | 189 ms | 360 MB |
+| FastExcel | 207 ms | 407 MB |
+| Fesod | 286 ms | 381 MB |
+| Poiji | 826 ms | 2744 MB |
+| Apache POI UserModel | 1297 ms | 2224 MB |
 
 ### Feature Comparison
 
-| Feature | jackson-spreadsheet | Apache POI | EasyExcel | FastExcel |
+| Feature | jackson-spreadsheet | Apache POI | Fesod | FastExcel |
 |---------|:---:|:---:|:---:|:---:|
 | POJO data binding | Yes | No | Yes | No |
 | Nested object support | Yes | No | No | No |
@@ -166,7 +167,8 @@ SpreadsheetReader reader = mapper.sheetReaderFor(Product.class);
 try (SheetMappingIterator<Product> iter = reader.readValues(input)) {
     while (iter.hasNext()) {
         Product p = iter.next();
-        // process one at a time
+        SheetLocation loc = iter.getCurrentLocation();
+        // loc.getRow(), loc.getColumn() — zero-based cell position
     }
 }
 ```
@@ -224,20 +226,20 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions and data flow diagra
 **Q: How is this different from Apache POI?**
 POI gives you cells. This gives you POJOs. You define a class with `@DataGrid`, and `mapper.readValues()` returns typed objects. No `row.getCell(0).getStringCellValue()`.
 
-**Q: How is this different from EasyExcel?**
-EasyExcel has its own API. This extends Jackson's `ObjectMapper`, so you get the full Jackson ecosystem — custom deserializers, mix-ins, modules, polymorphic types.
+**Q: How is this different from Fesod?**
+Fesod has its own API. This extends Jackson's `ObjectMapper`, so you get the full Jackson ecosystem — custom deserializers, mix-ins, modules, polymorphic types.
 
 **Q: Does it support nested objects?**
 Yes. Nested POJOs automatically flatten to columns on write and reconstruct on read. No configuration needed.
 
 **Q: How does performance compare?**
-Comparable to FastExcel on read throughput at 100K rows, with the lowest memory allocation. 6x faster than POI UserModel. See [BENCHMARK.md](BENCHMARK.md).
+Fastest read throughput at 100K rows, with the lowest memory allocation. 7x faster than POI UserModel. See [BENCHMARK.md](BENCHMARK.md).
 
 **Q: What Excel formats are supported?**
 XLSX (OOXML) and XLS (legacy). XLSX uses StAX streaming; XLS uses POI object model.
 
 **Q: Is it production-ready?**
-Yes. Version 1.1.0 is on Maven Central. Java 8+, Jackson 2.14+, POI 4.1.1+.
+Yes. Version 1.1.1 on Maven Central. Java 8+, Jackson 2.14+, POI 4.1.1+. Listed as a [community data format module](https://github.com/FasterXML/jackson#data-format-modules) in the FasterXML jackson repository.
 
 ## License
 

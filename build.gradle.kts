@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "io.github.scndry"
-version = "1.1.0"
+version = "1.1.1"
 description = "Support for reading and writing Spreadsheet via Jackson abstractions."
 
 val title = "Jackson dataformat: Spreadsheet"
@@ -42,10 +42,12 @@ dependencies {
     compileOnly("org.projectlombok:lombok:1.18.44")
     testAnnotationProcessor("org.projectlombok:lombok:1.18.44")
     testCompileOnly("org.projectlombok:lombok:1.18.44")
+    jmhAnnotationProcessor("org.projectlombok:lombok:1.18.44")
+    jmhCompileOnly("org.projectlombok:lombok:1.18.44")
 }
 
 dependencies {
-    jmh("com.alibaba:easyexcel:4.0.3") { exclude(group = "org.apache.poi") }
+    jmh("org.apache.fesod:fesod-sheet:2.0.1-incubating") { exclude(group = "org.apache.poi") }
     jmh("com.github.ozlerhakan:poiji:5.4.0") { exclude(group = "org.apache.poi") }
     jmh("org.dhatim:fastexcel:0.20.0")
     jmh("org.dhatim:fastexcel-reader:0.20.0")

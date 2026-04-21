@@ -2,7 +2,6 @@ package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -11,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 
@@ -290,6 +291,62 @@ class StylesTest {
         try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
             CellStyle style = wb.getSheetAt(0).getRow(1).getCell(0).getCellStyle();
             assertThat(style.getFillPattern()).isEqualTo(FillPatternType.SOLID_FOREGROUND);
+        }
+    }
+
+    @Test
+    void existingCellStylePreservedWhenNoStyleConfigured() throws Exception {
+        // Create a file with pre-styled cells
+        File file = new File(tempDir, "pre-styled.xlsx");
+        short bgColorIndex;
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            CellStyle styledCell = wb.createCellStyle();
+            styledCell.setFillForegroundColor(IndexedColors.YELLOW.getIndex());
+            styledCell.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            bgColorIndex = styledCell.getIndex();
+
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("name");
+            header.createCell(1).setCellValue("value");
+            Row data = sheet.createRow(1);
+            Cell c0 = data.createCell(0);
+            c0.setCellStyle(styledCell);
+            Cell c1 = data.createCell(1);
+            c1.setCellStyle(styledCell);
+            try (OutputStream os = new FileOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+
+        // Write data with no styles configured — existing styles should be preserved
+        @DataGrid class Simple {
+            public String name = "Alice";
+            public int value = 42;
+        }
+
+        File output = new File(tempDir, "pre-styled-output.xlsx");
+        SpreadsheetMapper noStyleMapper = SpreadsheetMapper.builder()
+                .origin("A2")
+                .useHeader(false)
+                .build();
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            noStyleMapper.writeValue(sheet, new Simple());
+            try (OutputStream os = new FileOutputStream(output)) {
+                wb.write(os);
+            }
+        }
+
+        // Verify: data written AND style preserved
+        try (XSSFWorkbook wb = new XSSFWorkbook(output)) {
+            Sheet sheet = wb.getSheetAt(0);
+            Cell c0 = sheet.getRow(1).getCell(0);
+            assertThat(c0.getStringCellValue()).isEqualTo("Alice");
+            assertThat(c0.getCellStyle().getFillPattern())
+                    .isEqualTo(FillPatternType.SOLID_FOREGROUND);
+            assertThat(c0.getCellStyle().getFillForegroundColor())
+                    .isEqualTo(IndexedColors.YELLOW.getIndex());
         }
     }
 }

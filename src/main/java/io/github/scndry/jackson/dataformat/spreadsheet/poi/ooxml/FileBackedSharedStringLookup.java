@@ -3,6 +3,8 @@ package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.apache.poi.openxml4j.opc.PackagePart;
 import org.h2.mvstore.MVMap;
@@ -24,9 +26,16 @@ import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.Spreadshee
 final class FileBackedSharedStringLookup implements SharedStringLookup {
 
     private static final Matcher START_SI = Matcher.startElement(SpreadsheetML.STRING_ITEM);
+    private static final int CACHE_MAX_SIZE = 1024;
+
+    private final Map<Integer, String> _cache = new LinkedHashMap<Integer, String>(CACHE_MAX_SIZE, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Integer, String> eldest) {
+            return size() > CACHE_MAX_SIZE;
+        }
+    };
 
     private final XmlElementReader _reader;
-
     private final Path _storePath;
     private final MVStore _store;
     private final MVMap<Integer, String> _strings;
@@ -53,6 +62,8 @@ final class FileBackedSharedStringLookup implements SharedStringLookup {
 
     @Override
     public String getItemAt(final int idx) {
+        final String cached = _cache.get(idx);
+        if (cached != null) return cached;
         while (idx >= _size) {
             _reader.nextUntil(START_SI);
             final String text = _reader.readStringContent();
@@ -62,7 +73,9 @@ final class FileBackedSharedStringLookup implements SharedStringLookup {
                 _store.commit();
             }
         }
-        return _strings.get(idx);
+        final String value = _strings.get(idx);
+        _cache.put(idx, value);
+        return value;
     }
 
     @Override

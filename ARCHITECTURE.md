@@ -74,15 +74,15 @@ Bridging push→pull requires an intermediate buffer or a separate thread — co
 
 This library bypasses POI's Event API entirely and parses OOXML XML directly via StAX.
 
-### OOXML Type Safety
+### Lightweight ECMA-376 Types
 
-Cell type resolution uses lightweight enum types modeled after the ECMA-376 XSD — not string comparison:
+The XLSX read path parses OOXML XML without XMLBeans. Hand-written POJOs and enums replace the generated schema classes — no runtime validation overhead, no `XmlCursor`, no DOM construction.
 
 ```java
-// NOT this:
-if ("s".equals(cell.getT())) { ... }
+// XMLBeans: 1000+ generated classes, runtime schema validation
+CTCell cell = CellDocument.Factory.parse(xml).getCell();
 
-// THIS — compile-time checked, spec-named:
+// This library: 5 files, direct StAX mapping
 switch (cell.getT()) {
     case SHARED_STRING:
     case NUMBER:
@@ -95,7 +95,6 @@ switch (cell.getT()) {
 All OOXML identifiers (element names, attribute names, namespace URIs) are centralized in `SpreadsheetML`:
 
 ```java
-// Single source of truth — ECMA-376 section references in Javadoc
 Matcher START_ROW  = Matcher.startElement(SpreadsheetML.ROW);
 Matcher START_CELL = Matcher.startElement(SpreadsheetML.CELL);
 ```
@@ -239,7 +238,7 @@ public interface SharedStringLookup {
 Two implementations:
 
 - **InMemorySharedStringLookup** (default) — All character data in a single `char[]` buffer with `int[]` offset/length arrays. Eliminates per-String object overhead. Entries are parsed lazily via StAX — only when first accessed.
-- **FileBackedSharedStringLookup** — H2 MVStore with 4 MB heap cache. Constant heap usage regardless of table size. Prevents OOM when the SST exceeds available heap.
+- **FileBackedSharedStringLookup** — H2 MVStore with 4 MB page cache and 1024-entry LRU lookup cache. Constant heap usage regardless of table size. Prevents OOM when the SST exceeds available heap.
 
 Result: lowest memory allocation among all tested libraries at 100K rows. See [BENCHMARK.md](BENCHMARK.md).
 

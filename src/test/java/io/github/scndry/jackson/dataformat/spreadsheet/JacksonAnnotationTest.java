@@ -3,6 +3,7 @@ package io.github.scndry.jackson.dataformat.spreadsheet;
 import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.exc.InvalidDefinitionException;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -39,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Ordered by usage frequency. Documents which annotations
  * work and which structurally cannot.
  */
-class JacksonIntegrationTest {
+class JacksonAnnotationTest {
 
     SpreadsheetMapper mapper;
 
@@ -410,9 +411,10 @@ class JacksonIntegrationTest {
         assertThat(read.get(0).secret).isEqualTo("hidden");
         assertThat(read.get(0).count).isEqualTo(42);
 
-        // Without @JsonAutoDetect: no columns (private fields not visible)
-        SpreadsheetSchema schema = mapper.sheetSchemaFor(WithPrivateFieldsNoDetect.class);
-        assertThat(schema.iterator().hasNext()).isFalse();
+        // Without @JsonAutoDetect: no visible properties → fail fast
+        assertThatThrownBy(() -> mapper.sheetSchemaFor(WithPrivateFieldsNoDetect.class))
+                .isInstanceOf(InvalidDefinitionException.class)
+                .hasMessageContaining("no visible properties");
     }
 
     // ----------------------------------------------------------------

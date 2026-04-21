@@ -55,13 +55,13 @@ But this is not a POI replacement. POI types (`Sheet`, `Workbook`) are first-cla
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.1.0"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.1.1"
 ```
 
 ## Quick Start
@@ -615,13 +615,13 @@ At 100K rows (mixed types, shared string table):
 
 | Library | Read | Memory |
 |---------|------|--------|
-| FastExcel | 209 ms | 406 MB |
-| jackson-spreadsheet | 220 ms | 395 MB |
-| EasyExcel | 296 ms | 418 MB |
-| Poiji | 889 ms | 2909 MB |
-| Apache POI UserModel | 1274 ms | 2347 MB |
+| jackson-spreadsheet | 189 ms | 360 MB |
+| FastExcel | 207 ms | 407 MB |
+| Fesod | 286 ms | 381 MB |
+| Poiji | 826 ms | 2744 MB |
+| Apache POI UserModel | 1297 ms | 2224 MB |
 
-Lowest memory allocation among all libraries. See [BENCHMARK.md](BENCHMARK.md) for full results.
+Fastest read throughput and lowest memory allocation among all libraries. See [BENCHMARK.md](BENCHMARK.md) for full results.
 
 ### Low-Memory Mode for Large Files
 

@@ -1,9 +1,11 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
-import com.alibaba.excel.EasyExcel;
+import org.apache.fesod.sheet.FesodSheet;
 import com.poiji.bind.Poiji;
 import com.poiji.option.PoijiOptions;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -43,7 +45,7 @@ public class ReadBenchmark {
             "Active", "Inactive", "Pending", "Archived"
     };
 
-    @DataGrid
+    @Data @NoArgsConstructor @DataGrid
     public static class Product {
         public String name;
         public String category;
@@ -51,11 +53,10 @@ public class ReadBenchmark {
         public double price;
         public boolean inStock;
         public String status;
-
-        public Product() {}
     }
 
     // Poiji requires its own annotated class
+    @Data @NoArgsConstructor
     public static class PoijiProduct {
         @com.poiji.annotation.ExcelCellName("name")
         public String name;
@@ -139,8 +140,8 @@ public class ReadBenchmark {
     }
 
     @Benchmark
-    public void easyExcel(Blackhole bh) throws IOException {
-        List<Product> values = EasyExcel.read(file)
+    public void fesod(Blackhole bh) throws IOException {
+        List<Product> values = FesodSheet.read(file)
                 .head(Product.class).headRowNumber(1)
                 .sheet().doReadSync();
         bh.consume(values);
