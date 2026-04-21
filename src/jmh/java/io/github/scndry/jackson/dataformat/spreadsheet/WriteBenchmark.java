@@ -1,7 +1,10 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
-import com.alibaba.excel.EasyExcel;
+import org.apache.fesod.sheet.FesodSheet;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
@@ -32,21 +35,12 @@ public class WriteBenchmark {
     List<EntryData> data;
     File file;
 
-    @DataGrid
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     public static class EntryData {
         public String name;
         public int quantity;
         public double price;
         public String description;
-
-        public EntryData() {}
-
-        public EntryData(String name, int quantity, double price, String description) {
-            this.name = name;
-            this.quantity = quantity;
-            this.price = price;
-            this.description = description;
-        }
     }
 
     @Setup(Level.Trial)
@@ -101,8 +95,8 @@ public class WriteBenchmark {
     }
 
     @Benchmark
-    public void easyExcel(Blackhole bh) throws IOException {
-        EasyExcel.write(file, EntryData.class).sheet().doWrite(data);
+    public void fesod(Blackhole bh) throws IOException {
+        FesodSheet.write(file, EntryData.class).sheet().doWrite(data);
         bh.consume(file);
     }
 

@@ -615,11 +615,11 @@ At 100K rows (mixed types, shared string table):
 
 | Library | Read | Memory |
 |---------|------|--------|
-| FastExcel | 209 ms | 406 MB |
-| jackson-spreadsheet | 220 ms | 395 MB |
-| EasyExcel | 296 ms | 418 MB |
-| Poiji | 889 ms | 2909 MB |
-| Apache POI UserModel | 1274 ms | 2347 MB |
+| jackson-spreadsheet | 224 ms | 352 MB |
+| FastExcel | 215 ms | 407 MB |
+| Fesod | 281 ms | 384 MB |
+| Poiji | 838 ms | 2739 MB |
+| Apache POI UserModel | 1176 ms | 2224 MB |
 
 Lowest memory allocation among all libraries. See [BENCHMARK.md](BENCHMARK.md) for full results.
 

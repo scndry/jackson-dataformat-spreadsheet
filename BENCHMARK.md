@@ -13,14 +13,14 @@
 
 | Library | 1K rows | 10K rows | 50K rows | 100K rows |
 |---------|---------|----------|----------|-----------|
-| FastExcel Reader | 2.5 ms | 20.9 ms | 102.7 ms | 209.1 ms |
-| jackson-spreadsheet | 3.0 ms | 23.6 ms | 103.9 ms | 220.3 ms |
-| EasyExcel | 4.1 ms | 32.4 ms | 139.1 ms | 296.4 ms |
-| Poiji | 11.4 ms | 100.1 ms | 448.4 ms | 889.4 ms |
-| Apache POI UserModel | 12.4 ms | 106.2 ms | 592.6 ms | 1274.3 ms |
+| FastExcel Reader | 2.2 ms | 21.6 ms | 100.8 ms | 215.3 ms |
+| jackson-spreadsheet | 2.9 ms | 19.5 ms | 103.7 ms | 224.3 ms |
+| Fesod | 3.3 ms | 27.5 ms | 134.1 ms | 280.7 ms |
+| Poiji | 9.6 ms | 87.4 ms | 420.0 ms | 837.9 ms |
+| Apache POI UserModel | 11.5 ms | 96.0 ms | 525.7 ms | 1175.7 ms |
 
 - jackson-spreadsheet and FastExcel are within 5% of each other at 50K+ rows.
-- EasyExcel is ~35% slower at 100K rows.
+- Fesod is ~25% slower at 100K rows.
 - Poiji wraps POI UserModel with annotation mapping — faster than raw POI due to internal optimizations, but still 4x slower than jackson-spreadsheet.
 - POI UserModel loads the full workbook into memory — 6x slower at 100K rows.
 
@@ -28,11 +28,11 @@
 
 | Library | 10K rows | 50K rows | 100K rows |
 |---------|----------|----------|-----------|
-| jackson-spreadsheet | 38 MB | 192 MB | 395 MB |
-| FastExcel Reader | 41 MB | 204 MB | 406 MB |
-| EasyExcel | 43 MB | 210 MB | 418 MB |
-| POI UserModel | 234 MB | 1162 MB | 2347 MB |
-| Poiji | 303 MB | 1455 MB | 2909 MB |
+| jackson-spreadsheet | 36 MB | 180 MB | 352 MB |
+| Fesod | 39 MB | 193 MB | 384 MB |
+| FastExcel Reader | 40 MB | 208 MB | 407 MB |
+| POI UserModel | 223 MB | 1113 MB | 2224 MB |
+| Poiji | 274 MB | 1373 MB | 2739 MB |
 
 - jackson-spreadsheet has the lowest allocation among all libraries thanks to SoA shared string layout and direct String return (no POI RichTextString wrapping).
 - Poiji allocates more than raw POI due to annotation reflection and internal object creation overhead.
@@ -43,13 +43,14 @@ Poiji is read-only and not included.
 
 | Library | 1K rows | 10K rows | 50K rows | 100K rows |
 |---------|---------|----------|----------|-----------|
-| EasyExcel | 3.4 ms | 6.3 ms | 20.1 ms | 39.3 ms |
-| FastExcel | 2.9 ms | 18.5 ms | 99.8 ms | 191.9 ms |
-| Apache POI SXSSF | 5.7 ms | 29.3 ms | 134.1 ms | 265.3 ms |
-| jackson-spreadsheet | 6.5 ms | 33.3 ms | 152.3 ms | 319.2 ms |
+| FastExcel | 2.8 ms | 15.9 ms | 77.0 ms | 161.0 ms |
+| Apache POI SXSSF | 4.9 ms | 28.4 ms | 135.6 ms | 262.9 ms |
+| jackson-spreadsheet | 6.3 ms | 34.1 ms | 162.4 ms | 331.9 ms |
+| Fesod | 6.5 ms | 35.8 ms | 170.4 ms | 333.0 ms |
 
-- jackson-spreadsheet uses POI `SXSSFWorkbook` internally. The ~20% overhead vs raw SXSSF comes from Jackson serialization and schema-driven cell styling.
-- EasyExcel is fastest for write due to its own optimized streaming writer.
+- FastExcel is fastest — it generates OOXML XML directly without Apache POI.
+- jackson-spreadsheet uses POI `SXSSFWorkbook` internally. The ~26% overhead vs raw SXSSF comes from Jackson serialization and schema-driven cell styling.
+- Fesod wraps POI `SXSSFWorkbook` with handler chain, cglib BeanMap, and converter overhead — comparable to jackson-spreadsheet.
 
 ## SharedStrings — InMemory vs FileBacked
 
