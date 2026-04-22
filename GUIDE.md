@@ -55,13 +55,13 @@ But this is not a POI replacement. POI types (`Sheet`, `Workbook`) are first-cla
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.1.1</version>
+    <version>1.1.2</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.1.1"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.1.2"
 ```
 
 ## Quick Start
@@ -152,14 +152,50 @@ SpreadsheetReader reader = mapper.sheetReaderFor(Product.class);
 try (SheetMappingIterator<Product> iter = reader.readValues(input)) {
     while (iter.hasNext()) {
         Product p = iter.next();
-
-        // Current cell location (row, column)
-        SheetLocation location = iter.getCurrentLocation();
     }
 }
 ```
 
-`readValues(file, type)` loads all rows into a `List`. For 100K+ row files, prefer `SheetMappingIterator`.
+`readValues(file, type)` loads all rows into a `List`. For large files or row-level processing, prefer `SheetMappingIterator`.
+
+#### Error Handling with Location
+
+`getCurrentLocation()` returns the cell position of the last parsed token — useful for validation errors and logging:
+
+```java
+try (SheetMappingIterator<Product> iter = reader.readValues(input)) {
+    while (iter.hasNext()) {
+        try {
+            Product p = iter.next();
+            validate(p);
+        } catch (RuntimeException e) {
+            SheetLocation loc = iter.getCurrentLocation();
+            log.warn("Row {}: {}", loc.getRow(), e.getMessage());
+            // skip and continue
+        }
+    }
+}
+```
+
+#### Batch Processing
+
+Collect rows in batches for bulk database inserts:
+
+```java
+List<Product> batch = new ArrayList<>(1000);
+try (SheetMappingIterator<Product> iter = reader.readValues(input)) {
+    while (iter.hasNext()) {
+        batch.add(iter.next());
+        if (batch.size() >= 1000) {
+            process(batch);
+            batch.clear();
+        }
+    }
+}
+if (!batch.isEmpty()) {
+    process(batch);
+}
+```
 
 ## Writing
 
@@ -581,6 +617,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 | `BLANK_ROW_AS_NULL` | enabled | Blank rows are deserialized as `null` |
 | `BREAK_ON_BLANK_ROW` | disabled | Stop reading at the first blank row |
 | `FILE_BACKED_SHARED_STRINGS` | disabled | Store shared strings on disk (requires `com.h2database:h2`) |
+| `ENCRYPT_FILE_BACKED_STORE` | disabled | Encrypt the file-backed store with AES (requires `FILE_BACKED_SHARED_STRINGS`) |
 
 ## Format Support
 
@@ -630,6 +667,15 @@ For extremely large XLSX files that cause `OutOfMemoryError`:
 ```java
 SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .enable(SheetParser.Feature.FILE_BACKED_SHARED_STRINGS)
+    .build();
+```
+
+If the spreadsheet contains sensitive data, enable encryption to protect the temp file at rest:
+
+```java
+SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+    .enable(SheetParser.Feature.FILE_BACKED_SHARED_STRINGS)
+    .enable(SheetParser.Feature.ENCRYPT_FILE_BACKED_STORE)
     .build();
 ```
 

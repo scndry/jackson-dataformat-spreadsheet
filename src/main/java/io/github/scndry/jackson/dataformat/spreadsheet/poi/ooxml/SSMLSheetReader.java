@@ -48,7 +48,8 @@ public final class SSMLSheetReader implements SheetReader {
     public SSMLSheetReader(
             final PackagePart worksheetPart,
             final SSMLWorkbook workbook,
-            final boolean fileBackedSharedStrings) {
+            final boolean fileBackedSharedStrings,
+            final boolean encryptFileBacked) {
         _sheet = worksheetPart;
         _workbook = workbook;
         try {
@@ -56,7 +57,7 @@ public final class SSMLSheetReader implements SheetReader {
             if (sharedStrings == null) {
                 _strings = BlankSharedStringLookup.INSTANCE;
             } else if (fileBackedSharedStrings) {
-                _strings = new FileBackedSharedStringLookup(sharedStrings);
+                _strings = new FileBackedSharedStringLookup(sharedStrings, encryptFileBacked);
             } else {
                 _strings = new InMemorySharedStringLookup(sharedStrings);
             }

@@ -450,6 +450,11 @@ public final class SheetParser extends ParserMinimalBase {
          * heap usage when reading large OOXML files.
          */
         FILE_BACKED_SHARED_STRINGS(false),
+        /**
+         * Encrypt the file-backed shared-string store to protect
+         * sensitive data at rest. Requires {@link #FILE_BACKED_SHARED_STRINGS}.
+         */
+        ENCRYPT_FILE_BACKED_STORE(false),
         ;
         final boolean _defaultState;
         final int _mask;

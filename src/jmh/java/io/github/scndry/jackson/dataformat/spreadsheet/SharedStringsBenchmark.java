@@ -87,4 +87,14 @@ public class SharedStringsBenchmark {
         List<StringEntry> values = mapper.readValues(file, StringEntry.class);
         bh.consume(values);
     }
+
+    @Benchmark
+    public void fileBackedEncrypted(Blackhole bh) throws IOException {
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .enable(SheetParser.Feature.FILE_BACKED_SHARED_STRINGS)
+                .enable(SheetParser.Feature.ENCRYPT_FILE_BACKED_STORE)
+                .build();
+        List<StringEntry> values = mapper.readValues(file, StringEntry.class);
+        bh.consume(values);
+    }
 }

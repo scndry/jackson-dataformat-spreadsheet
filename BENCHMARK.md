@@ -58,10 +58,12 @@ String-heavy workload (4 string columns, mostly unique values, `XSSFWorkbook`):
 
 | Strategy | 10K rows | 50K rows | 100K rows |
 |----------|----------|----------|-----------|
-| InMemory (default) | 16.2 ms | 63.0 ms | 130.4 ms |
-| FileBacked (H2 MVStore) | 28.6 ms | 114.3 ms | 210.0 ms |
+| InMemory (default) | 13.8 ms | 63.1 ms | 120.7 ms |
+| FileBacked (H2 MVStore) | 28.6 ms | 118.6 ms | 224.2 ms |
+| FileBacked + Encrypted | 31.2 ms | 146.7 ms | 273.6 ms |
 
-- FileBacked is ~61% slower due to disk I/O and MVStore overhead, mitigated by an LRU cache for repeated lookups.
+- FileBacked is ~86% slower due to disk I/O and MVStore overhead, mitigated by an LRU cache for repeated lookups.
+- Encryption adds ~22% overhead on top of FileBacked.
 - FileBacked's value is **peak heap reduction** for extremely large shared string tables, not throughput. When the SST exceeds available heap, InMemory causes OOM while FileBacked stays constant with a 4 MB page cache and 1024-entry LRU lookup cache.
 
 ## How to Run

@@ -15,6 +15,8 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.util.TempFile;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 
+import lombok.extern.slf4j.Slf4j;
+
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.core.io.IOContext;
 
@@ -40,6 +42,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
  * @see SheetParser
  * @see SheetGenerator
  */
+@Slf4j
 @SuppressWarnings("java:S2177")
 public final class SpreadsheetFactory extends JsonFactory {
 
@@ -232,7 +235,11 @@ public final class SpreadsheetFactory extends JsonFactory {
                 .Feature
                 .FILE_BACKED_SHARED_STRINGS
                 .enabledIn(_sheetParserFeatures);
-        return new SSMLSheetReader(worksheetPart, workbook, fileBacked);
+        final boolean encrypt = SheetParser
+                .Feature
+                .ENCRYPT_FILE_BACKED_STORE
+                .enabledIn(_sheetParserFeatures);
+        return new SSMLSheetReader(worksheetPart, workbook, fileBacked, encrypt);
     }
 
     private POISheetReader _createPOISheetReader(final Workbook workbook, final SheetInput<?> src) {
@@ -255,12 +262,24 @@ public final class SpreadsheetFactory extends JsonFactory {
                     : SheetInput.source(raw, src.getIndex());
         }
         final File file = TempFile.createTempFile("sheet-input", ".xlsx");
+        _setOwnerOnly(file);
+        file.deleteOnExit();
         Files.copy(raw, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        if (log.isDebugEnabled()) {
+            log.debug("Copied InputStream to temp file: {}", file);
+        }
         if (isEnabled(StreamReadFeature.AUTO_CLOSE_SOURCE)) {
             raw.close();
         }
         return src.isNamed()
                 ? SheetInput.source(file, src.getName()) : SheetInput.source(file, src.getIndex());
+    }
+
+    private static void _setOwnerOnly(final File file) {
+        file.setReadable(false, false);
+        file.setWritable(false, false);
+        file.setReadable(true, true);
+        file.setWritable(true, true);
     }
 
     /*

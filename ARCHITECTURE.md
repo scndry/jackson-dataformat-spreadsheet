@@ -238,7 +238,7 @@ public interface SharedStringLookup {
 Two implementations:
 
 - **InMemorySharedStringLookup** (default) — All character data in a single `char[]` buffer with `int[]` offset/length arrays. Eliminates per-String object overhead. Entries are parsed lazily via StAX — only when first accessed.
-- **FileBackedSharedStringLookup** — H2 MVStore with 4 MB page cache and 1024-entry LRU lookup cache. Constant heap usage regardless of table size. Prevents OOM when the SST exceeds available heap.
+- **FileBackedSharedStringLookup** — H2 MVStore with 4 MB page cache and 1024-entry LRU lookup cache. Constant heap usage regardless of table size. Prevents OOM when the SST exceeds available heap. Optional AES encryption protects sensitive data at rest.
 
 Result: lowest memory allocation among all tested libraries at 100K rows. See [BENCHMARK.md](BENCHMARK.md).
 
