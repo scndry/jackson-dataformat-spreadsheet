@@ -15,6 +15,8 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.util.TempFile;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 
+import lombok.extern.slf4j.Slf4j;
+
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.core.io.IOContext;
 
@@ -40,6 +42,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
  * @see SheetParser
  * @see SheetGenerator
  */
+@Slf4j
 @SuppressWarnings("java:S2177")
 public final class SpreadsheetFactory extends JsonFactory {
 
@@ -256,6 +259,9 @@ public final class SpreadsheetFactory extends JsonFactory {
         }
         final File file = TempFile.createTempFile("sheet-input", ".xlsx");
         Files.copy(raw, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        if (log.isDebugEnabled()) {
+            log.debug("Copied InputStream to temp file: {}", file);
+        }
         if (isEnabled(StreamReadFeature.AUTO_CLOSE_SOURCE)) {
             raw.close();
         }
