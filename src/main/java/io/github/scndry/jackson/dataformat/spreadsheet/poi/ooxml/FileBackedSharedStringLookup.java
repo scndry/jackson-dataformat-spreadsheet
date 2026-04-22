@@ -3,6 +3,10 @@ package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -41,17 +45,22 @@ final class FileBackedSharedStringLookup implements SharedStringLookup {
     private final MVMap<Integer, String> _strings;
     private int _size;
 
-    FileBackedSharedStringLookup(final PackagePart part) throws IOException {
+    FileBackedSharedStringLookup(final PackagePart part, final boolean encrypt) throws IOException {
         _reader = new XmlElementReader(part.getInputStream());
         _reader.navigateTo(SpreadsheetML.SST);
 
-        _storePath = Files.createTempFile("jackson-sst-", ".mv");
+        _storePath = _createSecureTempFile();
         try {
-            _store = new MVStore.Builder()
+            MVStore.Builder builder = new MVStore.Builder()
                     .fileName(_storePath.toString())
                     .cacheSize(4)
-                    .autoCommitDisabled()
-                    .open();
+                    .autoCommitDisabled();
+            if (encrypt) {
+                final char[] key = _generateKey();
+                builder.encryptionKey(key);
+                Arrays.fill(key, '\0');
+            }
+            _store = builder.open();
             _strings = _store.openMap("sharedStrings");
         } catch (RuntimeException e) {
             _reader.close();
@@ -80,8 +89,39 @@ final class FileBackedSharedStringLookup implements SharedStringLookup {
 
     @Override
     public void close() throws IOException {
-        _reader.close();
-        _store.close();
-        Files.deleteIfExists(_storePath);
+        try {
+            _reader.close();
+            _store.close();
+        } finally {
+            Files.deleteIfExists(_storePath);
+        }
+    }
+
+    private static char[] _generateKey() {
+        final byte[] bytes = new byte[16];
+        new SecureRandom().nextBytes(bytes);
+        final char[] key = new char[32];
+        for (int i = 0; i < bytes.length; i++) {
+            key[i * 2] = Character.forDigit((bytes[i] >> 4) & 0xF, 16);
+            key[i * 2 + 1] = Character.forDigit(bytes[i] & 0xF, 16);
+        }
+        Arrays.fill(bytes, (byte) 0);
+        return key;
+    }
+
+    private static Path _createSecureTempFile() throws IOException {
+        Path path;
+        try {
+            path = Files.createTempFile("jackson-sst-", ".mv",
+                    PosixFilePermissions.asFileAttribute(
+                            java.util.EnumSet.of(
+                                    PosixFilePermission.OWNER_READ,
+                                    PosixFilePermission.OWNER_WRITE)));
+        } catch (UnsupportedOperationException e) {
+            // Windows — POSIX permissions not supported
+            path = Files.createTempFile("jackson-sst-", ".mv");
+        }
+        path.toFile().deleteOnExit();
+        return path;
     }
 }

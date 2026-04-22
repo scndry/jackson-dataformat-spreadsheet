@@ -14,7 +14,7 @@ class SSMLSheetReaderTest extends SheetReaderTestBase {
         File file = createHeadlessFixture();
         SSMLWorkbook workbook = SSMLWorkbook.create(file);
         PackagePart part = workbook.getWorksheetPartAt(0);
-        reader = new SSMLSheetReader(part, workbook, false);
+        reader = new SSMLSheetReader(part, workbook, false, false);
         testSheetReader();
     }
 
@@ -22,7 +22,7 @@ class SSMLSheetReaderTest extends SheetReaderTestBase {
     void strict() throws Exception {
         SSMLWorkbook workbook = SSMLWorkbook.create(strictSource);
         PackagePart part = workbook.getWorksheetPartAt(0);
-        reader = new SSMLSheetReader(part, workbook, false);
+        reader = new SSMLSheetReader(part, workbook, false, false);
         testSheetReader();
     }
 }

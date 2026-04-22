@@ -143,4 +143,36 @@ class FileBackedSharedStringsTest {
                 .as("Temp MVStore files should be cleaned up")
                 .isTrue();
     }
+
+    @Test
+    void readWithEncryptedFileBacked() throws Exception {
+        File file = tempDir.resolve("encrypted.xlsx").toFile();
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("a");
+            header.createCell(1).setCellValue("b");
+            header.createCell(2).setCellValue("c");
+            for (int i = 0; i < 100; i++) {
+                Row row = sheet.createRow(i + 1);
+                row.createCell(0).setCellValue("alpha-" + i);
+                row.createCell(1).setCellValue("shared");
+                row.createCell(2).setCellValue("gamma-" + (i % 10));
+            }
+            try (OutputStream os = new FileOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .enable(SheetParser.Feature.FILE_BACKED_SHARED_STRINGS)
+                .enable(SheetParser.Feature.ENCRYPT_FILE_BACKED_STORE)
+                .build();
+
+        List<StringRow> rows = mapper.readValues(file, StringRow.class);
+        assertThat(rows).hasSize(100);
+        assertThat(rows.get(0).a).isEqualTo("alpha-0");
+        assertThat(rows.get(0).b).isEqualTo("shared");
+        assertThat(rows.get(99).c).isEqualTo("gamma-9");
+    }
 }
