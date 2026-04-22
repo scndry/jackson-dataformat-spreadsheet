@@ -55,13 +55,13 @@ But this is not a POI replacement. POI types (`Sheet`, `Workbook`) are first-cla
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.1.1</version>
+    <version>1.1.2</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.1.1"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.1.2"
 ```
 
 ## Quick Start

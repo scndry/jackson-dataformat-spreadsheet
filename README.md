@@ -39,13 +39,13 @@ Available on Maven Central:
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.1.1</version>
+    <version>1.1.2</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.1.1"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.1.2"
 ```
 
 ### Requirements
@@ -237,7 +237,7 @@ Fastest read throughput at 100K rows, with the lowest memory allocation. 7x fast
 XLSX (OOXML) and XLS (legacy). XLSX uses StAX streaming; XLS uses POI object model.
 
 **Q: Is it production-ready?**
-Yes. Version 1.1.1 on Maven Central. Java 8+, Jackson 2.14+, POI 4.1.1+. Listed as a [community data format module](https://github.com/FasterXML/jackson#data-format-modules) in the FasterXML jackson repository.
+Yes. Version 1.1.2 on Maven Central. Java 8+, Jackson 2.14+, POI 4.1.1+. Listed as a [community data format module](https://github.com/FasterXML/jackson#data-format-modules) in the FasterXML jackson repository.
 
 ## License
 
