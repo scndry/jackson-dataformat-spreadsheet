@@ -55,13 +55,13 @@ But this is not a POI replacement. POI types (`Sheet`, `Workbook`) are first-cla
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.1.2</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.1.2"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.2.0"
 ```
 
 ## Quick Start
@@ -218,6 +218,38 @@ mapper.writeValue(output, products, Product.class);
 
 // To byte array (in-memory Excel generation)
 byte[] bytes = mapper.writeValueAsBytes(products, Product.class);
+```
+
+### SSML Streaming (Default)
+
+By default, XLSX read/write uses SSML streaming — bypassing POI's cell model for direct XML generation. No configuration needed:
+
+```java
+SpreadsheetMapper mapper = new SpreadsheetMapper();
+mapper.writeValue(file, products, Product.class);  // SSML writer
+List<Product> list = mapper.readValues(file, Product.class);  // SSML reader
+```
+
+For large files with high-cardinality string columns, file-backed shared strings keep heap usage constant:
+
+```java
+SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+    .enable(SpreadsheetFactory.Feature.FILE_BACKED_SHARED_STRINGS)
+    .build();
+```
+
+SSML write path limitations (use `USE_POI_USER_MODEL` when these are needed):
+
+- **Auto-size columns** — not supported. Use `@DataColumn(width = N)` for fixed widths.
+- **XLS format** — SSML is XLSX only. XLS automatically uses POI regardless of this setting.
+- **Direct Sheet/Workbook access** — `createGenerator(Sheet)` always uses POI. SSML applies only to File/OutputStream targets.
+
+To fall back to POI's User Model:
+
+```java
+SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+    .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+    .build();
 ```
 
 ### Streaming Write
@@ -616,7 +648,19 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 |---------|---------|-------------|
 | `BLANK_ROW_AS_NULL` | enabled | Blank rows are deserialized as `null` |
 | `BREAK_ON_BLANK_ROW` | disabled | Stop reading at the first blank row |
-| `FILE_BACKED_SHARED_STRINGS` | disabled | Store shared strings on disk (requires `com.h2database:h2`) |
+
+### Factory Features
+
+```java
+SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+    .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+    .build();
+```
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `USE_POI_USER_MODEL` | disabled | Use POI's User Model (Sheet/Row/Cell) for all read/write, bypassing SSML streaming |
+| `FILE_BACKED_SHARED_STRINGS` | disabled | Store shared strings on disk for read and write (requires `com.h2database:h2`) |
 | `ENCRYPT_FILE_BACKED_STORE` | disabled | Encrypt the file-backed store with AES (requires `FILE_BACKED_SHARED_STRINGS`) |
 
 ## Format Support
@@ -633,10 +677,10 @@ mapper.readValues(new File("data.xls"), Product.class);  // XLS (legacy)
 
 The two formats use different read paths internally:
 
-| | XLSX | XLS |
-|---|---|---|
-| Read path | StAX streaming (constant memory) | POI object model (full workbook in memory) |
-| Write path | POI `SXSSFWorkbook` (streaming) | POI `HSSFWorkbook` |
+| | XLSX (default) | XLSX (`USE_POI_USER_MODEL`) | XLS |
+|---|---|---|---|
+| Read path | SSML StAX streaming | POI UserModel | POI UserModel |
+| Write path | StringBuilder + POI skeleton | POI WorkbookProvider (default: `XSSFWorkbook`) | POI `HSSFWorkbook` |
 
 For large files, XLSX is strongly recommended.
 
@@ -650,15 +694,27 @@ For best performance with large XLSX files, prefer `File` input over `InputStrea
 
 At 100K rows (mixed types, shared string table):
 
-| Library | Read | Memory |
-|---------|------|--------|
-| jackson-spreadsheet | 189 ms | 360 MB |
-| FastExcel | 207 ms | 407 MB |
-| Fesod | 286 ms | 381 MB |
-| Poiji | 826 ms | 2744 MB |
-| Apache POI UserModel | 1297 ms | 2224 MB |
+**Read:**
 
-Fastest read throughput and lowest memory allocation among all libraries. See [BENCHMARK.md](BENCHMARK.md) for full results.
+| Library | Time | Memory |
+|---------|------|--------|
+| jackson-spreadsheet | 183 ms | 378 MB |
+| FastExcel | 212 ms | 428 MB |
+| Fesod | 265 ms | 400 MB |
+| Poiji | 854 ms | 2876 MB |
+| Apache POI UserModel | 1059 ms | 2332 MB |
+
+**Write:**
+
+| Library | Time | Memory |
+|---------|------|--------|
+| jackson-spreadsheet (default) | 153 ms | 191 MB |
+| FastExcel | 169 ms | 156 MB |
+| Apache POI SXSSF | 293 ms | 214 MB |
+| jackson-spreadsheet (POI User Model) | 349 ms | 258 MB |
+| Fesod | 352 ms | 482 MB |
+
+Fastest read and write throughput among all libraries. See [BENCHMARK.md](BENCHMARK.md) for full results.
 
 ### Low-Memory Mode for Large Files
 
@@ -666,7 +722,7 @@ For extremely large XLSX files that cause `OutOfMemoryError`:
 
 ```java
 SpreadsheetMapper mapper = SpreadsheetMapper.builder()
-    .enable(SheetParser.Feature.FILE_BACKED_SHARED_STRINGS)
+    .enable(SpreadsheetFactory.Feature.FILE_BACKED_SHARED_STRINGS)
     .build();
 ```
 
@@ -674,8 +730,8 @@ If the spreadsheet contains sensitive data, enable encryption to protect the tem
 
 ```java
 SpreadsheetMapper mapper = SpreadsheetMapper.builder()
-    .enable(SheetParser.Feature.FILE_BACKED_SHARED_STRINGS)
-    .enable(SheetParser.Feature.ENCRYPT_FILE_BACKED_STORE)
+    .enable(SpreadsheetFactory.Feature.FILE_BACKED_SHARED_STRINGS)
+    .enable(SpreadsheetFactory.Feature.ENCRYPT_FILE_BACKED_STORE)
     .build();
 ```
 

@@ -39,13 +39,13 @@ Available on Maven Central:
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.1.2</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.1.2"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.2.0"
 ```
 
 ### Requirements
@@ -118,13 +118,27 @@ No configuration needed. Read and write — both directions work.
 
 ### Performance (100K rows, mixed types, shared string table)
 
-| Library | Read Time | Read Memory |
-|---------|-----------|-------------|
-| jackson-spreadsheet | 189 ms | 360 MB |
-| FastExcel | 207 ms | 407 MB |
-| Fesod | 286 ms | 381 MB |
-| Poiji | 826 ms | 2744 MB |
-| Apache POI UserModel | 1297 ms | 2224 MB |
+**Read:**
+
+| Library | Time | Memory |
+|---------|------|--------|
+| jackson-spreadsheet | 183 ms | 378 MB |
+| FastExcel | 212 ms | 428 MB |
+| Fesod | 265 ms | 400 MB |
+| Poiji | 854 ms | 2876 MB |
+| Apache POI UserModel | 1059 ms | 2332 MB |
+
+**Write:**
+
+| Library | Time | Memory |
+|---------|------|--------|
+| jackson-spreadsheet (default) | 153 ms | 191 MB |
+| FastExcel | 169 ms | 156 MB |
+| Apache POI SXSSF | 293 ms | 214 MB |
+| jackson-spreadsheet (POI User Model) | 349 ms | 258 MB |
+| Fesod | 352 ms | 482 MB |
+
+Fastest read and write throughput at 100K rows. See [BENCHMARK.md](BENCHMARK.md) for full results.
 
 ### Feature Comparison
 
@@ -206,10 +220,10 @@ Supported: `Date`, `Calendar`, `LocalDate`, `LocalDateTime`
 Not a POI wrapper. Extends Jackson's streaming layer directly:
 
 - `SheetParser extends ParserMinimalBase` — StAX pull parser
-- `SheetGenerator extends GeneratorBase` — POI cell writer
+- `SheetGenerator extends GeneratorBase` — streaming cell writer
 - `SpreadsheetFactory extends JsonFactory` — format detection
 
-The XLSX read path parses OOXML XML directly via StAX — no XMLBeans, no SAX, no DOM. Lightweight ECMA-376 schema types provide type safety without runtime overhead.
+The XLSX path bypasses POI's cell model by default — the read path parses OOXML XML directly via StAX, the write path streams XML via StringBuilder with a POI skeleton for package metadata.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions and data flow diagrams.
 
@@ -231,13 +245,13 @@ Fesod has its own API. This extends Jackson's `ObjectMapper`, so you get the ful
 Yes. Nested POJOs automatically flatten to columns on write and reconstruct on read. No configuration needed.
 
 **Q: How does performance compare?**
-Fastest read throughput at 100K rows, with the lowest memory allocation. 7x faster than POI UserModel. See [BENCHMARK.md](BENCHMARK.md).
+Fastest read and write throughput at 100K rows. 5.8x faster read than POI UserModel. Default writer is 9% faster than FastExcel. See [BENCHMARK.md](BENCHMARK.md).
 
 **Q: What Excel formats are supported?**
 XLSX (OOXML) and XLS (legacy). XLSX uses StAX streaming; XLS uses POI object model.
 
 **Q: Is it production-ready?**
-Yes. Version 1.1.2 on Maven Central. Java 8+, Jackson 2.14+, POI 4.1.1+. Listed as a [community data format module](https://github.com/FasterXML/jackson#data-format-modules) in the FasterXML jackson repository.
+Yes. Version 1.2.0 on Maven Central. Java 8+, Jackson 2.14+, POI 4.1.1+. Listed as a [community data format module](https://github.com/FasterXML/jackson#data-format-modules) in the FasterXML jackson repository.
 
 ## License
 

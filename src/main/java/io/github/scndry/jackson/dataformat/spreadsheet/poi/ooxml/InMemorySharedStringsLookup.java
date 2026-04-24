@@ -15,7 +15,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.Spreadshee
  * with separate {@code int[]} arrays for offsets and lengths.
  * Eliminates per-String object overhead (~56 bytes each).
  */
-final class InMemorySharedStringLookup implements SharedStringLookup {
+final class InMemorySharedStringsLookup implements SharedStringsLookup {
 
     private static final Matcher START_SI = Matcher.startElement(SpreadsheetML.STRING_ITEM);
 
@@ -30,7 +30,7 @@ final class InMemorySharedStringLookup implements SharedStringLookup {
     private int _size;
     private int _dataPos;
 
-    InMemorySharedStringLookup(final PackagePart part) throws IOException {
+    InMemorySharedStringsLookup(final PackagePart part) throws IOException {
         _reader = new XmlElementReader(part.getInputStream());
         _reader.navigateTo(SpreadsheetML.SST);
         final String uc = _reader.attribute(SpreadsheetML.ATTR_UNIQUE_COUNT);

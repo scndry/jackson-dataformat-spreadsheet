@@ -253,18 +253,12 @@ public final class SheetGenerator extends GeneratorBase {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void close() throws IOException {
         super.close();
         _writer.adjustColumnWidth();
-        final Object content = _ioContext.contentReference().getRawContent();
-        if (content instanceof SheetOutput) {
-            final OutputStream out = ((SheetOutput<OutputStream>) content).getRaw();
-            _writer.write(out);
-            if (_ioContext.isResourceManaged() || isEnabled(StreamWriteFeature.AUTO_CLOSE_TARGET)) {
-                _writer.close();
-                out.close();
-            }
+        _writer.write();
+        if (_ioContext.isResourceManaged() || isEnabled(StreamWriteFeature.AUTO_CLOSE_TARGET)) {
+            _writer.close();
         }
     }
 

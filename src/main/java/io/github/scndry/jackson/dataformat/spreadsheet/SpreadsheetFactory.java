@@ -13,7 +13,8 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.util.TempFile;
-import org.apache.poi.xssf.streaming.SXSSFWorkbook;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,6 +26,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetParser;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetReader;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.PackageUtil;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.SSMLSheetReader;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.SSMLSheetWriter;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.SSMLWorkbook;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ss.POISheetReader;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ss.POISheetWriter;
@@ -49,24 +51,35 @@ public final class SpreadsheetFactory extends JsonFactory {
     public static final String FORMAT_NAME = "spreadsheet";
     public static final int DEFAULT_SHEET_PARSER_FEATURE_FLAGS =
             SheetParser.Feature.collectDefaults();
+    public static final int DEFAULT_FEATURE_FLAGS = Feature.collectDefaults();
 
     private final transient WorkbookProvider _workbookProvider;
     private int _sheetParserFeatures;
+    private int _featureFlags;
 
     public SpreadsheetFactory() {
-        this(SXSSFWorkbook::new, DEFAULT_SHEET_PARSER_FEATURE_FLAGS);
+        this(XSSFWorkbook::new, DEFAULT_SHEET_PARSER_FEATURE_FLAGS, DEFAULT_FEATURE_FLAGS);
     }
 
     public SpreadsheetFactory(
             final WorkbookProvider workbookProvider,
             final int sheetParserFeatures) {
+        this(workbookProvider, sheetParserFeatures, DEFAULT_FEATURE_FLAGS);
+    }
+
+    public SpreadsheetFactory(
+            final WorkbookProvider workbookProvider,
+            final int sheetParserFeatures,
+            final int featureFlags) {
         _workbookProvider = workbookProvider;
         _sheetParserFeatures = sheetParserFeatures;
+        _featureFlags = featureFlags;
     }
 
     public SpreadsheetFactory(final SpreadsheetFactory base) {
         _workbookProvider = base._workbookProvider;
         _sheetParserFeatures = base._sheetParserFeatures;
+        _featureFlags = base._featureFlags;
     }
 
     @Override
@@ -119,6 +132,26 @@ public final class SpreadsheetFactory extends JsonFactory {
 
     public SpreadsheetFactory disable(final SheetParser.Feature f) {
         _sheetParserFeatures &= ~f.getMask();
+        return this;
+    }
+
+    /*
+    /**********************************************************
+    /* Configuration, factory feature configuration
+    /**********************************************************
+     */
+
+    public SpreadsheetFactory configure(final Feature f, final boolean state) {
+        return state ? enable(f) : disable(f);
+    }
+
+    public SpreadsheetFactory enable(final Feature f) {
+        _featureFlags |= f.getMask();
+        return this;
+    }
+
+    public SpreadsheetFactory disable(final Feature f) {
+        _featureFlags &= ~f.getMask();
         return this;
     }
 
@@ -207,6 +240,9 @@ public final class SpreadsheetFactory extends JsonFactory {
     }
 
     private SheetReader _createFileSheetReader(final SheetInput<File> src) throws IOException {
+        if (Feature.USE_POI_USER_MODEL.enabledIn(_featureFlags)) {
+            return _createPOISheetReader(WorkbookFactory.create(src.getRaw()), src);
+        }
         if (PackageUtil.isOOXML(src.getRaw())) {
             return _createSSMLSheetReader(SSMLWorkbook.create(src.getRaw()), src);
         }
@@ -215,6 +251,9 @@ public final class SpreadsheetFactory extends JsonFactory {
 
     private SheetReader _createInputStreamSheetReader(
             final SheetInput<InputStream> src) throws IOException {
+        if (Feature.USE_POI_USER_MODEL.enabledIn(_featureFlags)) {
+            return _createPOISheetReader(WorkbookFactory.create(src.getRaw()), src);
+        }
         if (PackageUtil.isOOXML(src.getRaw())) {
             return _createSSMLSheetReader(SSMLWorkbook.create(src.getRaw()), src);
         }
@@ -231,14 +270,12 @@ public final class SpreadsheetFactory extends JsonFactory {
         if (worksheetPart == null) {
             throw new IllegalArgumentException("No sheet for " + src);
         }
-        final boolean fileBacked = SheetParser
-                .Feature
+        final boolean fileBacked = Feature
                 .FILE_BACKED_SHARED_STRINGS
-                .enabledIn(_sheetParserFeatures);
-        final boolean encrypt = SheetParser
-                .Feature
+                .enabledIn(_featureFlags);
+        final boolean encrypt = Feature
                 .ENCRYPT_FILE_BACKED_STORE
-                .enabledIn(_sheetParserFeatures);
+                .enabledIn(_featureFlags);
         return new SSMLSheetReader(worksheetPart, workbook, fileBacked, encrypt);
     }
 
@@ -254,6 +291,7 @@ public final class SpreadsheetFactory extends JsonFactory {
     @SuppressWarnings("unchecked")
     private SheetInput<?> _preferRawAsFile(final SheetInput<?> src) throws IOException {
         if (src.isFile()) return src;
+        if (Feature.USE_POI_USER_MODEL.enabledIn(_featureFlags)) return src;
         final InputStream raw = FileMagic.prepareToCheckMagic(
                 ((SheetInput<InputStream>) src).getRaw());
         if (!PackageUtil.isOOXML(raw)) {
@@ -261,7 +299,7 @@ public final class SpreadsheetFactory extends JsonFactory {
                     ? SheetInput.source(raw, src.getName())
                     : SheetInput.source(raw, src.getIndex());
         }
-        final File file = TempFile.createTempFile("sheet-input", ".xlsx");
+        final File file = TempFile.createTempFile("jackson-spreadsheet-input-", ".xlsx");
         _setOwnerOnly(file);
         file.deleteOnExit();
         Files.copy(raw, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
@@ -293,15 +331,36 @@ public final class SpreadsheetFactory extends JsonFactory {
     }
 
     @SuppressWarnings("resource")
-    private SheetWriter _createSheetWriter(final SheetOutput<?> out) throws IOException {
+    private SheetWriter _createSheetWriter(final SheetOutput<OutputStream> out) throws IOException {
         final Workbook workbook = _workbookProvider.create();
-        final Sheet sheet;
-        if (out.isNamed()) {
-            sheet = workbook.createSheet(out.getName());
-        } else {
-            sheet = workbook.createSheet();
+        final Sheet sheet = out.isNamed()
+                ? workbook.createSheet(out.getName()) : workbook.createSheet();
+        if (Feature.USE_POI_USER_MODEL.enabledIn(_featureFlags)) {
+            return _createPOISheetWriter(sheet, out.getRaw());
         }
-        return new POISheetWriter(sheet);
+        if (sheet instanceof XSSFSheet) {
+            return _createSSMLSheetWriter(out.getRaw(), sheet);
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("Sheet is not XSSFSheet ({}); falling back to POISheetWriter",
+                    sheet.getClass().getSimpleName());
+        }
+        return _createPOISheetWriter(sheet, out.getRaw());
+    }
+
+    private SSMLSheetWriter _createSSMLSheetWriter(
+            final OutputStream out, final Sheet sheet) {
+        final boolean fileBacked = Feature
+                .FILE_BACKED_SHARED_STRINGS
+                .enabledIn(_featureFlags);
+        final boolean encrypt = Feature
+                .ENCRYPT_FILE_BACKED_STORE
+                .enabledIn(_featureFlags);
+        return new SSMLSheetWriter(out, sheet, fileBacked, encrypt);
+    }
+
+    private POISheetWriter _createPOISheetWriter(final Sheet sheet, final OutputStream out) {
+        return new POISheetWriter(sheet, out);
     }
 
     @SuppressWarnings("unchecked")
@@ -310,5 +369,60 @@ public final class SpreadsheetFactory extends JsonFactory {
         if (!out.isFile()) return (SheetOutput<OutputStream>) out;
         final OutputStream raw = Files.newOutputStream(((File) out.getRaw()).toPath());
         return out.isNamed() ? SheetOutput.target(raw, out.getName()) : SheetOutput.target(raw);
+    }
+
+    /**
+     * Configurable features for spreadsheet read/write strategies.
+     */
+    public enum Feature implements FormatFeature {
+        /**
+         * Use POI's User Model ({@code Sheet}/{@code Row}/{@code Cell}) for all read/write operations,
+         * bypassing SSML streaming. Default: disabled (SSML is used for OOXML).
+         */
+        USE_POI_USER_MODEL(false),
+        /**
+         * Use file-backed shared string store to reduce heap usage for large files.
+         * Applies to both read (SSMLSheetReader) and write (SSMLSheetWriter) paths.
+         * Requires H2 at runtime.
+         */
+        FILE_BACKED_SHARED_STRINGS(false),
+        /**
+         * Encrypt file-backed shared string store at rest.
+         * Effective only with {@link #FILE_BACKED_SHARED_STRINGS}.
+         */
+        ENCRYPT_FILE_BACKED_STORE(false),
+        ;
+        final boolean _defaultState;
+        final int _mask;
+
+        Feature(final boolean defaultState) {
+            _defaultState = defaultState;
+            _mask = 1 << ordinal();
+        }
+
+        public static int collectDefaults() {
+            int flags = 0;
+            for (Feature f : values()) {
+                if (f.enabledByDefault()) {
+                    flags |= f.getMask();
+                }
+            }
+            return flags;
+        }
+
+        @Override
+        public boolean enabledByDefault() {
+            return _defaultState;
+        }
+
+        @Override
+        public int getMask() {
+            return _mask;
+        }
+
+        @Override
+        public boolean enabledIn(final int flags) {
+            return (flags & getMask()) != 0;
+        }
     }
 }

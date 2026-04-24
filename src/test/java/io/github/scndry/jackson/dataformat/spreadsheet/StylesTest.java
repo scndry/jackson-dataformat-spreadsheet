@@ -113,8 +113,11 @@ class StylesTest {
 
         File file = new File(tempDir, "bad.xlsx");
         assertThatThrownBy(() -> mapper.writeValue(file, new Bad()))
-                .hasRootCauseInstanceOf(IllegalStateException.class)
-                .hasRootCauseMessage("Style 'missing' is not registered");
+                .satisfiesAnyOf(
+                        t -> assertThat(t).isInstanceOf(IllegalStateException.class)
+                                .hasMessageContaining("Style 'missing' is not registered"),
+                        t -> assertThat(t).hasRootCauseInstanceOf(IllegalStateException.class)
+                                .hasRootCauseMessage("Style 'missing' is not registered"));
     }
 
     @Test

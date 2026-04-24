@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "io.github.scndry"
-version = "1.1.2"
+version = "1.2.0"
 description = "Support for reading and writing Spreadsheet via Jackson abstractions."
 
 val title = "Jackson dataformat: Spreadsheet"
@@ -125,5 +125,14 @@ tasks.withType<Jar> {
             "Specification-Version" to jacksonVersion,
             "Specification-Vendor" to "FasterXML",
         )
+    }
+}
+
+tasks.register("printJmhRuntimeClasspath") {
+    doLast {
+        val cp = configurations.getByName("jmhRuntimeClasspath").asPath
+        val classes = listOf("build/classes/java/main", "build/classes/java/jmh", "build/resources/main")
+            .joinToString(File.pathSeparator)
+        println("$classes${File.pathSeparator}$cp")
     }
 }

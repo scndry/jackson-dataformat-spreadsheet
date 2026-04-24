@@ -1,7 +1,6 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.ser;
 
 import java.io.IOException;
-import java.io.OutputStream;
 
 import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.util.CellAddress;
@@ -43,7 +42,7 @@ public interface SheetWriter extends AutoCloseable {
 
     default void restoreRowWindow() {}
 
-    void write(OutputStream out) throws IOException;
+    void write() throws IOException;
 
     @Override
     void close() throws IOException;
