@@ -27,8 +27,10 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
 
 /**
- * {@link SheetWriter} implementation backed by POI's {@link Cell} API. Handles cell value writing,
- * style application, column width adjustment, and merge regions.
+ * POI cell-model {@link SheetWriter} implementation.
+ * Writes values through {@link Cell} and delegates styles, merges, and column-width handling to POI APIs.
+ *
+ * @see io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.SSMLSheetWriter
  */
 @Slf4j
 public final class POISheetWriter implements SheetWriter {
@@ -36,6 +38,7 @@ public final class POISheetWriter implements SheetWriter {
     private static final int MAX_COLUMN_WIDTH = 255 * 256;
 
     private final Sheet _sheet;
+    private final OutputStream _out;
     private SpreadsheetSchema _schema;
     private CellAddress _reference;
     private Styles _styles;
@@ -43,7 +46,12 @@ public final class POISheetWriter implements SheetWriter {
     private int _savedWindowSize = -1;
 
     public POISheetWriter(final Sheet sheet) {
+        this(sheet, null);
+    }
+
+    public POISheetWriter(final Sheet sheet, final OutputStream out) {
         _sheet = sheet;
+        _out = out;
     }
 
     @Override
@@ -169,8 +177,12 @@ public final class POISheetWriter implements SheetWriter {
     }
 
     @Override
-    public void write(final OutputStream out) throws IOException {
-        _sheet.getWorkbook().write(out);
+    public void write() throws IOException {
+        if (_out != null) {
+            _sheet.getWorkbook().write(_out);
+        } else if (log.isDebugEnabled()) {
+            log.debug("write() skipped — no OutputStream bound (direct Sheet mode)");
+        }
     }
 
     @Override
@@ -205,6 +217,9 @@ public final class POISheetWriter implements SheetWriter {
         workbook.close();
         if (workbook instanceof SXSSFWorkbook) {
             ((SXSSFWorkbook) workbook).dispose();
+        }
+        if (_out != null) {
+            _out.close();
         }
     }
 

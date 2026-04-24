@@ -252,6 +252,27 @@ public final class SpreadsheetMapper extends ObjectMapper {
         return this;
     }
 
+    public SpreadsheetMapper configure(
+            final SpreadsheetFactory.Feature f,
+            final boolean state) {
+        tokenStreamFactory().configure(f, state);
+        return this;
+    }
+
+    public SpreadsheetMapper enable(final SpreadsheetFactory.Feature... features) {
+        for (SpreadsheetFactory.Feature f : features) {
+            tokenStreamFactory().enable(f);
+        }
+        return this;
+    }
+
+    public SpreadsheetMapper disable(final SpreadsheetFactory.Feature... features) {
+        for (SpreadsheetFactory.Feature f : features) {
+            tokenStreamFactory().disable(f);
+        }
+        return this;
+    }
+
     /*
     /**********************************************************
     /* Configuration, schema generation
@@ -537,6 +558,21 @@ public final class SpreadsheetMapper extends ObjectMapper {
         }
 
         public Builder configure(final SheetParser.Feature feature, final boolean state) {
+            _mapper.configure(feature, state);
+            return _this();
+        }
+
+        public Builder enable(final SpreadsheetFactory.Feature... features) {
+            _mapper.enable(features);
+            return _this();
+        }
+
+        public Builder disable(final SpreadsheetFactory.Feature... features) {
+            _mapper.disable(features);
+            return _this();
+        }
+
+        public Builder configure(final SpreadsheetFactory.Feature feature, final boolean state) {
             _mapper.configure(feature, state);
             return _this();
         }

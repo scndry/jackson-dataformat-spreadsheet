@@ -22,12 +22,12 @@ import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.Spreadshee
  * <p>
  * Stores shared strings on disk instead of in memory, keeping heap usage
  * constant regardless of shared string table size. Suitable for extremely
- * large spreadsheets where even the SoA-based {@link InMemorySharedStringLookup}
+ * large spreadsheets where even the SoA-based {@link InMemorySharedStringsLookup}
  * would consume too much memory.
  * <p>
  * Requires {@code com.h2database:h2} on the classpath.
  */
-final class FileBackedSharedStringLookup implements SharedStringLookup {
+final class FileBackedSharedStringsLookup implements SharedStringsLookup {
 
     private static final Matcher START_SI = Matcher.startElement(SpreadsheetML.STRING_ITEM);
     private static final int CACHE_MAX_SIZE = 1024;
@@ -45,7 +45,7 @@ final class FileBackedSharedStringLookup implements SharedStringLookup {
     private final MVMap<Integer, String> _strings;
     private int _size;
 
-    FileBackedSharedStringLookup(final PackagePart part, final boolean encrypt) throws IOException {
+    FileBackedSharedStringsLookup(final PackagePart part, final boolean encrypt) throws IOException {
         _reader = new XmlElementReader(part.getInputStream());
         _reader.navigateTo(SpreadsheetML.SST);
 
@@ -112,14 +112,14 @@ final class FileBackedSharedStringLookup implements SharedStringLookup {
     private static Path _createSecureTempFile() throws IOException {
         Path path;
         try {
-            path = Files.createTempFile("jackson-sst-", ".mv",
+            path = Files.createTempFile("jackson-spreadsheet-sst-read-", ".mv",
                     PosixFilePermissions.asFileAttribute(
                             java.util.EnumSet.of(
                                     PosixFilePermission.OWNER_READ,
                                     PosixFilePermission.OWNER_WRITE)));
         } catch (UnsupportedOperationException e) {
             // Windows — POSIX permissions not supported
-            path = Files.createTempFile("jackson-sst-", ".mv");
+            path = Files.createTempFile("jackson-spreadsheet-sst-read-", ".mv");
         }
         path.toFile().deleteOnExit();
         return path;

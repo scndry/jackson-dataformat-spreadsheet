@@ -1,7 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
-import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetParser;
+import io.github.scndry.jackson.dataformat.spreadsheet.SpreadsheetFactory;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -82,7 +82,7 @@ public class SharedStringsBenchmark {
     @Benchmark
     public void fileBacked(Blackhole bh) throws IOException {
         SpreadsheetMapper mapper = SpreadsheetMapper.builder()
-                .enable(SheetParser.Feature.FILE_BACKED_SHARED_STRINGS)
+                .enable(SpreadsheetFactory.Feature.FILE_BACKED_SHARED_STRINGS)
                 .build();
         List<StringEntry> values = mapper.readValues(file, StringEntry.class);
         bh.consume(values);
@@ -91,8 +91,8 @@ public class SharedStringsBenchmark {
     @Benchmark
     public void fileBackedEncrypted(Blackhole bh) throws IOException {
         SpreadsheetMapper mapper = SpreadsheetMapper.builder()
-                .enable(SheetParser.Feature.FILE_BACKED_SHARED_STRINGS)
-                .enable(SheetParser.Feature.ENCRYPT_FILE_BACKED_STORE)
+                .enable(SpreadsheetFactory.Feature.FILE_BACKED_SHARED_STRINGS)
+                .enable(SpreadsheetFactory.Feature.ENCRYPT_FILE_BACKED_STORE)
                 .build();
         List<StringEntry> values = mapper.readValues(file, StringEntry.class);
         bh.consume(values);

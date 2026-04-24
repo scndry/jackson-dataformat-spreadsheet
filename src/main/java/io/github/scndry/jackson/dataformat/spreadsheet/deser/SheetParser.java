@@ -435,9 +435,6 @@ public final class SheetParser extends ParserMinimalBase {
      *     for blank rows (enabled by default).</li>
      * <li>{@link #BREAK_ON_BLANK_ROW} -- stops iteration
      *     when a blank row is encountered.</li>
-     * <li>{@link #FILE_BACKED_SHARED_STRINGS} -- stores the
-     *     OOXML shared-string table on disk to reduce heap
-     *     usage for large files.</li>
      * </ul>
      */
     public enum Feature implements FormatFeature {
@@ -445,16 +442,6 @@ public final class SheetParser extends ParserMinimalBase {
         BLANK_ROW_AS_NULL(true),
         /** Stop iteration on the first blank row. */
         BREAK_ON_BLANK_ROW(false),
-        /**
-         * Use a file-backed shared-string table to reduce
-         * heap usage when reading large OOXML files.
-         */
-        FILE_BACKED_SHARED_STRINGS(false),
-        /**
-         * Encrypt the file-backed shared-string store to protect
-         * sensitive data at rest. Requires {@link #FILE_BACKED_SHARED_STRINGS}.
-         */
-        ENCRYPT_FILE_BACKED_STORE(false),
         ;
         final boolean _defaultState;
         final int _mask;

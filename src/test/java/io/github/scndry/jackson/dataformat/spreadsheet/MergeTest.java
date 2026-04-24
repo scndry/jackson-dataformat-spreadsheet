@@ -34,7 +34,9 @@ class MergeTest {
 
     @BeforeEach
     void setUp() {
-        mapper = new SpreadsheetMapper();
+        mapper = new SpreadsheetMapper(
+                new SpreadsheetFactory(SXSSFWorkbook::new, SpreadsheetFactory.DEFAULT_SHEET_PARSER_FEATURE_FLAGS)
+                        .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL));
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid

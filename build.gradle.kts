@@ -127,3 +127,12 @@ tasks.withType<Jar> {
         )
     }
 }
+
+tasks.register("printJmhRuntimeClasspath") {
+    doLast {
+        val cp = configurations.getByName("jmhRuntimeClasspath").asPath
+        val classes = listOf("build/classes/java/main", "build/classes/java/jmh", "build/resources/main")
+            .joinToString(File.pathSeparator)
+        println("$classes${File.pathSeparator}$cp")
+    }
+}

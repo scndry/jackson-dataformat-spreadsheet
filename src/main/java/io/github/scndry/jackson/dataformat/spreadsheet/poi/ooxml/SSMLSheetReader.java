@@ -20,8 +20,8 @@ import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.STCellForm
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.SpreadsheetML;
 
 /**
- * StAX-based XLSX sheet reader implementing {@link SheetReader} for the streaming SpreadsheetML path.
- * Parses sheet XML directly via {@link XmlElementReader} without POI's object model.
+ * Streaming SpreadsheetML {@link SheetReader} implementation.
+ * Parses worksheet XML via {@link XmlElementReader} and resolves shared strings without POI's cell model.
  *
  * @see io.github.scndry.jackson.dataformat.spreadsheet.poi.ss.POISheetReader
  * @see XmlElementReader
@@ -35,7 +35,7 @@ public final class SSMLSheetReader implements SheetReader {
     private static final Matcher START_CELL = Matcher.startElement(SpreadsheetML.CELL);
     private static final Matcher END_SHEET_DATA = Matcher.endElement(SpreadsheetML.SHEET_DATA);
 
-    private final SharedStringLookup _strings;
+    private final SharedStringsLookup _strings;
     private final XmlElementReader _reader;
     private final SSMLWorkbook _workbook;
     private final PackagePart _sheet;
@@ -55,11 +55,11 @@ public final class SSMLSheetReader implements SheetReader {
         try {
             final PackagePart sharedStrings = _workbook.getSharedStringsPart();
             if (sharedStrings == null) {
-                _strings = BlankSharedStringLookup.INSTANCE;
+                _strings = BlankSharedStringsLookup.INSTANCE;
             } else if (fileBackedSharedStrings) {
-                _strings = new FileBackedSharedStringLookup(sharedStrings, encryptFileBacked);
+                _strings = new FileBackedSharedStringsLookup(sharedStrings, encryptFileBacked);
             } else {
-                _strings = new InMemorySharedStringLookup(sharedStrings);
+                _strings = new InMemorySharedStringsLookup(sharedStrings);
             }
             _reader = new XmlElementReader(_sheet.getInputStream());
             _reader.nextUntil(START_SHEET_DATA);

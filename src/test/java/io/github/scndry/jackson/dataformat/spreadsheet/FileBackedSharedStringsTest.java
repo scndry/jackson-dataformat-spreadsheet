@@ -1,7 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
-import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetParser;
+import io.github.scndry.jackson.dataformat.spreadsheet.SpreadsheetFactory;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -60,7 +60,7 @@ class FileBackedSharedStringsTest {
         }
 
         SpreadsheetMapper mapper = SpreadsheetMapper.builder()
-                .enable(SheetParser.Feature.FILE_BACKED_SHARED_STRINGS)
+                .enable(SpreadsheetFactory.Feature.FILE_BACKED_SHARED_STRINGS)
                 .build();
 
         List<StringRow> rows = mapper.readValues(file, StringRow.class);
@@ -95,7 +95,7 @@ class FileBackedSharedStringsTest {
 
         SpreadsheetMapper inMemoryMapper = new SpreadsheetMapper();
         SpreadsheetMapper fileBackedMapper = SpreadsheetMapper.builder()
-                .enable(SheetParser.Feature.FILE_BACKED_SHARED_STRINGS)
+                .enable(SpreadsheetFactory.Feature.FILE_BACKED_SHARED_STRINGS)
                 .build();
 
         List<StringRow> inMemory = inMemoryMapper.readValues(file, StringRow.class);
@@ -128,17 +128,17 @@ class FileBackedSharedStringsTest {
         }
 
         SpreadsheetMapper mapper = SpreadsheetMapper.builder()
-                .enable(SheetParser.Feature.FILE_BACKED_SHARED_STRINGS)
+                .enable(SpreadsheetFactory.Feature.FILE_BACKED_SHARED_STRINGS)
                 .build();
 
         // Read and close — temp file should be cleaned up
         List<StringRow> rows = mapper.readValues(file, StringRow.class);
         assertThat(rows).hasSize(1);
 
-        // Verify no jackson-sst-*.mv files remain in temp dir
+        // Verify no jackson-spreadsheet-sst-*.mv files remain in temp dir
         File tempDir = new File(System.getProperty("java.io.tmpdir"));
         File[] sstFiles = tempDir.listFiles((dir, name) ->
-                name.startsWith("jackson-sst-") && name.endsWith(".mv"));
+                name.startsWith("jackson-spreadsheet-sst-") && name.endsWith(".mv"));
         assertThat(sstFiles == null || sstFiles.length == 0)
                 .as("Temp MVStore files should be cleaned up")
                 .isTrue();
@@ -165,8 +165,8 @@ class FileBackedSharedStringsTest {
         }
 
         SpreadsheetMapper mapper = SpreadsheetMapper.builder()
-                .enable(SheetParser.Feature.FILE_BACKED_SHARED_STRINGS)
-                .enable(SheetParser.Feature.ENCRYPT_FILE_BACKED_STORE)
+                .enable(SpreadsheetFactory.Feature.FILE_BACKED_SHARED_STRINGS)
+                .enable(SpreadsheetFactory.Feature.ENCRYPT_FILE_BACKED_STORE)
                 .build();
 
         List<StringRow> rows = mapper.readValues(file, StringRow.class);

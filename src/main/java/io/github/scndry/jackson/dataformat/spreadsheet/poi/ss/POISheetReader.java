@@ -16,8 +16,8 @@ import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetToken;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
 
 /**
- * {@link SheetReader} implementation backed by POI's {@link Sheet}/{@link Row}/{@link Cell} object model.
- * Used for XLS files and direct {@link Sheet} input.
+ * POI object-model {@link SheetReader} implementation.
+ * Iterates {@link Sheet}/{@link Row}/{@link Cell} directly and exposes tokenized sheet events.
  *
  * @see io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.SSMLSheetReader
  */
