@@ -113,6 +113,15 @@ public class ReadBenchmark {
     }
 
     @Benchmark
+    public void jacksonSpreadsheetPOI(Blackhole bh) throws IOException {
+        SpreadsheetMapper mapper = new SpreadsheetMapper(
+                new SpreadsheetFactory(XSSFWorkbook::new, SpreadsheetFactory.DEFAULT_SHEET_PARSER_FEATURE_FLAGS)
+                        .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL));
+        List<Product> values = mapper.readValues(file, Product.class);
+        bh.consume(values);
+    }
+
+    @Benchmark
     public void poiUserModel(Blackhole bh) throws Exception {
         try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
             Sheet sheet = wb.getSheetAt(0);

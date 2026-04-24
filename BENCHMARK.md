@@ -7,35 +7,27 @@
 - JMH 1.35, Fork 1, Warmup 3 iterations, Measurement 5 iterations
 - GC profiler enabled (`gc.alloc.rate.norm` = bytes allocated per operation)
 - Test data: mixed types (String + int + double + boolean), `XSSFWorkbook` (shared string table), 6 columns
-- All read benchmarks produce the same POJO for fair comparison
+- All benchmarks use each library's default configuration for fair comparison
 
 ## Read — Throughput
 
 | Library | 1K rows | 10K rows | 50K rows | 100K rows |
 |---------|---------|----------|----------|-----------|
-| jackson-spreadsheet | 2.5 ms | 17.5 ms | 84.0 ms | 182.7 ms |
-| FastExcel Reader | 2.2 ms | 21.8 ms | 101.4 ms | 211.8 ms |
-| Fesod | 3.3 ms | 27.2 ms | 134.5 ms | 264.6 ms |
-| Poiji | 10.5 ms | 88.3 ms | 428.2 ms | 854.4 ms |
-| Apache POI UserModel | 11.3 ms | 102.7 ms | 593.9 ms | 1059.0 ms |
-
-- jackson-spreadsheet is fastest at 10K+ rows — 14% faster than FastExcel at 100K.
-- Fesod is ~45% slower at 100K rows.
-- Poiji wraps POI UserModel with annotation mapping — faster than raw POI due to internal optimizations, but still 4.7x slower than jackson-spreadsheet.
-- POI UserModel loads the full workbook into memory — 5.8x slower at 100K rows.
+| jackson-spreadsheet | 2.8 ms | 21.8 ms | 91.2 ms | 198.1 ms |
+| FastExcel | 2.2 ms | 20.4 ms | 105.8 ms | 212.3 ms |
+| Fesod | 3.6 ms | 29.4 ms | 138.4 ms | 279.4 ms |
+| Poiji | 9.9 ms | 91.2 ms | 429.7 ms | 843.4 ms |
+| Apache POI | 12.1 ms | 107.0 ms | 522.5 ms | 1197.6 ms |
 
 ## Read — Memory (bytes/op)
 
 | Library | 10K rows | 50K rows | 100K rows |
 |---------|----------|----------|-----------|
 | jackson-spreadsheet | 38 MB | 189 MB | 378 MB |
-| Fesod | 41 MB | 206 MB | 400 MB |
-| FastExcel Reader | 43 MB | 219 MB | 428 MB |
-| POI UserModel | 233 MB | 1161 MB | 2332 MB |
+| Fesod | 42 MB | 206 MB | 400 MB |
+| FastExcel | 42 MB | 219 MB | 428 MB |
+| Apache POI | 235 MB | 1167 MB | 2333 MB |
 | Poiji | 288 MB | 1438 MB | 2876 MB |
-
-- jackson-spreadsheet has the lowest allocation among all libraries thanks to SoA shared string layout and direct String return (no POI RichTextString wrapping).
-- Poiji allocates more than raw POI due to annotation reflection and internal object creation overhead.
 
 ## Write — Throughput
 
@@ -43,29 +35,44 @@ Poiji is read-only and not included.
 
 | Library | 1K rows | 10K rows | 50K rows | 100K rows |
 |---------|---------|----------|----------|-----------|
-| jackson-spreadsheet (default) | 5.2 ms | 19.6 ms | 77.3 ms | 153.4 ms |
-| FastExcel | 3.0 ms | 17.0 ms | 86.3 ms | 168.8 ms |
-| Apache POI SXSSF | 6.1 ms | 31.6 ms | 148.1 ms | 292.5 ms |
-| jackson-spreadsheet (POI User Model) | 7.6 ms | 37.3 ms | 177.1 ms | 349.4 ms |
-| Fesod | 7.8 ms | 40.8 ms | 170.2 ms | 351.7 ms |
-
-- jackson-spreadsheet is fastest at 50K+ rows — 9% faster than FastExcel at 100K.
-- The default path builds a POI XSSFWorkbook skeleton for package metadata, then streams worksheet and sharedStrings via StringBuilder directly to ZipOutputStream.
-- The POI User Model path uses `SXSSFWorkbook` internally. The ~19% overhead vs raw SXSSF comes from Jackson serialization and schema-driven cell styling.
-- Fesod wraps POI `SXSSFWorkbook` with handler chain, cglib BeanMap, and converter overhead — comparable to jackson-spreadsheet POI User Model.
+| jackson-spreadsheet | 4.5 ms | 17.8 ms | 76.9 ms | 150.3 ms |
+| FastExcel | 2.8 ms | 16.7 ms | 83.7 ms | 165.8 ms |
+| Apache POI | 6.2 ms | 30.9 ms | 147.0 ms | 283.0 ms |
+| Fesod | 7.1 ms | 36.6 ms | 166.9 ms | 336.7 ms |
 
 ## Write — Memory (bytes/op)
 
 | Library | 10K rows | 50K rows | 100K rows |
 |---------|----------|----------|-----------|
 | FastExcel | 16 MB | 78 MB | 156 MB |
-| jackson-spreadsheet (default) | 21 MB | 96 MB | 191 MB |
-| Apache POI SXSSF | 22 MB | 109 MB | 214 MB |
-| jackson-spreadsheet (POI User Model) | 27 MB | 130 MB | 258 MB |
-| Fesod | 50 MB | 241 MB | 482 MB |
+| jackson-spreadsheet | 21 MB | 96 MB | 191 MB |
+| Apache POI | 23 MB | 108 MB | 207 MB |
+| Fesod | 50 MB | 247 MB | 480 MB |
 
-- Default path allocates 22% more than FastExcel but 11% less than raw SXSSF — the POI skeleton adds a fixed cost, but StringBuilder streaming avoids per-cell POI object overhead.
-- Fesod allocates 2.5x more than jackson-spreadsheet due to cglib BeanMap and converter chain.
+## jackson — Streaming vs POI User Model
+
+Default path uses streaming. `USE_POI_USER_MODEL` switches to POI's Sheet/Row/Cell API.
+Apache POI (raw, no jackson) shown as reference.
+
+**Read:**
+
+| Mode | 1K rows | 10K rows | 50K rows | 100K rows | Memory (100K) |
+|------|---------|----------|----------|-----------|---------------|
+| Streaming (default) | 2.8 ms | 21.8 ms | 91.2 ms | 198.1 ms | 378 MB |
+| POI User Model | 15.8 ms | 124.1 ms | 673.6 ms | 1459.8 ms | 2943 MB |
+| Apache POI (reference) | 12.1 ms | 107.0 ms | 522.5 ms | 1197.6 ms | 2333 MB |
+
+**Write:**
+
+| Mode | 1K rows | 10K rows | 50K rows | 100K rows | Memory (100K) |
+|------|---------|----------|----------|-----------|---------------|
+| Streaming (default) | 4.5 ms | 17.8 ms | 76.9 ms | 150.3 ms | 191 MB |
+| POI User Model | 7.2 ms | 35.4 ms | 166.9 ms | 334.5 ms | 258 MB |
+| Apache POI (reference) | 6.2 ms | 30.9 ms | 147.0 ms | 283.0 ms | 207 MB |
+
+- Read: Streaming is 7.4x faster and uses 87% less memory than POI User Model at 100K rows.
+- Write: Streaming is 2.2x faster and uses 26% less memory than POI User Model at 100K rows.
+- POI User Model is slower than raw Apache POI due to Jackson serialization and schema overhead.
 
 ## SharedStrings — FILE_BACKED Variants
 
@@ -75,20 +82,18 @@ Poiji is read-only and not included.
 
 | Strategy | 10K rows | 50K rows | 100K rows |
 |----------|----------|----------|-----------|
-| InMemory (default) | 17.0 ms | 73.2 ms | 133.6 ms |
-| FileBacked (H2 MVStore) | 30.9 ms | 135.8 ms | 264.2 ms |
-| FileBacked + Encrypted | 34.3 ms | 146.2 ms | 289.2 ms |
+| InMemory (default) | 16.7 ms | 64.7 ms | 136.7 ms |
+| FileBacked (H2 MVStore) | 30.9 ms | 130.3 ms | 252.5 ms |
+| FileBacked + Encrypted | 32.9 ms | 144.8 ms | 290.4 ms |
 
 **Write:**
 
 | Strategy | 10K rows | 50K rows | 100K rows |
 |----------|----------|----------|-----------|
-| InMemory (default) | 19.6 ms | 77.3 ms | 153.4 ms |
-| FileBacked (H2 MVStore) | 36.4 ms | 168.8 ms | 317.2 ms |
-| FileBacked + Encrypted | 41.1 ms | 224.2 ms | 496.6 ms |
+| InMemory (default) | 17.8 ms | 76.9 ms | 150.3 ms |
+| FileBacked (H2 MVStore) | 35.5 ms | 164.8 ms | 329.0 ms |
+| FileBacked + Encrypted | 39.6 ms | 228.4 ms | 480.5 ms |
 
-- Read: FileBacked is ~98% slower, mitigated by LRU cache for repeated lookups. Encryption adds ~9%.
-- Write: FileBacked is ~107% slower. Encryption adds ~57%.
 - FileBacked's value is **peak heap reduction**, not throughput. When the SST exceeds available heap, InMemory causes OOM while FileBacked stays constant.
 
 ## How to Run
