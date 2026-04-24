@@ -122,21 +122,20 @@ No configuration needed. Read and write — both directions work.
 
 | Library | Time | Memory |
 |---------|------|--------|
-| jackson-spreadsheet | 183 ms | 378 MB |
+| jackson-spreadsheet | 198 ms | 378 MB |
 | FastExcel | 212 ms | 428 MB |
-| Fesod | 265 ms | 400 MB |
-| Poiji | 854 ms | 2876 MB |
-| Apache POI UserModel | 1059 ms | 2332 MB |
+| Fesod | 279 ms | 400 MB |
+| Poiji | 843 ms | 2876 MB |
+| Apache POI | 1198 ms | 2333 MB |
 
 **Write:**
 
 | Library | Time | Memory |
 |---------|------|--------|
-| jackson-spreadsheet (default) | 153 ms | 191 MB |
-| FastExcel | 169 ms | 156 MB |
-| Apache POI SXSSF | 293 ms | 214 MB |
-| jackson-spreadsheet (POI User Model) | 349 ms | 258 MB |
-| Fesod | 352 ms | 482 MB |
+| jackson-spreadsheet | 150 ms | 191 MB |
+| FastExcel | 166 ms | 156 MB |
+| Apache POI | 283 ms | 207 MB |
+| Fesod | 337 ms | 480 MB |
 
 Fastest read and write throughput at 100K rows. See [BENCHMARK.md](BENCHMARK.md) for full results.
 
@@ -245,7 +244,7 @@ Fesod has its own API. This extends Jackson's `ObjectMapper`, so you get the ful
 Yes. Nested POJOs automatically flatten to columns on write and reconstruct on read. No configuration needed.
 
 **Q: How does performance compare?**
-Fastest read and write throughput at 100K rows. 5.8x faster read than POI UserModel. Default writer is 9% faster than FastExcel. See [BENCHMARK.md](BENCHMARK.md).
+Fastest read and write throughput at 100K rows. 6x faster read than Apache POI. Default writer is 10% faster than FastExcel. See [BENCHMARK.md](BENCHMARK.md).
 
 **Q: What Excel formats are supported?**
 XLSX (OOXML) and XLS (legacy). XLSX uses StAX streaming; XLS uses POI object model.

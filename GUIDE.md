@@ -220,14 +220,14 @@ mapper.writeValue(output, products, Product.class);
 byte[] bytes = mapper.writeValueAsBytes(products, Product.class);
 ```
 
-### SSML Streaming (Default)
+### Streaming (Default)
 
-By default, XLSX read/write uses SSML streaming — bypassing POI's cell model for direct XML generation. No configuration needed:
+By default, XLSX read/write uses streaming — bypassing POI's cell model for direct XML generation. No configuration needed:
 
 ```java
 SpreadsheetMapper mapper = new SpreadsheetMapper();
-mapper.writeValue(file, products, Product.class);  // SSML writer
-List<Product> list = mapper.readValues(file, Product.class);  // SSML reader
+mapper.writeValue(file, products, Product.class);  // streaming writer
+List<Product> list = mapper.readValues(file, Product.class);  // streaming reader
 ```
 
 For large files with high-cardinality string columns, file-backed shared strings keep heap usage constant:
@@ -238,11 +238,11 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .build();
 ```
 
-SSML write path limitations (use `USE_POI_USER_MODEL` when these are needed):
+Streaming write path limitations (use `USE_POI_USER_MODEL` when these are needed):
 
 - **Auto-size columns** — not supported. Use `@DataColumn(width = N)` for fixed widths.
-- **XLS format** — SSML is XLSX only. XLS automatically uses POI regardless of this setting.
-- **Direct Sheet/Workbook access** — `createGenerator(Sheet)` always uses POI. SSML applies only to File/OutputStream targets.
+- **XLS format** — Streaming is XLSX only. XLS automatically uses POI regardless of this setting.
+- **Direct Sheet/Workbook access** — `createGenerator(Sheet)` always uses POI. Streaming applies only to File/OutputStream targets.
 
 To fall back to POI's User Model:
 
@@ -659,7 +659,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 
 | Feature | Default | Description |
 |---------|---------|-------------|
-| `USE_POI_USER_MODEL` | disabled | Use POI's User Model (Sheet/Row/Cell) for all read/write, bypassing SSML streaming |
+| `USE_POI_USER_MODEL` | disabled | Use POI's User Model (Sheet/Row/Cell) for all read/write, bypassing streaming |
 | `FILE_BACKED_SHARED_STRINGS` | disabled | Store shared strings on disk for read and write (requires `com.h2database:h2`) |
 | `ENCRYPT_FILE_BACKED_STORE` | disabled | Encrypt the file-backed store with AES (requires `FILE_BACKED_SHARED_STRINGS`) |
 
@@ -679,7 +679,7 @@ The two formats use different read paths internally:
 
 | | XLSX (default) | XLSX (`USE_POI_USER_MODEL`) | XLS |
 |---|---|---|---|
-| Read path | SSML StAX streaming | POI UserModel | POI UserModel |
+| Read path | StAX streaming | Apache POI (UserModel) | Apache POI (UserModel) |
 | Write path | StringBuilder + POI skeleton | POI WorkbookProvider (default: `XSSFWorkbook`) | POI `HSSFWorkbook` |
 
 For large files, XLSX is strongly recommended.
@@ -698,21 +698,20 @@ At 100K rows (mixed types, shared string table):
 
 | Library | Time | Memory |
 |---------|------|--------|
-| jackson-spreadsheet | 183 ms | 378 MB |
+| jackson-spreadsheet | 198 ms | 378 MB |
 | FastExcel | 212 ms | 428 MB |
-| Fesod | 265 ms | 400 MB |
-| Poiji | 854 ms | 2876 MB |
-| Apache POI UserModel | 1059 ms | 2332 MB |
+| Fesod | 279 ms | 400 MB |
+| Poiji | 843 ms | 2876 MB |
+| Apache POI | 1198 ms | 2333 MB |
 
 **Write:**
 
 | Library | Time | Memory |
 |---------|------|--------|
-| jackson-spreadsheet (default) | 153 ms | 191 MB |
-| FastExcel | 169 ms | 156 MB |
-| Apache POI SXSSF | 293 ms | 214 MB |
-| jackson-spreadsheet (POI User Model) | 349 ms | 258 MB |
-| Fesod | 352 ms | 482 MB |
+| jackson-spreadsheet | 150 ms | 191 MB |
+| FastExcel | 166 ms | 156 MB |
+| Apache POI | 283 ms | 207 MB |
+| Fesod | 337 ms | 480 MB |
 
 Fastest read and write throughput among all libraries. See [BENCHMARK.md](BENCHMARK.md) for full results.
 
