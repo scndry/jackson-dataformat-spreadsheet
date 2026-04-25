@@ -350,7 +350,7 @@ public final class SheetParser extends ParserMinimalBase {
 
     @Override
     public boolean hasTextCharacters() {
-        throw new UnsupportedOperationException();
+        return false;
     }
 
     @Override
