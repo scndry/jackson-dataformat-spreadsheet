@@ -289,7 +289,7 @@ The read path and the write path have different relationships with POI:
 | **XLSX write (`USE_POI_USER_MODEL`)** | `Workbook.write()`, `CellStyle`, `Font` | Schema-driven cell routing, merge logic |
 | **Styling** | `CellStyle` / `Font` API | `StylesBuilder` (fluent builder layer) |
 
-By default, both XLSX read and write paths bypass POI's cell model — the read path uses direct StAX parsing, the write path uses StringBuilder streaming with a POI skeleton for package metadata. `USE_POI_USER_MODEL` reverts both paths to full POI cell-model processing.
+By default, both XLSX read and write paths bypass POI's User Model — the read path uses direct StAX parsing, the write path uses StringBuilder streaming with a POI skeleton for package metadata. `USE_POI_USER_MODEL` reverts both paths to full POI User Model processing.
 
 `POICompat` provides a reflection-based shim for APIs that differ across POI versions (`Date1904Support.isDate1904()` in POI 4.1.1+, `OPCPackage.isStrictOoxmlFormat()` in POI 5.1.0+). Methods are looked up at class load time; missing methods fall back to safe defaults.
 
