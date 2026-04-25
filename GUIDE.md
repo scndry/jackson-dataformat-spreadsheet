@@ -117,6 +117,19 @@ Output (`products.xlsx`):
 | Apple | 10 | 1.5 |
 | Banana | 20 | 0.8 |
 
+## Supported I/O Types
+
+| Direction | Supported types |
+|-----------|----------------|
+| **Read** | `File`, `InputStream`, `SheetInput<T>`, `Sheet` |
+| **Write** | `File`, `OutputStream`, `SheetOutput<T>`, `Sheet` |
+
+`File`, `InputStream`, `OutputStream` are standard Jackson overloads inherited from `ObjectMapper`, `ObjectReader`, and `ObjectWriter`. Use them for the default (first) sheet.
+
+`SheetInput` and `SheetOutput` add spreadsheet-specific metadata — use them only when you need to select a sheet by name or index.
+
+`Sheet` is a POI type for direct workbook control — multi-sheet writes, formula post-processing, template population.
+
 ## Reading
 
 Read an Excel file into Java POJOs:
@@ -143,8 +156,6 @@ List<Product> list = mapper.readValues(SheetInput.source(file, "Products"), Prod
 // Specific sheet by index (0-based)
 List<Product> list = mapper.readValues(SheetInput.source(file, 0), Product.class);
 ```
-
-> `SheetInput` is only needed for sheet selection. For the default (first) sheet, pass `File` or `InputStream` directly — `SpreadsheetMapper` and `SpreadsheetReader` inherit all standard Jackson overloads.
 
 By default, columns are matched by position — the spreadsheet's column order must match the field declaration order. Enable `columnReordering(true)` to match by header name instead (see [Column Reordering](#column-reordering)).
 
@@ -225,8 +236,6 @@ Use `SheetOutput` when you need to specify a sheet name:
 ```java
 mapper.writeValue(SheetOutput.target(file, "Products"), products, Product.class);
 ```
-
-> `SheetOutput` is only needed for sheet naming. For the default sheet, pass `File` or `OutputStream` directly — `SpreadsheetMapper` and `SpreadsheetWriter` inherit all standard Jackson overloads.
 
 ### Streaming (Default)
 
