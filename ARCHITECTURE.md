@@ -36,6 +36,33 @@ A Jackson streaming dataformat module for SpreadsheetML — same pattern as `jac
          └────────────┘ └─────────────┘└────────────┘ └─────────────┘
 ```
 
+## Jackson's Three Layers
+
+Jackson processes data in three layers. This library plugs into all three:
+
+| Layer | Jackson | This library | Role |
+|-------|---------|-------------|------|
+| **Data Binding** | ObjectMapper, ObjectReader, ObjectWriter | SpreadsheetMapper, SpreadsheetReader, SpreadsheetWriter | POJO serialization — **inherited, not reimplemented** |
+| **Streaming** | JsonParser, JsonGenerator, JsonFactory | SheetParser, SheetGenerator, SpreadsheetFactory | Flat cell ↔ nested token translation — **the core abstraction** |
+| **Format I/O** | UTF8StreamJsonParser reads bytes | SheetReader / SheetWriter (interface) | Raw format read/write — **swappable** (POI or SSML) |
+
+Layer 3 is fully inherited — all Jackson annotations, overloads, and features work as-is. Layer 2 is where the library's core logic lives. Layer 1 is pluggable behind an interface.
+
+### What the Library Adds vs. What Jackson Provides
+
+| Concern | Provider |
+|---------|----------|
+| POJO serialization/deserialization | Jackson (inherited) |
+| Annotation processing (@JsonProperty, @JsonView, etc.) | Jackson (inherited) |
+| File/Stream/byte[] I/O overloads | Jackson (inherited) |
+| Schema generation from class | Jackson FormatVisitor + SpreadsheetSchema |
+| Flat cell ↔ nested token translation | This library (SheetParser, SheetGenerator, ColumnPointer) |
+| Spreadsheet format I/O | This library (SheetReader/SheetWriter implementations) |
+| Sheet selection (name/index) | This library (SheetInput, SheetOutput) |
+| Cell styling | This library (StylesBuilder) + POI (CellStyle) |
+| Shared string table management | This library (SharedStringsStore/Lookup) |
+| Workbook lifecycle, charts, formulas | POI (user code) |
+
 ## Scope
 
 This module handles **data binding between POJOs and spreadsheet cells**. Nothing more.

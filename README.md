@@ -229,7 +229,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions and data flow diagra
 ## Documentation
 
 - [GUIDE.md](GUIDE.md) — Full usage guide
-- [ARCHITECTURE.md](ARCHITECTURE.md) — Design decisions, data flow
+- [DESIGN.md](DESIGN.md) — Design philosophy and abstraction boundaries
+- [ARCHITECTURE.md](ARCHITECTURE.md) — Internal architecture and data flow
 - [BENCHMARK.md](BENCHMARK.md) — JMH benchmark results
 - [jackson-spreadsheet-examples](https://github.com/scndry/jackson-spreadsheet-examples) — Runnable examples (read/write, styling, Spring Boot, POI integration, large files)
 
