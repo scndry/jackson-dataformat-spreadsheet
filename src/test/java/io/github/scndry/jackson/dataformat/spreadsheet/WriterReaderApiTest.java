@@ -116,7 +116,7 @@ class WriterReaderApiTest {
     void sheetWriterFor() throws Exception {
         File file = new File(tempDir, "writer.xlsx");
         SpreadsheetWriter writer = mapper.sheetWriterFor(Item.class);
-        writer.writeValues(SheetOutput.target(file))
+        writer.writeValues(file)
                 .write(new Item("W1", 1))
                 .write(new Item("W2", 2))
                 .close();
@@ -131,7 +131,7 @@ class WriterReaderApiTest {
         mapper.writeValue(file, Arrays.asList(new Item("R", 4)), Item.class);
 
         SpreadsheetReader reader = mapper.sheetReaderFor(Item.class);
-        try (SheetMappingIterator<Item> iter = reader.readValues(SheetInput.source(file))) {
+        try (SheetMappingIterator<Item> iter = reader.readValues(file)) {
             assertThat(iter.hasNext()).isTrue();
             Item item = iter.next();
             assertThat(item.name).isEqualTo("R");

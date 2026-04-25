@@ -25,13 +25,13 @@ A Jackson streaming dataformat module for SpreadsheetML — same pattern as `jac
                  └──────────┬────────┘  └─────────┬─────────┘
                             │                     │
                 ┌───────────▼────────┐  ┌─────────▼──────────┐
-                │    SheetReader     │  │     SheetWriter    │
-                │    (interface)     │  │     (interface)    │
+                │    SheetReader     │  │    SheetWriter     │
+                │    (interface)     │  │    (interface)     │
                 └──┬───────────┬─────┘  └─────┬───────────┬──┘
                    │           │              │           │
          ┌─────────▼──┐ ┌──────▼──────┐┌──────▼─────┐ ┌───▼─────────┐
          │  POISheet  │ │  SSMLSheet  ││  POISheet  │ │  SSMLSheet  │
-         │   Reader   │ │   Reader    ││   Writer   │ │    Writer   │
+         │   Reader   │ │   Reader    ││   Writer   │ │   Writer    │
          │   (POI)    │ │ (Streaming) ││   (POI)    │ │ (Streaming) │
          └────────────┘ └─────────────┘└────────────┘ └─────────────┘
 ```
