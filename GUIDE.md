@@ -130,18 +130,21 @@ Product p = mapper.readValue(file, Product.class);
 // All rows
 List<Product> list = mapper.readValues(file, Product.class);
 
+// From InputStream
+List<Product> list = mapper.readValues(stream, Product.class);
+```
+
+Use `SheetInput` when you need to select a specific sheet by name or index:
+
+```java
 // Specific sheet by name
-SheetInput<File> input = SheetInput.source(file, "Products");
-List<Product> list = mapper.readValues(input, Product.class);
+List<Product> list = mapper.readValues(SheetInput.source(file, "Products"), Product.class);
 
 // Specific sheet by index (0-based)
-SheetInput<File> input = SheetInput.source(file, 0);
-List<Product> list = mapper.readValues(input, Product.class);
-
-// From InputStream
-SheetInput<InputStream> input = SheetInput.source(stream, "Products");
-List<Product> list = mapper.readValues(input, Product.class);
+List<Product> list = mapper.readValues(SheetInput.source(file, 0), Product.class);
 ```
+
+> `SheetInput` is only needed for sheet selection. For the default (first) sheet, pass `File` or `InputStream` directly — `SpreadsheetMapper` and `SpreadsheetReader` inherit all standard Jackson overloads.
 
 By default, columns are matched by position — the spreadsheet's column order must match the field declaration order. Enable `columnReordering(true)` to match by header name instead (see [Column Reordering](#column-reordering)).
 
@@ -151,7 +154,7 @@ For large files, process rows one at a time with constant memory:
 
 ```java
 SpreadsheetReader reader = mapper.sheetReaderFor(Product.class);
-try (SheetMappingIterator<Product> iter = reader.readValues(input)) {
+try (SheetMappingIterator<Product> iter = reader.readValues(file)) {
     while (iter.hasNext()) {
         Product p = iter.next();
     }
@@ -165,7 +168,7 @@ try (SheetMappingIterator<Product> iter = reader.readValues(input)) {
 `getCurrentLocation()` returns the cell position of the last parsed token — useful for validation errors and logging:
 
 ```java
-try (SheetMappingIterator<Product> iter = reader.readValues(input)) {
+try (SheetMappingIterator<Product> iter = reader.readValues(file)) {
     while (iter.hasNext()) {
         try {
             Product p = iter.next();
@@ -185,7 +188,7 @@ Collect rows in batches for bulk database inserts:
 
 ```java
 List<Product> batch = new ArrayList<>(1000);
-try (SheetMappingIterator<Product> iter = reader.readValues(input)) {
+try (SheetMappingIterator<Product> iter = reader.readValues(file)) {
     while (iter.hasNext()) {
         batch.add(iter.next());
         if (batch.size() >= 1000) {
@@ -210,17 +213,20 @@ mapper.writeValue(file, product);
 // Collection — element type required (Java type erasure)
 mapper.writeValue(file, products, Product.class);
 
-// Specific sheet name
-SheetOutput<File> output = SheetOutput.target(file, "Products");
-mapper.writeValue(output, products, Product.class);
-
 // To OutputStream
-SheetOutput<OutputStream> output = SheetOutput.target(stream, "Products");
-mapper.writeValue(output, products, Product.class);
+mapper.writeValue(outputStream, products, Product.class);
 
 // To byte array (in-memory Excel generation)
 byte[] bytes = mapper.writeValueAsBytes(products, Product.class);
 ```
+
+Use `SheetOutput` when you need to specify a sheet name:
+
+```java
+mapper.writeValue(SheetOutput.target(file, "Products"), products, Product.class);
+```
+
+> `SheetOutput` is only needed for sheet naming. For the default sheet, pass `File` or `OutputStream` directly — `SpreadsheetMapper` and `SpreadsheetWriter` inherit all standard Jackson overloads.
 
 ### Streaming (Default)
 
@@ -260,7 +266,7 @@ Write rows one at a time using Jackson's `SequenceWriter`:
 
 ```java
 SpreadsheetWriter writer = mapper.sheetWriterFor(Product.class);
-try (SequenceWriter seq = writer.writeValues(SheetOutput.target(file))) {
+try (SequenceWriter seq = writer.writeValues(file)) {
     for (Product p : products) {
         seq.write(p);
     }
