@@ -14,6 +14,8 @@ Employee e = mapper.readValue(xlsxFile, Employee.class);
 
 No cell-level iteration. No column index counting. No manual type casting.
 
+> For runnable code examples, see [jackson-spreadsheet-examples](https://github.com/scndry/jackson-spreadsheet-examples).
+
 ## How It Differs from Apache POI
 
 Apache POI gives you cells. This library gives you POJOs.
