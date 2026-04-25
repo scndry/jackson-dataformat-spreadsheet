@@ -18,11 +18,11 @@ A Jackson streaming dataformat module for SpreadsheetML — same pattern as `jac
               │             (extends ObjectMapper)              │
               └─────────────────┬────────────┬──────────────────┘
                                 │            │
-                   ┌────────────▼────┐  ┌────▼──────────────┐
-                   │   SheetParser   │  │  SheetGenerator   │
-                   │(ParserMinimal-  │  │  (GeneratorBase)  │
-                   │      Base)      │  │                   │
-                   └────────┬────────┘  └─────────┬─────────┘
+                 ┌──────────────▼────┐  ┌────▼──────────────┐
+                 │    SheetParser    │  │  SheetGenerator   │
+                 │  (ParserMinimal-  │  │  (GeneratorBase)  │
+                 │       Base)       │  │                   │
+                 └──────────┬────────┘  └─────────┬─────────┘
                             │                     │
                 ┌───────────▼────────┐  ┌─────────▼──────────┐
                 │    SheetReader     │  │     SheetWriter    │
