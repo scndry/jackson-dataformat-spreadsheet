@@ -222,7 +222,7 @@ byte[] bytes = mapper.writeValueAsBytes(products, Product.class);
 
 ### Streaming (Default)
 
-By default, XLSX read/write uses streaming — bypassing POI's cell model for direct XML generation. No configuration needed:
+By default, XLSX read/write uses streaming — bypassing POI's User Model for direct XML generation. No configuration needed:
 
 ```java
 SpreadsheetMapper mapper = new SpreadsheetMapper();

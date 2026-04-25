@@ -222,7 +222,7 @@ Not a POI wrapper. Extends Jackson's streaming layer directly:
 - `SheetGenerator extends GeneratorBase` — streaming cell writer
 - `SpreadsheetFactory extends JsonFactory` — format detection
 
-The XLSX path bypasses POI's cell model by default — the read path parses OOXML XML directly via StAX, the write path streams XML via StringBuilder with a POI skeleton for package metadata.
+The XLSX path bypasses POI's User Model by default — the read path parses OOXML XML directly via StAX, the write path streams XML via StringBuilder with a POI skeleton for package metadata.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions and data flow diagrams.
 

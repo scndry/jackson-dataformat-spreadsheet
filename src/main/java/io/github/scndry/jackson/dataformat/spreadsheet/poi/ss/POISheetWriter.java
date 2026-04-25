@@ -27,7 +27,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
 
 /**
- * POI cell-model {@link SheetWriter} implementation.
+ * POI User Model {@link SheetWriter} implementation.
  * Writes values through {@link Cell} and delegates styles, merges, and column-width handling to POI APIs.
  *
  * @see io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.SSMLSheetWriter

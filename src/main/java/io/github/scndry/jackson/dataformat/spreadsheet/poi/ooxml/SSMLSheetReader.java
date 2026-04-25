@@ -21,7 +21,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.Spreadshee
 
 /**
  * Streaming SpreadsheetML {@link SheetReader} implementation.
- * Parses worksheet XML via {@link XmlElementReader} and resolves shared strings without POI's cell model.
+ * Parses worksheet XML via {@link XmlElementReader} and resolves shared strings without POI's User Model.
  *
  * @see io.github.scndry.jackson.dataformat.spreadsheet.poi.ss.POISheetReader
  * @see XmlElementReader
