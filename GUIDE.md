@@ -14,6 +14,8 @@ Employee e = mapper.readValue(xlsxFile, Employee.class);
 
 No cell-level iteration. No column index counting. No manual type casting.
 
+> For runnable code examples, see [jackson-spreadsheet-examples](https://github.com/scndry/jackson-spreadsheet-examples).
+
 ## How It Differs from Apache POI
 
 Apache POI gives you cells. This library gives you POJOs.
@@ -115,6 +117,19 @@ Output (`products.xlsx`):
 | Apple | 10 | 1.5 |
 | Banana | 20 | 0.8 |
 
+## Supported I/O Types
+
+| Direction | Supported types |
+|-----------|----------------|
+| **Read** | `File`, `InputStream`, `SheetInput<T>`, `Sheet` |
+| **Write** | `File`, `OutputStream`, `SheetOutput<T>`, `Sheet` |
+
+`File`, `InputStream`, `OutputStream` are standard Jackson overloads inherited from `ObjectMapper`, `ObjectReader`, and `ObjectWriter`. Use them for the default (first) sheet.
+
+`SheetInput` selects a sheet to read by name or index. `SheetOutput` names the sheet to write.
+
+`Sheet` is a POI type for direct workbook control — multi-sheet writes, formula post-processing, template population.
+
 ## Reading
 
 Read an Excel file into Java POJOs:
@@ -128,17 +143,18 @@ Product p = mapper.readValue(file, Product.class);
 // All rows
 List<Product> list = mapper.readValues(file, Product.class);
 
+// From InputStream
+List<Product> list = mapper.readValues(stream, Product.class);
+```
+
+Use `SheetInput` when you need to select a specific sheet by name or index:
+
+```java
 // Specific sheet by name
-SheetInput<File> input = SheetInput.source(file, "Products");
-List<Product> list = mapper.readValues(input, Product.class);
+List<Product> list = mapper.readValues(SheetInput.source(file, "Products"), Product.class);
 
 // Specific sheet by index (0-based)
-SheetInput<File> input = SheetInput.source(file, 0);
-List<Product> list = mapper.readValues(input, Product.class);
-
-// From InputStream
-SheetInput<InputStream> input = SheetInput.source(stream, "Products");
-List<Product> list = mapper.readValues(input, Product.class);
+List<Product> list = mapper.readValues(SheetInput.source(file, 0), Product.class);
 ```
 
 By default, columns are matched by position — the spreadsheet's column order must match the field declaration order. Enable `columnReordering(true)` to match by header name instead (see [Column Reordering](#column-reordering)).
@@ -149,7 +165,7 @@ For large files, process rows one at a time with constant memory:
 
 ```java
 SpreadsheetReader reader = mapper.sheetReaderFor(Product.class);
-try (SheetMappingIterator<Product> iter = reader.readValues(input)) {
+try (SheetMappingIterator<Product> iter = reader.readValues(file)) {
     while (iter.hasNext()) {
         Product p = iter.next();
     }
@@ -163,7 +179,7 @@ try (SheetMappingIterator<Product> iter = reader.readValues(input)) {
 `getCurrentLocation()` returns the cell position of the last parsed token — useful for validation errors and logging:
 
 ```java
-try (SheetMappingIterator<Product> iter = reader.readValues(input)) {
+try (SheetMappingIterator<Product> iter = reader.readValues(file)) {
     while (iter.hasNext()) {
         try {
             Product p = iter.next();
@@ -183,7 +199,7 @@ Collect rows in batches for bulk database inserts:
 
 ```java
 List<Product> batch = new ArrayList<>(1000);
-try (SheetMappingIterator<Product> iter = reader.readValues(input)) {
+try (SheetMappingIterator<Product> iter = reader.readValues(file)) {
     while (iter.hasNext()) {
         batch.add(iter.next());
         if (batch.size() >= 1000) {
@@ -208,16 +224,17 @@ mapper.writeValue(file, product);
 // Collection — element type required (Java type erasure)
 mapper.writeValue(file, products, Product.class);
 
-// Specific sheet name
-SheetOutput<File> output = SheetOutput.target(file, "Products");
-mapper.writeValue(output, products, Product.class);
-
 // To OutputStream
-SheetOutput<OutputStream> output = SheetOutput.target(stream, "Products");
-mapper.writeValue(output, products, Product.class);
+mapper.writeValue(outputStream, products, Product.class);
 
 // To byte array (in-memory Excel generation)
 byte[] bytes = mapper.writeValueAsBytes(products, Product.class);
+```
+
+Use `SheetOutput` when you need to specify a sheet name:
+
+```java
+mapper.writeValue(SheetOutput.target(file, "Products"), products, Product.class);
 ```
 
 ### Streaming (Default)
@@ -258,7 +275,7 @@ Write rows one at a time using Jackson's `SequenceWriter`:
 
 ```java
 SpreadsheetWriter writer = mapper.sheetWriterFor(Product.class);
-try (SequenceWriter seq = writer.writeValues(SheetOutput.target(file))) {
+try (SequenceWriter seq = writer.writeValues(file)) {
     for (Product p : products) {
         seq.write(p);
     }

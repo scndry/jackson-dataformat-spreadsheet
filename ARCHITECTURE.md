@@ -13,25 +13,25 @@ A Jackson streaming dataformat module for SpreadsheetML — same pattern as `jac
 | `CsvMapper.Builder extends MapperBuilder` | `SpreadsheetMapper.Builder extends MapperBuilder` |
 
 ```
-              ┌─────────────────────────────────────────────────┐
-              │               SpreadsheetMapper                 │
-              │             (extends ObjectMapper)              │
-              └─────────────────┬────────────┬──────────────────┘
+              ┌────────────────────────────────────────────────┐
+              │               SpreadsheetMapper                │
+              │             (extends ObjectMapper)             │
+              └─────────────────┬────────────┬─────────────────┘
                                 │            │
-                   ┌────────────▼────┐  ┌────▼──────────────┐
-                   │   SheetParser   │  │  SheetGenerator   │
-                   │(ParserMinimal-  │  │  (GeneratorBase)  │
-                   │      Base)      │  │                   │
-                   └────────┬────────┘  └─────────┬─────────┘
+                 ┌──────────────▼────┐  ┌────▼──────────────┐
+                 │    SheetParser    │  │  SheetGenerator   │
+                 │  (ParserMinimal-  │  │  (GeneratorBase)  │
+                 │       Base)       │  │                   │
+                 └──────────┬────────┘  └─────────┬─────────┘
                             │                     │
                 ┌───────────▼────────┐  ┌─────────▼──────────┐
-                │    SheetReader     │  │     SheetWriter    │
-                │    (interface)     │  │     (interface)    │
+                │    SheetReader     │  │    SheetWriter     │
+                │    (interface)     │  │    (interface)     │
                 └──┬───────────┬─────┘  └─────┬───────────┬──┘
                    │           │              │           │
          ┌─────────▼──┐ ┌──────▼──────┐┌──────▼─────┐ ┌───▼─────────┐
          │  POISheet  │ │  SSMLSheet  ││  POISheet  │ │  SSMLSheet  │
-         │   Reader   │ │   Reader    ││   Writer   │ │    Writer   │
+         │   Reader   │ │   Reader    ││   Writer   │ │   Writer    │
          │   (POI)    │ │ (Streaming) ││   (POI)    │ │ (Streaming) │
          └────────────┘ └─────────────┘└────────────┘ └─────────────┘
 ```
