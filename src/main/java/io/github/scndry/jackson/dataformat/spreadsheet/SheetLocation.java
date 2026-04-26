@@ -24,14 +24,16 @@ public final class SheetLocation extends JsonLocation {
     public static final String UNKNOWN = "UNKNOWN";
 
     /**
-     * Extracts the {@code SheetLocation} from an exception, or returns {@code null}
-     * if the exception does not carry one.
+     * Extracts the {@code SheetLocation} from an exception or its cause chain,
+     * or returns {@code null} if no {@code SheetLocation} is found.
      */
     public static SheetLocation of(final Exception e) {
-        if (e instanceof JsonProcessingException) {
-            final JsonLocation loc = ((JsonProcessingException) e).getLocation();
-            if (loc instanceof SheetLocation) {
-                return (SheetLocation) loc;
+        for (Throwable current = e; current != null; current = current.getCause()) {
+            if (current instanceof JsonProcessingException) {
+                final JsonLocation loc = ((JsonProcessingException) current).getLocation();
+                if (loc instanceof SheetLocation) {
+                    return (SheetLocation) loc;
+                }
             }
         }
         return null;
