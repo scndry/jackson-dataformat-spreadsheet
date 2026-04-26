@@ -4,7 +4,6 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetInput;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetOutput;
 import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
@@ -135,6 +134,49 @@ class WriterReaderApiTest {
             assertThat(iter.hasNext()).isTrue();
             Item item = iter.next();
             assertThat(item.name).isEqualTo("R");
+        }
+    }
+
+    @Test
+    void readFromPath() throws Exception {
+        File file = new File(tempDir, "path-read.xlsx");
+        mapper.writeValue(file, Arrays.asList(new Item("P", 3)), Item.class);
+
+        List<Item> read = mapper.readValues(file.toPath(), Item.class);
+        assertThat(read).hasSize(1);
+        assertThat(read.get(0).name).isEqualTo("P");
+    }
+
+    @Test
+    void writeToPath() throws Exception {
+        File file = new File(tempDir, "path-write.xlsx");
+        mapper.writeValue(file.toPath(), Arrays.asList(new Item("Q", 7)), Item.class);
+
+        List<Item> read = mapper.readValues(file, Item.class);
+        assertThat(read).hasSize(1);
+        assertThat(read.get(0).name).isEqualTo("Q");
+    }
+
+    @Test
+    void readFromPathWithSheetInput() throws Exception {
+        File file = new File(tempDir, "path-input.xlsx");
+        mapper.writeValue(SheetOutput.target(file, "Data"),
+                Arrays.asList(new Item("R", 9)), Item.class);
+
+        List<Item> read = mapper.readValues(SheetInput.source(file.toPath(), "Data"), Item.class);
+        assertThat(read).hasSize(1);
+        assertThat(read.get(0).name).isEqualTo("R");
+    }
+
+    @Test
+    void writeToPathWithSheetOutput() throws Exception {
+        File file = new File(tempDir, "path-output.xlsx");
+        mapper.writeValue(SheetOutput.target(file.toPath(), "Named"),
+                Arrays.asList(new Item("S", 4)), Item.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            assertThat(wb.getSheet("Named")).isNotNull();
+            assertThat(wb.getSheet("Named").getRow(1).getCell(0).getStringCellValue()).isEqualTo("S");
         }
     }
 

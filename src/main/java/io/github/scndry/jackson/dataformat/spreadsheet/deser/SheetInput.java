@@ -2,6 +2,7 @@ package io.github.scndry.jackson.dataformat.spreadsheet.deser;
 
 import java.io.File;
 import java.io.InputStream;
+import java.nio.file.Path;
 
 import lombok.EqualsAndHashCode;
 
@@ -59,6 +60,30 @@ public final class SheetInput<T> implements SheetContent<T> {
      */
     public static SheetInput<File> source(final File raw, final String sheetName) {
         return new SheetInput<>(raw, sheetName);
+    }
+
+    /**
+     * Creates a {@code SheetInput} reading from the given path,
+     * targeting the first sheet (index 0).
+     */
+    public static SheetInput<File> source(final Path raw) {
+        return source(raw.toFile());
+    }
+
+    /**
+     * Creates a {@code SheetInput} reading from the given path,
+     * targeting the sheet at the specified index.
+     */
+    public static SheetInput<File> source(final Path raw, final int sheetIndex) {
+        return source(raw.toFile(), sheetIndex);
+    }
+
+    /**
+     * Creates a {@code SheetInput} reading from the given path,
+     * targeting the sheet with the specified name.
+     */
+    public static SheetInput<File> source(final Path raw, final String sheetName) {
+        return source(raw.toFile(), sheetName);
     }
 
     /**

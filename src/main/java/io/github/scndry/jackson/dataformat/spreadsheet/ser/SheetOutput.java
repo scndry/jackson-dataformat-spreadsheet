@@ -2,6 +2,7 @@ package io.github.scndry.jackson.dataformat.spreadsheet.ser;
 
 import java.io.File;
 import java.io.OutputStream;
+import java.nio.file.Path;
 
 import lombok.EqualsAndHashCode;
 
@@ -43,6 +44,22 @@ public final class SheetOutput<T> implements SheetContent<T> {
      */
     public static SheetOutput<File> target(final File raw, final String sheetName) {
         return new SheetOutput<>(raw, sheetName);
+    }
+
+    /**
+     * Creates a {@code SheetOutput} writing to the given path
+     * with an auto-generated sheet name.
+     */
+    public static SheetOutput<File> target(final Path raw) {
+        return target(raw.toFile());
+    }
+
+    /**
+     * Creates a {@code SheetOutput} writing to the given path
+     * with the specified sheet name.
+     */
+    public static SheetOutput<File> target(final Path raw, final String sheetName) {
+        return target(raw.toFile(), sheetName);
     }
 
     /**

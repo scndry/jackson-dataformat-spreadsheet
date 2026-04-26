@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Path;
 import java.util.List;
 
 import org.apache.poi.ss.usermodel.Sheet;
@@ -357,6 +358,10 @@ public final class SpreadsheetMapper extends ObjectMapper {
         return sheetReaderFor(valueType).readValue(src);
     }
 
+    public <T> T readValue(final Path src, final Class<T> valueType) throws IOException {
+        return readValue(src.toFile(), valueType);
+    }
+
     public <T> List<T> readValues(final Sheet src, final Class<T> valueType) throws IOException {
         try (MappingIterator<T> iterator = sheetReaderFor(valueType).readValues(src)) {
             return iterator.readAll();
@@ -383,6 +388,10 @@ public final class SpreadsheetMapper extends ObjectMapper {
         try (MappingIterator<T> iterator = sheetReaderFor(valueType).readValues(src)) {
             return iterator.readAll();
         }
+    }
+
+    public <T> List<T> readValues(final Path src, final Class<T> valueType) throws IOException {
+        return readValues(src.toFile(), valueType);
     }
 
     /*
@@ -414,6 +423,10 @@ public final class SpreadsheetMapper extends ObjectMapper {
         writeValue(out, value, value.getClass());
     }
 
+    public void writeValue(final Path out, final Object value) throws IOException {
+        writeValue(out.toFile(), value);
+    }
+
     public void writeValue(
             final Sheet out,
             final Object value,
@@ -440,6 +453,13 @@ public final class SpreadsheetMapper extends ObjectMapper {
             final Object value,
             final Class<?> valueType) throws IOException {
         sheetWriterFor(valueType).writeValue(out, value);
+    }
+
+    public void writeValue(
+            final Path out,
+            final Object value,
+            final Class<?> valueType) throws IOException {
+        writeValue(out.toFile(), value, valueType);
     }
 
     @Override
