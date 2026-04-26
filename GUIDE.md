@@ -121,10 +121,10 @@ Output (`products.xlsx`):
 
 | Direction | Supported types |
 |-----------|----------------|
-| **Read** | `File`, `InputStream`, `SheetInput<T>`, `Sheet` |
-| **Write** | `File`, `OutputStream`, `SheetOutput<T>`, `Sheet` |
+| **Read** | `File`, `Path`, `InputStream`, `SheetInput<T>`, `Sheet` |
+| **Write** | `File`, `Path`, `OutputStream`, `SheetOutput<T>`, `Sheet` |
 
-`File`, `InputStream`, `OutputStream` are standard Jackson overloads inherited from `ObjectMapper`, `ObjectReader`, and `ObjectWriter`. Use them for the default (first) sheet.
+`File`, `Path`, `InputStream`, `OutputStream` are for the default (first) sheet. `Path` delegates to `File` internally.
 
 `SheetInput` selects a sheet to read by name or index. `SheetOutput` names the sheet to write.
 

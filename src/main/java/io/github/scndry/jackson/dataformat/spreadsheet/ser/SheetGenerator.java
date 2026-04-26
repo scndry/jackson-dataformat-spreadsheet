@@ -1,7 +1,6 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.ser;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 

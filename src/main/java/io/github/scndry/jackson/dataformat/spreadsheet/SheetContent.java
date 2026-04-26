@@ -8,8 +8,8 @@ import java.io.File;
  * sheet name selector.
  *
  * @param <T> type of the underlying raw source
- * @see SheetInput
- * @see SheetOutput
+ * @see io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetInput
+ * @see io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetOutput
  */
 public interface SheetContent<T> {
 

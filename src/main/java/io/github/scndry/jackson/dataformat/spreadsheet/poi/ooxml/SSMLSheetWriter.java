@@ -241,7 +241,7 @@ public final class SSMLSheetWriter implements SheetWriter {
         try {
             _zip.close();
         } catch (IOException e) {
-            failure = _mergeFailure(failure, e);
+            failure = e;
         }
         if (_wb != null) {
             try {

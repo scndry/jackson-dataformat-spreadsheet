@@ -36,7 +36,7 @@ public abstract class SheetStreamContext extends JsonStreamContext {
     }
 
     @SuppressWarnings("java:S1172") // Unused method parameters should be removed
-    public SheetStreamContext getParent(final Matcher matcher) {
+    SheetStreamContext getParent(final Matcher matcher) {
         return null;
     }
 
@@ -153,7 +153,7 @@ public abstract class SheetStreamContext extends JsonStreamContext {
         }
 
         @Override
-        public SheetStreamContext getParent(final Matcher matcher) {
+        SheetStreamContext getParent(final Matcher matcher) {
             return matcher.matches(_parent) ? _parent : _parent.getParent(matcher);
         }
 

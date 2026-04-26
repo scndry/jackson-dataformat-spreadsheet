@@ -17,7 +17,7 @@ import com.fasterxml.jackson.core.FormatSchema;
  * and style configuration.
  *
  * @see Column
- * @see SchemaGenerator
+ * @see io.github.scndry.jackson.dataformat.spreadsheet.SchemaGenerator
  */
 public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
 

@@ -7,7 +7,7 @@ import com.fasterxml.jackson.core.exc.StreamWriteException;
  * {@link StreamWriteException} subclass thrown when an error
  * occurs during spreadsheet generation.
  *
- * @see SheetGenerator
+ * @see io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetGenerator
  */
 @SuppressWarnings("java:S110")
 public final class SheetStreamWriteException extends StreamWriteException {

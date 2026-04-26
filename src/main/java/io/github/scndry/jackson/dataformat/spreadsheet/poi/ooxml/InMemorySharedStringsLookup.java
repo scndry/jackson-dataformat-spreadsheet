@@ -22,7 +22,6 @@ final class InMemorySharedStringsLookup implements SharedStringsLookup {
     private static final int INITIAL_DATA_CAPACITY = 4096;
 
     private final XmlElementReader _reader;
-    private final int _uniqueCount;
 
     private char[] _data;
     private int[] _offsets;
@@ -34,7 +33,7 @@ final class InMemorySharedStringsLookup implements SharedStringsLookup {
         _reader = new XmlElementReader(part.getInputStream());
         _reader.navigateTo(SpreadsheetML.SST);
         final String uc = _reader.attribute(SpreadsheetML.ATTR_UNIQUE_COUNT);
-        _uniqueCount = uc != null ? Integer.parseInt(uc) : 0;
+        final int _uniqueCount = uc != null ? Integer.parseInt(uc) : 0;
         _offsets = new int[_uniqueCount];
         _lengths = new int[_uniqueCount];
         _data = new char[Math.max(INITIAL_DATA_CAPACITY, _uniqueCount * 16)];
