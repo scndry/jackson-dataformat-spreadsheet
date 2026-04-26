@@ -176,7 +176,7 @@ try (SheetMappingIterator<Product> iter = reader.readValues(file)) {
 
 #### Error Handling with Location
 
-`getCurrentLocation()` returns the cell position of the last parsed token — useful for validation errors and logging:
+`SheetLocation.of(exception)` extracts the row and column where the error occurred, or returns `null` if unavailable:
 
 ```java
 try (SheetMappingIterator<Product> iter = reader.readValues(file)) {
@@ -184,9 +184,11 @@ try (SheetMappingIterator<Product> iter = reader.readValues(file)) {
         try {
             Product p = iter.next();
             validate(p);
-        } catch (RuntimeException e) {
-            SheetLocation loc = iter.getCurrentLocation();
-            log.warn("Row {}: {}", loc.getRow(), e.getMessage());
+        } catch (Exception e) {
+            SheetLocation loc = SheetLocation.of(e);
+            if (loc != null) {
+                log.warn("Row {}, Col {}: {}", loc.getRow(), loc.getColumn(), e.getMessage());
+            }
             // skip and continue
         }
     }

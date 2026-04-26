@@ -1,10 +1,13 @@
-package io.github.scndry.jackson.dataformat.spreadsheet.deser;
+package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import lombok.EqualsAndHashCode;
 import org.apache.poi.ss.util.CellReference;
 
 import com.fasterxml.jackson.core.JsonLocation;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.io.ContentReference;
+
+import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetInput;
 
 /**
  * {@link JsonLocation} subclass that reports position as a
@@ -12,13 +15,28 @@ import com.fasterxml.jackson.core.io.ContentReference;
  * offsets. The cell address (e.g. "B3") is included in the
  * offset description.
  *
- * @see SheetParser
+ * @see io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetParser
  * @see SheetMappingIterator
  */
 @EqualsAndHashCode(callSuper = true)
 public final class SheetLocation extends JsonLocation {
 
     public static final String UNKNOWN = "UNKNOWN";
+
+    /**
+     * Extracts the {@code SheetLocation} from an exception, or returns {@code null}
+     * if the exception does not carry one.
+     */
+    public static SheetLocation of(final Exception e) {
+        if (e instanceof JsonProcessingException) {
+            final JsonLocation loc = ((JsonProcessingException) e).getLocation();
+            if (loc instanceof SheetLocation) {
+                return (SheetLocation) loc;
+            }
+        }
+        return null;
+    }
+
     private final int _row;
     private final int _column;
 

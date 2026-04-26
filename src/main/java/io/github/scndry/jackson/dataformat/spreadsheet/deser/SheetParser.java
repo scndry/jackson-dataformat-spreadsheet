@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.io.ContentReference;
 import com.fasterxml.jackson.core.io.IOContext;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.PackageVersion;
+import io.github.scndry.jackson.dataformat.spreadsheet.SheetLocation;
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamContext;
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamReadException;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;

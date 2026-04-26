@@ -13,6 +13,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.fasterxml.jackson.core.JsonLocation;
+
+import io.github.scndry.jackson.dataformat.spreadsheet.SheetLocation;
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamReadException;
 import io.github.scndry.jackson.dataformat.spreadsheet.SpreadsheetMapper;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
@@ -77,6 +80,22 @@ class SheetParserTest {
         assertThatThrownBy(parser::nextToken)
                 .isInstanceOf(SheetStreamReadException.class)
                 .hasMessageContaining(SpreadsheetSchema.SCHEMA_TYPE);
+    }
+
+    @Test
+    void parserCurrentLocationIsSheetLocation() throws Exception {
+        parser.setSchema(mapper.sheetSchemaFor(Flat.class));
+        // Advance into first row
+        parser.nextToken(); // START_ARRAY
+        parser.nextToken(); // START_OBJECT
+        parser.nextToken(); // FIELD_NAME
+        parser.nextToken(); // VALUE_NUMBER_INT
+
+        JsonLocation loc = parser.getCurrentLocation();
+        assertThat(loc).isInstanceOf(SheetLocation.class);
+        SheetLocation sheetLoc = (SheetLocation) loc;
+        assertThat(sheetLoc.getRow()).isEqualTo(1);
+        assertThat(sheetLoc.getColumn()).isGreaterThanOrEqualTo(0);
     }
 
     @Test

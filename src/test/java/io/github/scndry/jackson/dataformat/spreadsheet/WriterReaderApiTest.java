@@ -139,6 +139,29 @@ class WriterReaderApiTest {
     }
 
     @Test
+    void readExceptionLocationIsSheetLocation() throws Exception {
+        File file = new File(tempDir, "bad-type.xlsx");
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet();
+            sheet.createRow(0).createCell(0).setCellValue("name");
+            sheet.createRow(0).createCell(1).setCellValue("qty");
+            org.apache.poi.ss.usermodel.Row row = sheet.createRow(1);
+            row.createCell(0).setCellValue("OK");
+            row.createCell(1).setCellValue("not-a-number");
+            try (OutputStream os = new FileOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+
+        assertThatThrownBy(() -> mapper.readValues(file, Item.class))
+                .satisfies(e -> {
+                    SheetLocation loc = SheetLocation.of((Exception) e);
+                    assertThat(loc).isNotNull();
+                    assertThat(loc.getRow()).isGreaterThanOrEqualTo(1);
+                });
+    }
+
+    @Test
     void writeValueAsBytes() throws Exception {
         byte[] bytes = mapper.writeValueAsBytes(new Item("B", 8), Item.class);
         assertThat(bytes).isNotEmpty();
