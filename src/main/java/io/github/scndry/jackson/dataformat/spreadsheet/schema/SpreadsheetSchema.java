@@ -37,18 +37,24 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     private final ConditionalFormattingConfigurer _conditionalFormattings;
     private final CellAddress _origin;
     private final int _features;
+    private final int _freezePaneColSplit;
+    private final int _freezePaneRowSplit;
 
     public SpreadsheetSchema(
             final List<Column> columns,
             final Styles.Builder stylesBuilder,
             final ConditionalFormattingConfigurer conditionalFormattings,
             final CellAddress origin,
-            final int features) {
+            final int features,
+            final int freezePaneColSplit,
+            final int freezePaneRowSplit) {
         _columns = columns;
         _stylesBuilder = stylesBuilder;
         _conditionalFormattings = conditionalFormattings;
         _origin = origin;
         _features = features;
+        _freezePaneColSplit = freezePaneColSplit;
+        _freezePaneRowSplit = freezePaneRowSplit;
     }
 
     @Override
@@ -102,7 +108,8 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
             }
             reordered.add(matched);
         }
-        return new SpreadsheetSchema(reordered, _stylesBuilder, _conditionalFormattings, _origin, _features);
+        return new SpreadsheetSchema(reordered, _stylesBuilder, _conditionalFormattings, _origin, _features,
+                _freezePaneColSplit, _freezePaneRowSplit);
     }
 
     public int getOriginColumn() {
@@ -141,6 +148,14 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
 
     public Styles buildStyles(final Workbook workbook) {
         return _stylesBuilder.build(workbook);
+    }
+
+    public void applyFreezePane(final Sheet sheet) {
+        if (_freezePaneColSplit >= 0 || _freezePaneRowSplit >= 0) {
+            sheet.createFreezePane(
+                    Math.max(_freezePaneColSplit, 0),
+                    Math.max(_freezePaneRowSplit, 0));
+        }
     }
 
     public void applyConditionalFormattings(final Sheet sheet, final Styles styles, final int lastRow) {

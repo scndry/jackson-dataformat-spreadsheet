@@ -315,6 +315,10 @@ public final class SpreadsheetMapper extends ObjectMapper {
         return setSchemaGenerator(_schemaGenerator.withConditionalFormattings(builder));
     }
 
+    public SpreadsheetMapper setFreezePane(final int colSplit, final int rowSplit) {
+        return setSchemaGenerator(_schemaGenerator.withFreezePane(colSplit, rowSplit));
+    }
+
     public SpreadsheetMapper setColumnNameResolver(final ColumnNameResolver resolver) {
         _assertNotNull("resolver", resolver);
         return setSchemaGenerator(_schemaGenerator.withColumnNameResolver(resolver));
@@ -628,6 +632,11 @@ public final class SpreadsheetMapper extends ObjectMapper {
 
         public Builder conditionalFormattings(final ConditionalFormattingConfigurer builder) {
             _mapper.setConditionalFormattings(builder);
+            return _this();
+        }
+
+        public Builder freezePane(final int colSplit, final int rowSplit) {
+            _mapper.setFreezePane(colSplit, rowSplit);
             return _this();
         }
 
