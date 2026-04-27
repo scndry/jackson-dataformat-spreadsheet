@@ -3,12 +3,16 @@ package io.github.scndry.jackson.dataformat.spreadsheet.schema;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
 import java.util.stream.Collectors;
 
+import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellAddress;
 
 import com.fasterxml.jackson.core.FormatSchema;
+
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.feature.ConditionalFormattingConfigurer;
 
 /**
  * {@link FormatSchema} implementation that defines the column
@@ -30,16 +34,19 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
 
     private final List<Column> _columns;
     private final Styles.Builder _stylesBuilder;
+    private final ConditionalFormattingConfigurer _conditionalFormattings;
     private final CellAddress _origin;
     private final int _features;
 
     public SpreadsheetSchema(
             final List<Column> columns,
             final Styles.Builder stylesBuilder,
+            final ConditionalFormattingConfigurer conditionalFormattings,
             final CellAddress origin,
             final int features) {
         _columns = columns;
         _stylesBuilder = stylesBuilder;
+        _conditionalFormattings = conditionalFormattings;
         _origin = origin;
         _features = features;
     }
@@ -95,7 +102,7 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
             }
             reordered.add(matched);
         }
-        return new SpreadsheetSchema(reordered, _stylesBuilder, _origin, _features);
+        return new SpreadsheetSchema(reordered, _stylesBuilder, _conditionalFormattings, _origin, _features);
     }
 
     public int getOriginColumn() {
@@ -134,6 +141,28 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
 
     public Styles buildStyles(final Workbook workbook) {
         return _stylesBuilder.build(workbook);
+    }
+
+    public void applyConditionalFormattings(final Sheet sheet, final Styles styles, final int lastRow) {
+        _conditionalFormattings.apply(sheet, styles, this, lastRow);
+    }
+
+    public int columnIndexByName(final String name) {
+        for (int i = 0; i < _columns.size(); i++) {
+            final Column col = _columns.get(i);
+            if (col != null && col.matchesName(name)) {
+                return i + getOriginColumn();
+            }
+        }
+        return -1;
+    }
+
+    public List<String> columnNames() {
+        final List<String> names = new ArrayList<>();
+        for (final Column col : _columns) {
+            if (col != null) names.add(col.getName());
+        }
+        return names;
     }
 
     public boolean isInRowBounds(final int row) {

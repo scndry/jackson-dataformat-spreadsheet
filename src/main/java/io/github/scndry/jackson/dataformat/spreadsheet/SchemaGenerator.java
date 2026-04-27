@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ser.SerializerFactory;
 import com.fasterxml.jackson.databind.util.ClassUtil;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.feature.ConditionalFormattingConfigurer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.ColumnNameResolver;
@@ -30,6 +31,7 @@ public final class SchemaGenerator {
         _generatorSettings = new GeneratorSettings(
                 CellAddress.A1,
                 new StylesBuilder(),
+                new ConditionalFormattingConfigurer(),
                 ColumnNameResolver.NULL,
                 SpreadsheetSchema.DEFAULT_FEATURES);
     }
@@ -56,6 +58,10 @@ public final class SchemaGenerator {
 
     public SchemaGenerator withColumnReordering(final boolean state) {
         return new SchemaGenerator(_generatorSettings.with(SpreadsheetSchema.FEATURE_COLUMN_REORDERING, state));
+    }
+
+    public SchemaGenerator withConditionalFormattings(final ConditionalFormattingConfigurer builder) {
+        return new SchemaGenerator(_generatorSettings.with(builder));
     }
 
     SpreadsheetSchema generate(
@@ -87,6 +93,7 @@ public final class SchemaGenerator {
         return new SpreadsheetSchema(
                 columns,
                 _generatorSettings._stylesBuilder,
+                _generatorSettings._conditionalFormattings,
                 _generatorSettings._origin,
                 _generatorSettings._features);
     }
@@ -131,13 +138,16 @@ public final class SchemaGenerator {
 
         private final CellAddress _origin;
         private final Styles.Builder _stylesBuilder;
+        private final ConditionalFormattingConfigurer _conditionalFormattings;
         private final ColumnNameResolver _columnNameResolver;
         private final int _features;
 
         GeneratorSettings(final CellAddress origin, final Styles.Builder stylesBuilder,
+                          final ConditionalFormattingConfigurer conditionalFormattings,
                           final ColumnNameResolver columnNameResolver, final int features) {
             _origin = origin;
             _stylesBuilder = stylesBuilder;
+            _conditionalFormattings = conditionalFormattings;
             _columnNameResolver = columnNameResolver;
             _features = features;
         }
@@ -145,26 +155,30 @@ public final class SchemaGenerator {
         private GeneratorSettings with(final CellAddress origin) {
             return _origin.equals(origin)
                     ? this
-                    : new GeneratorSettings(origin, _stylesBuilder, _columnNameResolver, _features);
+                    : new GeneratorSettings(origin, _stylesBuilder, _conditionalFormattings, _columnNameResolver, _features);
         }
 
         private GeneratorSettings with(final Styles.Builder styles) {
             return _stylesBuilder.equals(styles)
                     ? this
-                    : new GeneratorSettings(_origin, styles, _columnNameResolver, _features);
+                    : new GeneratorSettings(_origin, styles, _conditionalFormattings, _columnNameResolver, _features);
+        }
+
+        private GeneratorSettings with(final ConditionalFormattingConfigurer conditionalFormattings) {
+            return new GeneratorSettings(_origin, _stylesBuilder, conditionalFormattings, _columnNameResolver, _features);
         }
 
         private GeneratorSettings with(final ColumnNameResolver resolver) {
             return _columnNameResolver.equals(resolver)
                     ? this
-                    : new GeneratorSettings(_origin, _stylesBuilder, resolver, _features);
+                    : new GeneratorSettings(_origin, _stylesBuilder, _conditionalFormattings, resolver, _features);
         }
 
         private GeneratorSettings with(final int flag, final boolean state) {
             final int f = state ? (_features | flag) : (_features & ~flag);
             return f == _features
                     ? this
-                    : new GeneratorSettings(_origin, _stylesBuilder, _columnNameResolver, f);
+                    : new GeneratorSettings(_origin, _stylesBuilder, _conditionalFormattings, _columnNameResolver, f);
         }
     }
 }

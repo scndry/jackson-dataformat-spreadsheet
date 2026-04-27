@@ -19,6 +19,8 @@ public interface Styles {
         return getStyle(column);
     }
 
+    CellStyle getStyle(String name);
+
     interface Builder {
         Styles build(Workbook workbook);
     }

@@ -144,7 +144,7 @@ public final class POISheetWriter implements SheetWriter {
         if (current >= 0 && requiredRows > current) {
             try {
                 sxssf.flushRows(1);
-            } catch (java.io.IOException e) {
+            } catch (IOException e) {
                 throw new IllegalStateException(e);
             }
             _savedWindowSize = current;
@@ -178,6 +178,7 @@ public final class POISheetWriter implements SheetWriter {
 
     @Override
     public void write() throws IOException {
+        _schema.applyConditionalFormattings(_sheet, _styles, _lastRow);
         if (_out != null) {
             _sheet.getWorkbook().write(_out);
         } else if (log.isDebugEnabled()) {
