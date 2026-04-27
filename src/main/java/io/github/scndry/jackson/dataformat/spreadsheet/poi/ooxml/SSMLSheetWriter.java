@@ -20,11 +20,11 @@ import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellAddress;
 import org.apache.poi.ss.util.CellReference;
-import org.apache.poi.util.TempFile;
 import org.apache.poi.xssf.usermodel.XSSFRelation;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
@@ -407,7 +407,7 @@ public final class SSMLSheetWriter implements SheetWriter {
     }
 
     private void _writeSkeletonWorkbook() throws IOException {
-        _skeleton = TempFile.createTempFile("jackson-spreadsheet-skeleton-", ".xlsx");
+        _skeleton = POICompat.createSecureTempFile("jackson-spreadsheet-skeleton-", ".xlsx").toFile();
         try (FileOutputStream fos = new FileOutputStream(_skeleton)) {
             _wb.write(fos);
         }

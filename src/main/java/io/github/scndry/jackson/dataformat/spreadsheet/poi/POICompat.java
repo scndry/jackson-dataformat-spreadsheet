@@ -1,14 +1,21 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.poi;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.EnumSet;
 
 import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.util.TempFile;
 
 /**
- * Compatibility shim for POI API differences across versions.
- * Uses reflection to call methods that may not exist in older
- * POI releases, falling back to safe defaults.
+ * Compatibility shim for POI API differences across versions
+ * and POI resource integration (temp file directory).
  */
 public final class POICompat {
 
@@ -43,6 +50,44 @@ public final class POICompat {
             return (Boolean) DATE_1904_METHOD.invoke(workbook);
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    private static volatile File _tempDir;
+
+    /**
+     * Creates a temporary file in POI's temp directory under a dedicated
+     * {@code jackson-spreadsheet} subdirectory, with owner-only permissions
+     * on POSIX systems. Falls back to default permissions on Windows.
+     */
+    public static Path createSecureTempFile(final String prefix, final String suffix) throws IOException {
+        final Path dir = tempDir().toPath();
+        Path path;
+        try {
+            path = Files.createTempFile(dir, prefix, suffix,
+                    PosixFilePermissions.asFileAttribute(
+                            EnumSet.of(PosixFilePermission.OWNER_READ,
+                                    PosixFilePermission.OWNER_WRITE)));
+        } catch (UnsupportedOperationException e) {
+            path = Files.createTempFile(dir, prefix, suffix);
+        }
+        path.toFile().deleteOnExit();
+        return path;
+    }
+
+    /**
+     * Returns a dedicated temp directory under POI's temp directory.
+     * Created once and cached. Used by all library temp files.
+     */
+    public static File tempDir() throws IOException {
+        File dir = _tempDir;
+        if (dir != null && dir.isDirectory()) return dir;
+        synchronized (POICompat.class) {
+            dir = _tempDir;
+            if (dir != null && dir.isDirectory()) return dir;
+            dir = TempFile.createTempDirectory("jackson-spreadsheet");
+            _tempDir = dir;
+            return dir;
         }
     }
 

@@ -1,18 +1,17 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 
 import org.apache.poi.openxml4j.opc.PackagePart;
 import org.apache.poi.poifs.filesystem.FileMagic;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-import org.apache.poi.util.TempFile;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
@@ -24,6 +23,7 @@ import com.fasterxml.jackson.core.io.IOContext;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetInput;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetParser;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetReader;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.PackageUtil;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.SSMLSheetReader;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.SSMLSheetWriter;
@@ -299,10 +299,14 @@ public final class SpreadsheetFactory extends JsonFactory {
                     ? SheetInput.source(raw, src.getName())
                     : SheetInput.source(raw, src.getIndex());
         }
-        final File file = TempFile.createTempFile("jackson-spreadsheet-input-", ".xlsx");
-        _setOwnerOnly(file);
-        file.deleteOnExit();
-        Files.copy(raw, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        final File file = POICompat.createSecureTempFile("jackson-spreadsheet-input-", ".xlsx").toFile();
+        try (FileOutputStream out = new FileOutputStream(file)) {
+            final byte[] buf = new byte[8192];
+            int n;
+            while ((n = raw.read(buf)) != -1) {
+                out.write(buf, 0, n);
+            }
+        }
         if (log.isDebugEnabled()) {
             log.debug("Copied InputStream to temp file: {}", file);
         }
@@ -311,13 +315,6 @@ public final class SpreadsheetFactory extends JsonFactory {
         }
         return src.isNamed()
                 ? SheetInput.source(file, src.getName()) : SheetInput.source(file, src.getIndex());
-    }
-
-    private static void _setOwnerOnly(final File file) {
-        file.setReadable(false, false);
-        file.setWritable(false, false);
-        file.setReadable(true, true);
-        file.setWritable(true, true);
     }
 
     /*
