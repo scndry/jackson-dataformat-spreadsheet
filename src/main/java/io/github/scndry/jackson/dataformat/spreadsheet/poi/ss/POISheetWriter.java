@@ -179,6 +179,7 @@ public final class POISheetWriter implements SheetWriter {
 
     @Override
     public void write() throws IOException {
+        _schema.applyAutoFilter(_sheet, _lastRow);
         _schema.applyConditionalFormattings(_sheet, _styles, _lastRow);
         if (_out != null) {
             _sheet.getWorkbook().write(_out);

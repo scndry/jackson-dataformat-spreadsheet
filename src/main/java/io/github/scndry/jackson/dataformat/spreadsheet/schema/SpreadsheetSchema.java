@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellAddress;
+import org.apache.poi.ss.util.CellRangeAddress;
 
 import com.fasterxml.jackson.core.FormatSchema;
 
@@ -39,6 +40,7 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     private final int _features;
     private final int _freezePaneColSplit;
     private final int _freezePaneRowSplit;
+    private final boolean _autoFilter;
 
     public SpreadsheetSchema(
             final List<Column> columns,
@@ -47,7 +49,8 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
             final CellAddress origin,
             final int features,
             final int freezePaneColSplit,
-            final int freezePaneRowSplit) {
+            final int freezePaneRowSplit,
+            final boolean autoFilter) {
         _columns = columns;
         _stylesBuilder = stylesBuilder;
         _conditionalFormattings = conditionalFormattings;
@@ -55,6 +58,7 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         _features = features;
         _freezePaneColSplit = freezePaneColSplit;
         _freezePaneRowSplit = freezePaneRowSplit;
+        _autoFilter = autoFilter;
     }
 
     @Override
@@ -109,7 +113,7 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
             reordered.add(matched);
         }
         return new SpreadsheetSchema(reordered, _stylesBuilder, _conditionalFormattings, _origin, _features,
-                _freezePaneColSplit, _freezePaneRowSplit);
+                _freezePaneColSplit, _freezePaneRowSplit, _autoFilter);
     }
 
     public int getOriginColumn() {
@@ -148,6 +152,17 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
 
     public Styles buildStyles(final Workbook workbook) {
         return _stylesBuilder.build(workbook);
+    }
+
+    public void applyAutoFilter(final Sheet sheet, final int lastRow) {
+        if (!_autoFilter || _columns.isEmpty()) return;
+        final int firstCol = getOriginColumn();
+        final int lastCol = firstCol + _columns.size() - 1;
+        final int firstRow = getOriginRow();
+        final int endRow = lastRow < 0
+                ? sheet.getWorkbook().getSpreadsheetVersion().getMaxRows() - 1
+                : lastRow;
+        sheet.setAutoFilter(new CellRangeAddress(firstRow, endRow, firstCol, lastCol));
     }
 
     public void applyFreezePane(final Sheet sheet) {

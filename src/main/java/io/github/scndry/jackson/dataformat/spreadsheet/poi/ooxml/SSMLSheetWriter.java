@@ -107,6 +107,7 @@ public final class SSMLSheetWriter implements SheetWriter {
             _wb = _sheet.getWorkbook();
             final Styles styles = _schema.buildStyles(_wb);
             _schema.applyFreezePane(_sheet);
+            _schema.applyAutoFilter(_sheet, -1);
             _schema.applyConditionalFormattings(_sheet, styles, -1);
             _writeSkeletonWorkbook();
             _splitSkeletonSheetXml();
