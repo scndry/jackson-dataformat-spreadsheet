@@ -15,18 +15,17 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import javax.xml.parsers.DocumentBuilderFactory;
-
 import org.apache.poi.openxml4j.opc.OPCPackage;
-import org.apache.poi.openxml4j.opc.PackagingURIHelper;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 import java.io.File;
-import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
+
+import static io.github.scndry.jackson.dataformat.spreadsheet.OpcXmlHelper.NS_SPREADSHEETML;
+import static io.github.scndry.jackson.dataformat.spreadsheet.OpcXmlHelper.parsePart;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -198,17 +197,13 @@ class ConditionalFormattingTest {
     }
 
     private static void _assertDxfEquivalent(File expected, File actual) throws Exception {
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-        dbf.setNamespaceAware(true);
-        String ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-
         try (OPCPackage expPkg = OPCPackage.open(expected);
              OPCPackage actPkg = OPCPackage.open(actual)) {
-            Document expDoc = _parsePart(expPkg, "/xl/styles.xml", dbf);
-            Document actDoc = _parsePart(actPkg, "/xl/styles.xml", dbf);
+            Document expDoc = parsePart(expPkg, "/xl/styles.xml");
+            Document actDoc = parsePart(actPkg, "/xl/styles.xml");
 
-            NodeList expDxfs = expDoc.getElementsByTagNameNS(ns, "dxf");
-            NodeList actDxfs = actDoc.getElementsByTagNameNS(ns, "dxf");
+            NodeList expDxfs = expDoc.getElementsByTagNameNS(NS_SPREADSHEETML, "dxf");
+            NodeList actDxfs = actDoc.getElementsByTagNameNS(NS_SPREADSHEETML, "dxf");
             assertThat(actDxfs.getLength())
                     .as("dxf count")
                     .isEqualTo(expDxfs.getLength());
@@ -221,17 +216,13 @@ class ConditionalFormattingTest {
     }
 
     private static void _assertCfRuleEquivalent(File expected, File actual) throws Exception {
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-        dbf.setNamespaceAware(true);
-        String ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-
         try (OPCPackage expPkg = OPCPackage.open(expected);
              OPCPackage actPkg = OPCPackage.open(actual)) {
-            Document expDoc = _parsePart(expPkg, "/xl/worksheets/sheet1.xml", dbf);
-            Document actDoc = _parsePart(actPkg, "/xl/worksheets/sheet1.xml", dbf);
+            Document expDoc = parsePart(expPkg, "/xl/worksheets/sheet1.xml");
+            Document actDoc = parsePart(actPkg, "/xl/worksheets/sheet1.xml");
 
-            NodeList expRules = expDoc.getElementsByTagNameNS(ns, "cfRule");
-            NodeList actRules = actDoc.getElementsByTagNameNS(ns, "cfRule");
+            NodeList expRules = expDoc.getElementsByTagNameNS(NS_SPREADSHEETML, "cfRule");
+            NodeList actRules = actDoc.getElementsByTagNameNS(NS_SPREADSHEETML, "cfRule");
             assertThat(actRules.getLength())
                     .as("cfRule count")
                     .isEqualTo(expRules.getLength());
@@ -249,8 +240,8 @@ class ConditionalFormattingTest {
                         .as("cfRule[%d] dxfId", i)
                         .isEqualTo(expRule.getAttribute("dxfId"));
                 // Compare formula content
-                NodeList expFormulas = expRule.getElementsByTagNameNS(ns, "formula");
-                NodeList actFormulas = actRule.getElementsByTagNameNS(ns, "formula");
+                NodeList expFormulas = expRule.getElementsByTagNameNS(NS_SPREADSHEETML, "formula");
+                NodeList actFormulas = actRule.getElementsByTagNameNS(NS_SPREADSHEETML, "formula");
                 assertThat(actFormulas.getLength())
                         .as("cfRule[%d] formula count", i)
                         .isEqualTo(expFormulas.getLength());
@@ -263,11 +254,4 @@ class ConditionalFormattingTest {
         }
     }
 
-    private static Document _parsePart(OPCPackage pkg, String partName,
-            DocumentBuilderFactory dbf) throws Exception {
-        try (InputStream is = pkg.getPart(
-                PackagingURIHelper.createPartName(partName)).getInputStream()) {
-            return dbf.newDocumentBuilder().parse(is);
-        }
-    }
 }

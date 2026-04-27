@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.poi.openxml4j.opc.OPCPackage;
-import org.apache.poi.openxml4j.opc.PackagingURIHelper;
 import org.apache.poi.ss.util.PaneInformation;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
@@ -13,12 +12,12 @@ import org.junit.jupiter.api.io.TempDir;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
-import javax.xml.parsers.DocumentBuilderFactory;
-
 import java.io.File;
-import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
+
+import static io.github.scndry.jackson.dataformat.spreadsheet.OpcXmlHelper.NS_SPREADSHEETML;
+import static io.github.scndry.jackson.dataformat.spreadsheet.OpcXmlHelper.parsePart;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -118,17 +117,13 @@ class FreezePaneTest {
                 .build();
         poiMapper.writeValue(poiFile, data, Item.class);
 
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-        dbf.setNamespaceAware(true);
-        String ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-
         try (OPCPackage expPkg = OPCPackage.open(poiFile);
              OPCPackage actPkg = OPCPackage.open(ssmlFile)) {
-            Document expDoc = _parsePart(expPkg, "/xl/worksheets/sheet1.xml", dbf);
-            Document actDoc = _parsePart(actPkg, "/xl/worksheets/sheet1.xml", dbf);
+            Document expDoc = parsePart(expPkg, "/xl/worksheets/sheet1.xml");
+            Document actDoc = parsePart(actPkg, "/xl/worksheets/sheet1.xml");
 
-            NodeList expPanes = expDoc.getElementsByTagNameNS(ns, "pane");
-            NodeList actPanes = actDoc.getElementsByTagNameNS(ns, "pane");
+            NodeList expPanes = expDoc.getElementsByTagNameNS(NS_SPREADSHEETML, "pane");
+            NodeList actPanes = actDoc.getElementsByTagNameNS(NS_SPREADSHEETML, "pane");
             assertThat(actPanes.getLength())
                     .as("pane element count")
                     .isEqualTo(expPanes.getLength());
@@ -137,14 +132,6 @@ class FreezePaneTest {
                         .as("pane[%d] DOM equality", i)
                         .isTrue();
             }
-        }
-    }
-
-    private static Document _parsePart(OPCPackage pkg, String partName,
-            DocumentBuilderFactory dbf) throws Exception {
-        try (InputStream is = pkg.getPart(
-                PackagingURIHelper.createPartName(partName)).getInputStream()) {
-            return dbf.newDocumentBuilder().parse(is);
         }
     }
 }

@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.poi.openxml4j.opc.OPCPackage;
-import org.apache.poi.openxml4j.opc.PackagingURIHelper;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
@@ -14,12 +13,12 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
-import javax.xml.parsers.DocumentBuilderFactory;
-
 import java.io.File;
-import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
+
+import static io.github.scndry.jackson.dataformat.spreadsheet.OpcXmlHelper.NS_SPREADSHEETML;
+import static io.github.scndry.jackson.dataformat.spreadsheet.OpcXmlHelper.parsePart;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -116,17 +115,13 @@ class AutoFilterTest {
                 .build();
         poiMapper.writeValue(poiFile, data, Item.class);
 
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-        dbf.setNamespaceAware(true);
-        String ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-
         try (OPCPackage expPkg = OPCPackage.open(poiFile);
              OPCPackage actPkg = OPCPackage.open(ssmlFile)) {
-            Document expDoc = _parsePart(expPkg, "/xl/worksheets/sheet1.xml", dbf);
-            Document actDoc = _parsePart(actPkg, "/xl/worksheets/sheet1.xml", dbf);
+            Document expDoc = parsePart(expPkg, "/xl/worksheets/sheet1.xml");
+            Document actDoc = parsePart(actPkg, "/xl/worksheets/sheet1.xml");
 
-            NodeList expAf = expDoc.getElementsByTagNameNS(ns, "autoFilter");
-            NodeList actAf = actDoc.getElementsByTagNameNS(ns, "autoFilter");
+            NodeList expAf = expDoc.getElementsByTagNameNS(NS_SPREADSHEETML, "autoFilter");
+            NodeList actAf = actDoc.getElementsByTagNameNS(NS_SPREADSHEETML, "autoFilter");
             assertThat(actAf.getLength())
                     .as("autoFilter element count")
                     .isEqualTo(expAf.getLength());
@@ -141,14 +136,6 @@ class AutoFilterTest {
                         .as("autoFilter ref column prefix")
                         .isEqualTo(expPrefix);
             }
-        }
-    }
-
-    private static Document _parsePart(OPCPackage pkg, String partName,
-            DocumentBuilderFactory dbf) throws Exception {
-        try (InputStream is = pkg.getPart(
-                PackagingURIHelper.createPartName(partName)).getInputStream()) {
-            return dbf.newDocumentBuilder().parse(is);
         }
     }
 }

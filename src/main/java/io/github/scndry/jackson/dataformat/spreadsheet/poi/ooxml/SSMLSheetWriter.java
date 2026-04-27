@@ -2,8 +2,6 @@ package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -264,7 +262,7 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     private void _copySkeletonEntries() throws IOException {
         final byte[] buf = new byte[8192];
-        try (ZipInputStream zin = new ZipInputStream(new FileInputStream(_skeleton))) {
+        try (ZipInputStream zin = new ZipInputStream(Files.newInputStream(_skeleton.toPath()))) {
             ZipEntry entry;
             while ((entry = zin.getNextEntry()) != null) {
                 if (_shouldSkipEntry(entry.getName())) {
@@ -393,7 +391,7 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     private void _writeSkeletonWorkbook() throws IOException {
         _skeleton = TempFile.createTempFile("jackson-spreadsheet-skeleton-", ".xlsx");
-        try (FileOutputStream fos = new FileOutputStream(_skeleton)) {
+        try (OutputStream fos = Files.newOutputStream(_skeleton.toPath())) {
             _wb.write(fos);
         }
     }

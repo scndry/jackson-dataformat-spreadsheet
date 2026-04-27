@@ -2,20 +2,16 @@ package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.xml.parsers.DocumentBuilderFactory;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.poi.openxml4j.opc.OPCPackage;
-import org.apache.poi.openxml4j.opc.PackagingURIHelper;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
@@ -87,11 +83,8 @@ class SSMLSheetWriterDomEquivalenceTest {
         try (OPCPackage expectedPkg = OPCPackage.open(expected);
              OPCPackage actualPkg = OPCPackage.open(actual)) {
 
-            final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-            dbf.setNamespaceAware(true);
-
-            final Document expectedDoc = _parsePart(expectedPkg, partName, dbf);
-            final Document actualDoc = _parsePart(actualPkg, partName, dbf);
+            final Document expectedDoc = OpcXmlHelper.parsePart(expectedPkg, partName);
+            final Document actualDoc = OpcXmlHelper.parsePart(actualPkg, partName);
 
             _removeDimensionElements(expectedDoc);
             _removeDimensionElements(actualDoc);
@@ -108,26 +101,13 @@ class SSMLSheetWriterDomEquivalenceTest {
         try (OPCPackage expectedPkg = OPCPackage.open(expected);
              OPCPackage actualPkg = OPCPackage.open(actual)) {
 
-            final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-            dbf.setNamespaceAware(true);
-
-            final Document expectedDoc = _parsePart(expectedPkg, partName, dbf);
-            final Document actualDoc = _parsePart(actualPkg, partName, dbf);
+            final Document expectedDoc = OpcXmlHelper.parsePart(expectedPkg, partName);
+            final Document actualDoc = OpcXmlHelper.parsePart(actualPkg, partName);
 
             assertThat(actualDoc.getDocumentElement().isEqualNode(
                     expectedDoc.getDocumentElement()))
                     .as("%s DOM equality", partName)
                     .isTrue();
-        }
-    }
-
-    private static Document _parsePart(
-            final OPCPackage pkg,
-            final String partName,
-            final DocumentBuilderFactory dbf) throws Exception {
-        try (InputStream is = pkg.getPart(
-                PackagingURIHelper.createPartName(partName)).getInputStream()) {
-            return dbf.newDocumentBuilder().parse(is);
         }
     }
 
