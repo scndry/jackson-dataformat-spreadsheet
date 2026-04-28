@@ -1,7 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.sheet.SheetConfigurer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.GridConfigurer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -58,7 +58,7 @@ class ConditionalFormattingTest {
                             .fillForegroundColor(IndexedColors.RED.getIndex())
                             .fillPattern().solidForeground()
                             .end())
-                .sheetConfigurer(new SheetConfigurer()
+                .gridConfigurer(new GridConfigurer()
                         .conditionalFormatting()
                             .column("score")
                             .greaterThanOrEqual("80")
@@ -94,7 +94,7 @@ class ConditionalFormattingTest {
                             .fillForegroundColor(IndexedColors.RED.getIndex())
                             .fillPattern().solidForeground()
                             .end())
-                .sheetConfigurer(new SheetConfigurer()
+                .gridConfigurer(new GridConfigurer()
                         .conditionalFormatting()
                             .column("score")
                             .greaterThanOrEqual("80")
@@ -142,7 +142,7 @@ class ConditionalFormattingTest {
                             .fillForegroundColor(IndexedColors.RED.getIndex())
                             .fillPattern().solidForeground()
                             .end())
-                .sheetConfigurer(new SheetConfigurer()
+                .gridConfigurer(new GridConfigurer()
                         .conditionalFormatting()
                             .column("score")
                             .greaterThanOrEqual("80")
@@ -168,7 +168,7 @@ class ConditionalFormattingTest {
                     .fillForegroundColor(IndexedColors.RED.getIndex())
                     .fillPattern().solidForeground()
                     .end();
-        SheetConfigurer sheetConfigurer = new SheetConfigurer()
+        GridConfigurer gridConfigurer = new GridConfigurer()
                 .conditionalFormatting()
                     .column("score")
                     .greaterThanOrEqual("80")
@@ -178,7 +178,7 @@ class ConditionalFormattingTest {
         // SSML path (default)
         SpreadsheetMapper ssmlMapper = SpreadsheetMapper.builder()
                 .stylesBuilder(styles)
-                .sheetConfigurer(sheetConfigurer)
+                .gridConfigurer(gridConfigurer)
                 .build();
         ssmlMapper.writeValue(ssmlFile, data, Score.class);
 
@@ -186,7 +186,7 @@ class ConditionalFormattingTest {
         SpreadsheetMapper poiMapper = SpreadsheetMapper.builder()
                 .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
                 .stylesBuilder(styles)
-                .sheetConfigurer(sheetConfigurer)
+                .gridConfigurer(gridConfigurer)
                 .build();
         poiMapper.writeValue(poiFile, data, Score.class);
 
@@ -209,7 +209,7 @@ class ConditionalFormattingTest {
                             .fillForegroundColor(IndexedColors.RED.getIndex())
                             .fillPattern().solidForeground()
                             .end())
-                .sheetConfigurer(new SheetConfigurer()
+                .gridConfigurer(new GridConfigurer()
                         .conditionalFormatting()
                             .column("score")
                             .greaterThanOrEqual("80")

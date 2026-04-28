@@ -1,7 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.sheet.SheetConfigurer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.GridConfigurer;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -42,7 +42,7 @@ class FreezePaneTest {
 
         SpreadsheetMapper mapper = SpreadsheetMapper.builder()
                 .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
-                .sheetConfigurer(new SheetConfigurer().freezePane(0, 1))
+                .gridConfigurer(new GridConfigurer().freezePane(0, 1))
                 .build();
         mapper.writeValue(file, data, Item.class);
 
@@ -61,7 +61,7 @@ class FreezePaneTest {
         List<Item> data = Arrays.asList(new Item("A", 1), new Item("B", 2));
 
         SpreadsheetMapper mapper = SpreadsheetMapper.builder()
-                .sheetConfigurer(new SheetConfigurer().freezePane(0, 1))
+                .gridConfigurer(new GridConfigurer().freezePane(0, 1))
                 .build();
         mapper.writeValue(file, data, Item.class);
 
@@ -93,7 +93,7 @@ class FreezePaneTest {
         List<Item> data = Arrays.asList(new Item("A", 1), new Item("B", 2));
 
         SpreadsheetMapper mapper = SpreadsheetMapper.builder()
-                .sheetConfigurer(new SheetConfigurer().freezePane(0, 1))
+                .gridConfigurer(new GridConfigurer().freezePane(0, 1))
                 .build();
         mapper.writeValue(file, data, Item.class);
 
@@ -108,13 +108,13 @@ class FreezePaneTest {
         List<Item> data = Arrays.asList(new Item("A", 1), new Item("B", 2));
 
         SpreadsheetMapper ssmlMapper = SpreadsheetMapper.builder()
-                .sheetConfigurer(new SheetConfigurer().freezePane(0, 1))
+                .gridConfigurer(new GridConfigurer().freezePane(0, 1))
                 .build();
         ssmlMapper.writeValue(ssmlFile, data, Item.class);
 
         SpreadsheetMapper poiMapper = SpreadsheetMapper.builder()
                 .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
-                .sheetConfigurer(new SheetConfigurer().freezePane(0, 1))
+                .gridConfigurer(new GridConfigurer().freezePane(0, 1))
                 .build();
         poiMapper.writeValue(poiFile, data, Item.class);
 

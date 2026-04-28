@@ -1,4 +1,4 @@
-package io.github.scndry.jackson.dataformat.spreadsheet.schema.sheet;
+package io.github.scndry.jackson.dataformat.spreadsheet.schema.grid;
 
 import org.apache.poi.ss.usermodel.ComparisonOperator;
 
@@ -7,18 +7,18 @@ import org.apache.poi.ss.usermodel.ComparisonOperator;
  * References a column by name and a style by name (defined in
  * {@link io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder}).
  *
- * @see SheetConfigurer#conditionalFormatting()
+ * @see GridConfigurer#conditionalFormatting()
  */
 public final class ConditionalFormattingRuleSpec {
 
-    private final SheetConfigurer _parent;
+    private final GridConfigurer _parent;
     String _columnName;
     byte _operator;
     String _formula1;
     String _formula2;
     String _styleName;
 
-    ConditionalFormattingRuleSpec(final SheetConfigurer parent) {
+    ConditionalFormattingRuleSpec(final GridConfigurer parent) {
         _parent = parent;
     }
 
@@ -82,7 +82,7 @@ public final class ConditionalFormattingRuleSpec {
         return this;
     }
 
-    public SheetConfigurer end() {
+    public GridConfigurer end() {
         if (_columnName == null) {
             throw new IllegalStateException("column() must be called before end()");
         }

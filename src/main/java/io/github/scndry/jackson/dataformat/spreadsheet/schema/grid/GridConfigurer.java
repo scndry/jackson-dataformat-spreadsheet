@@ -1,4 +1,4 @@
-package io.github.scndry.jackson.dataformat.spreadsheet.schema.sheet;
+package io.github.scndry.jackson.dataformat.spreadsheet.schema.grid;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,20 +17,20 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
  * Conditional formatting rules reference style names declared in
  * {@link io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder}.
  */
-public final class SheetConfigurer {
+public final class GridConfigurer {
 
     private int _freezePaneColSplit = -1;
     private int _freezePaneRowSplit = -1;
     private boolean _autoFilter;
     private final List<ConditionalFormattingRuleSpec> _rules = new ArrayList<>();
 
-    public SheetConfigurer freezePane(final int colSplit, final int rowSplit) {
+    public GridConfigurer freezePane(final int colSplit, final int rowSplit) {
         _freezePaneColSplit = colSplit;
         _freezePaneRowSplit = rowSplit;
         return this;
     }
 
-    public SheetConfigurer autoFilter() {
+    public GridConfigurer autoFilter() {
         _autoFilter = true;
         return this;
     }

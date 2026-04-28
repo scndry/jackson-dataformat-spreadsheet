@@ -15,7 +15,7 @@ import org.apache.poi.ss.util.CellAddress;
 
 import com.fasterxml.jackson.core.FormatSchema;
 
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.sheet.SheetConfigurer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.GridConfigurer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
 
 /**
@@ -43,19 +43,19 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     private final CellAddress _origin;
     private final int _features;
     private final StylesBuilder _stylesBuilder;
-    private final SheetConfigurer _sheetConfigurer;
+    private final GridConfigurer _gridConfigurer;
 
     public SpreadsheetSchema(
             final List<Column> columns,
             final CellAddress origin,
             final int features,
             final StylesBuilder stylesBuilder,
-            final SheetConfigurer sheetConfigurer) {
+            final GridConfigurer gridConfigurer) {
         _columns = columns;
         _origin = origin;
         _features = features;
         _stylesBuilder = stylesBuilder;
-        _sheetConfigurer = sheetConfigurer;
+        _gridConfigurer = gridConfigurer;
     }
 
     @Override
@@ -109,7 +109,7 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
             }
             reordered.add(matched);
         }
-        return new SpreadsheetSchema(reordered, _origin, _features, _stylesBuilder, _sheetConfigurer);
+        return new SpreadsheetSchema(reordered, _origin, _features, _stylesBuilder, _gridConfigurer);
     }
 
     public int getOriginColumn() {
@@ -175,7 +175,7 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     }
 
     public void configureSheet(final Sheet sheet, final Styles styles, final int lastRow) {
-        _sheetConfigurer.apply(sheet, styles, this, lastRow);
+        _gridConfigurer.apply(sheet, styles, this, lastRow);
     }
 
     public int columnIndexByName(final String name) {
