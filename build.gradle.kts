@@ -102,6 +102,38 @@ tasks.withType<Test> {
 
 jmh {
     profilers.add("gc")
+
+    // CLI overrides via -Pjmh.* properties
+    if (project.hasProperty("jmh.includes")) {
+        includes.add(project.property("jmh.includes").toString())
+    }
+    if (project.hasProperty("jmh.excludes")) {
+        excludes.add(project.property("jmh.excludes").toString())
+    }
+    if (project.hasProperty("jmh.params")) {
+        // Format: "name=val1,val2;name2=val3"
+        project.property("jmh.params").toString().split(";").forEach { entry ->
+            val (name, values) = entry.split("=", limit = 2)
+            benchmarkParameters.put(name, project.objects.listProperty(String::class.java).convention(
+                values.split(",")
+            ))
+        }
+    }
+    if (project.hasProperty("jmh.warmupIterations")) {
+        warmupIterations.set(project.property("jmh.warmupIterations").toString().toInt())
+    }
+    if (project.hasProperty("jmh.iterations")) {
+        iterations.set(project.property("jmh.iterations").toString().toInt())
+    }
+    if (project.hasProperty("jmh.fork")) {
+        fork.set(project.property("jmh.fork").toString().toInt())
+    }
+    if (project.hasProperty("jmh.profilers")) {
+        project.property("jmh.profilers").toString().split(",").forEach { profilers.add(it) }
+    }
+    if (project.hasProperty("jmh.failOnError")) {
+        failOnError.set(project.property("jmh.failOnError").toString().toBoolean())
+    }
 }
 
 tasks.jacocoTestReport {
