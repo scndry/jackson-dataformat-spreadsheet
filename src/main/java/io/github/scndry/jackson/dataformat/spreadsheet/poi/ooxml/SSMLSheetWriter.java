@@ -1,11 +1,11 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -43,12 +43,6 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     private static final String XML_DECL =
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
-    private static final String SHEET_VIEWS =
-            "<sheetViews><sheetView tabSelected=\"true\" workbookViewId=\"0\"/></sheetViews>";
-    private static final String SHEET_FORMAT =
-            "<sheetFormatPr defaultRowHeight=\"15.0\"/>";
-    private static final String PAGE_MARGINS =
-            "<pageMargins left=\"0.7\" right=\"0.7\" top=\"0.75\" bottom=\"0.75\" header=\"0.3\" footer=\"0.3\"/>";
 
     private static final int BUFFER_SIZE = 512 * 1024;
     private static final int FLUSH_THRESHOLD = 1024;
@@ -75,6 +69,8 @@ public final class SSMLSheetWriter implements SheetWriter {
     private final List<MergeRange> _mergeRanges = new ArrayList<>();
     private XSSFSheet _sheet;
     private boolean _sheetDataStarted;
+    private String _sheetXmlPrefix;
+    private String _sheetXmlSuffix;
 
     public SSMLSheetWriter(final OutputStream os, final Sheet sheet) {
         this(os, sheet, false, false);
@@ -95,18 +91,6 @@ public final class SSMLSheetWriter implements SheetWriter {
 
         _entrySheet = _entryName(sheetPackagePart); // xl/worksheets/sheetN.xml
         _entrySst = _entryName(sharedStringsPackagePart); // xl/sharedStrings.xml
-
-        try {
-            _startSheetXmlEntry();
-        } catch (IOException | RuntimeException e) {
-            try {
-                _sst.close();
-            } catch (IOException suppressed) {
-                e.addSuppressed(suppressed);
-            }
-            throw e instanceof IOException
-                    ? new IllegalStateException("Failed to initialize SSMLSheetWriter", e) : (RuntimeException) e;
-        }
     }
 
     @Override
@@ -118,15 +102,18 @@ public final class SSMLSheetWriter implements SheetWriter {
     public void setSchema(final SpreadsheetSchema schema) {
         _schema = schema;
         try {
-            // Build XSSFWorkbook with styles, save skeleton to temp
             _wb = _sheet.getWorkbook();
             final Styles styles = _schema.buildStyles(_wb);
+            _schema.applyHeaderComments(_sheet);
+            _schema.configureSheet(_sheet, styles, -1);
             _writeSkeletonWorkbook();
+            _splitSkeletonSheetXml();
             _columnStyleIndex = _resolveColumnStyleIndices(styles, false);
             _headerColumnStyleIndex = _resolveColumnStyleIndices(styles, true);
             _wb.close();
             _wb = null;
             _sheet = null;
+            _startSheetXmlEntry();
             _appendFixedColumns();
             _startSheetData();
         } catch (IOException e) {
@@ -274,7 +261,7 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     private void _copySkeletonEntries() throws IOException {
         final byte[] buf = new byte[8192];
-        try (ZipInputStream zin = new ZipInputStream(new FileInputStream(_skeleton))) {
+        try (ZipInputStream zin = new ZipInputStream(Files.newInputStream(_skeleton.toPath()))) {
             ZipEntry entry;
             while ((entry = zin.getNextEntry()) != null) {
                 if (_shouldSkipEntry(entry.getName())) {
@@ -368,10 +355,7 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     private void _startSheetXmlEntry() throws IOException {
         _zip.putNextEntry(new ZipEntry(_entrySheet));
-        _append(XML_DECL);
-        _append("<worksheet xmlns=\"").append(XSSFRelation.NS_SPREADSHEETML).append("\">");
-        _append(SHEET_VIEWS);
-        _append(SHEET_FORMAT);
+        _append(_sheetXmlPrefix);
     }
 
     private void _startSheetData() throws IOException {
@@ -386,9 +370,7 @@ public final class SSMLSheetWriter implements SheetWriter {
         _startSheetData();
         _closeCurrentRowIfOpen();
         _append("</sheetData>");
-        _appendMergeCells();
-        _append(PAGE_MARGINS);
-        _append("</worksheet>");
+        _appendMergeCellsIntoSuffix();
         _flush();
         _zip.closeEntry();
     }
@@ -408,7 +390,7 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     private void _writeSkeletonWorkbook() throws IOException {
         _skeleton = TempFile.createTempFile("jackson-spreadsheet-skeleton-", ".xlsx");
-        try (FileOutputStream fos = new FileOutputStream(_skeleton)) {
+        try (OutputStream fos = Files.newOutputStream(_skeleton.toPath())) {
             _wb.write(fos);
         }
     }
@@ -433,6 +415,99 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     private boolean _shouldSkipEntry(final String entryName) {
         return _entrySheet.equals(entryName) || _entrySst.equals(entryName);
+    }
+
+    private void _splitSkeletonSheetXml() throws IOException {
+        try (ZipInputStream zin = new ZipInputStream(Files.newInputStream(_skeleton.toPath()))) {
+            ZipEntry entry;
+            while ((entry = zin.getNextEntry()) != null) {
+                if (_entrySheet.equals(entry.getName())) {
+                    final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                    final byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = zin.read(buf)) != -1) bos.write(buf, 0, n);
+                    final String sheetXml = bos.toString("UTF-8");
+                    final int sdStart = sheetXml.indexOf("<sheetData");
+                    if (sdStart < 0) {
+                        throw new IOException("Skeleton sheet XML missing <sheetData> element");
+                    }
+                    _sheetXmlPrefix = sheetXml.substring(0, sdStart);
+                    final int sdEnd = sheetXml.indexOf("</sheetData>");
+                    if (sdEnd >= 0) {
+                        _sheetXmlSuffix = sheetXml.substring(sdEnd + "</sheetData>".length());
+                    } else {
+                        final int selfClose = sheetXml.indexOf("/>", sdStart);
+                        if (selfClose < 0) {
+                            throw new IOException("Malformed skeleton sheet XML: unclosed <sheetData> element");
+                        }
+                        _sheetXmlSuffix = sheetXml.substring(selfClose + 2);
+                    }
+                    return;
+                }
+                zin.closeEntry();
+            }
+        }
+        throw new IOException("Sheet entry '" + _entrySheet + "' not found in skeleton");
+    }
+
+    private void _appendMergeCellsIntoSuffix() throws IOException {
+        if (_mergeRanges.isEmpty()) {
+            _append(_sheetXmlSuffix);
+            return;
+        }
+        // ECMA-376 order: autoFilter → mergeCells → conditionalFormatting
+        // Find insertion point in suffix for mergeCells
+        final String mergeCellsXml = _buildMergeCellsXml();
+        final int insertPos = _findMergeCellsInsertPos(_sheetXmlSuffix);
+        _append(_sheetXmlSuffix.substring(0, insertPos));
+        _append(mergeCellsXml);
+        _append(_sheetXmlSuffix.substring(insertPos));
+    }
+
+    private String _buildMergeCellsXml() {
+        final StringBuilder sb = new StringBuilder();
+        sb.append("<mergeCells count=\"").append(_mergeRanges.size()).append("\">");
+        for (final MergeRange range : _mergeRanges) {
+            sb.append("<mergeCell ref=\"")
+                    .append(_cellRef(range._firstRow, range._column))
+                    .append(":")
+                    .append(_cellRef(range._lastRow, range._column))
+                    .append("\"/>");
+        }
+        sb.append("</mergeCells>");
+        return sb.toString();
+    }
+
+    // ECMA-376 CT_Worksheet elements that follow mergeCells in xsd:sequence order.
+    // Used to locate the correct insertion point for <mergeCells> in the skeleton suffix.
+    // Full list from sml.xsd CT_Worksheet — verified against POI 5.2.5 schema.
+    private static final String[] POST_MERGE_CELLS_ELEMENTS = {
+            "<phoneticPr", "<conditionalFormatting", "<dataValidations",
+            "<hyperlinks", "<printOptions", "<pageMargins", "<pageSetup",
+            "<headerFooter", "<rowBreaks", "<colBreaks",
+            "<customProperties", "<cellWatches", "<ignoredErrors", "<smartTags",
+            "<drawing", "<legacyDrawing", "<legacyDrawingHF", "<drawingHF",
+            "<picture", "<oleObjects", "<controls", "<webPublishItems",
+            "<tableParts", "<extLst", "</worksheet"
+    };
+
+    private static int _findMergeCellsInsertPos(final String suffix) {
+        for (final String tag : POST_MERGE_CELLS_ELEMENTS) {
+            int from = 0;
+            int pos;
+            while ((pos = suffix.indexOf(tag, from)) >= 0) {
+                final int end = pos + tag.length();
+                if (end >= suffix.length() || _isTagDelimiter(suffix.charAt(end))) {
+                    return pos;
+                }
+                from = end;
+            }
+        }
+        return suffix.length();
+    }
+
+    private static boolean _isTagDelimiter(final char c) {
+        return c == ' ' || c == '>' || c == '/' || c == '\n' || c == '\r' || c == '\t';
     }
 
     private static IOException _mergeFailure(final IOException failure, final IOException next) {
@@ -523,21 +598,6 @@ public final class SSMLSheetWriter implements SheetWriter {
                     .append("\" customWidth=\"1\"/>");
         }
         _append("</cols>");
-    }
-
-    private void _appendMergeCells() throws IOException {
-        if (_mergeRanges.isEmpty()) {
-            return;
-        }
-        _append("<mergeCells count=\"").append(_mergeRanges.size()).append("\">");
-        for (final MergeRange range : _mergeRanges) {
-            _append("<mergeCell ref=\"")
-                    .append(_cellRef(range._firstRow, range._column))
-                    .append(":")
-                    .append(_cellRef(range._lastRow, range._column))
-                    .append("\"/>");
-        }
-        _append("</mergeCells>");
     }
 
     private static final class MergeRange {

@@ -29,6 +29,9 @@ public @interface DataColumn {
      */
     String value() default "";
 
+    /** Comment text for the header cell of this column. */
+    String comment() default "";
+
     /** Cell style name for data cells in this column. */
     String style() default "";
 
@@ -56,6 +59,7 @@ public @interface DataColumn {
         private static final Value EMPTY = new Value();
 
         private final String _name;
+        private final String _comment;
         private final String _style;
         private final String _headerStyle;
         private final int _width;
@@ -64,10 +68,12 @@ public @interface DataColumn {
         private final int _maxWidth;
         private final OptBoolean _merge;
 
-        public Value(final String name, final String style, final String headerStyle,
+        public Value(final String name, final String comment,
+                     final String style, final String headerStyle,
                      final int width, final OptBoolean autoSize,
                      final int minWidth, final int maxWidth, final OptBoolean merge) {
             _name = name;
+            _comment = comment;
             _style = style;
             _headerStyle = headerStyle;
             _width = width;
@@ -78,14 +84,15 @@ public @interface DataColumn {
         }
 
         private Value() {
-            this("", "", "", DataGrid.DEFAULT_COLUMN_WIDTH, OptBoolean.DEFAULT,
+            this("", "", "", "", DataGrid.DEFAULT_COLUMN_WIDTH, OptBoolean.DEFAULT,
                     DataGrid.DEFAULT_MIN_COLUMN_WIDTH, DataGrid.DEFAULT_MAX_COLUMN_WIDTH,
                     OptBoolean.DEFAULT);
         }
 
         private Value(final DataColumn ann) {
-            this(ann.value(), ann.style(), ann.headerStyle(), ann.width(),
-                    ann.autoSize(), ann.minWidth(), ann.maxWidth(), ann.merge());
+            this(ann.value(), ann.comment(), ann.style(), ann.headerStyle(), ann.width(),
+                    ann.autoSize(), ann.minWidth(), ann.maxWidth(), ann.merge()
+            );
         }
 
         public static Value empty() { return EMPTY; }
@@ -95,6 +102,7 @@ public @interface DataColumn {
         }
 
         public String getName() { return _name; }
+        public String getComment() { return _comment; }
         public String getStyle() { return _style; }
         public String getHeaderStyle() { return _headerStyle; }
         public int getWidth() { return _width; }
@@ -105,13 +113,13 @@ public @interface DataColumn {
 
         public Value withName(final String name) {
             if (name == null || name.isEmpty()) return this;
-            return new Value(name, _style, _headerStyle, _width, _autoSize,
+            return new Value(name, _comment, _style, _headerStyle, _width, _autoSize,
                     _minWidth, _maxWidth, _merge);
         }
 
         public Value withDefaults(final DataGrid.Value defaults) {
             if (defaults.isEmpty()) return this;
-            return new Value(_name,
+            return new Value(_name, _comment,
                     _style.isEmpty() ? defaults.getColumnStyle() : _style,
                     _headerStyle.isEmpty() ? defaults.getColumnHeaderStyle() : _headerStyle,
                     _width == DataGrid.DEFAULT_COLUMN_WIDTH ? defaults.getColumnWidth() : _width,
@@ -138,13 +146,15 @@ public @interface DataColumn {
         @Override
         public String toString() {
             return "DataColumn.Value(name=" + _name
+                    + ", comment=" + _comment
                     + ", style=" + _style
                     + ", headerStyle=" + _headerStyle
                     + ", width=" + _width
                     + ", autoSize=" + _autoSize
                     + ", minWidth=" + _minWidth
                     + ", maxWidth=" + _maxWidth
-                    + ", merge=" + _merge + ")";
+                    + ", merge=" + _merge
+                    + ")";
         }
     }
 }

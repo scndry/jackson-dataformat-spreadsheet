@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.cfg.MapperBuilder;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetInput;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetParser;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.sheet.SheetConfigurer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.ColumnNameResolver;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetGenerator;
@@ -307,6 +308,11 @@ public final class SpreadsheetMapper extends ObjectMapper {
     public SpreadsheetMapper setStylesBuilder(final Styles.Builder builder) {
         _assertNotNull("builder", builder);
         return setSchemaGenerator(_schemaGenerator.withStylesBuilder(builder));
+    }
+
+    public SpreadsheetMapper setSheetConfigurer(final SheetConfigurer configurer) {
+        _assertNotNull("configurer", configurer);
+        return setSchemaGenerator(_schemaGenerator.withSheetConfigurer(configurer));
     }
 
     public SpreadsheetMapper setColumnNameResolver(final ColumnNameResolver resolver) {
@@ -617,6 +623,11 @@ public final class SpreadsheetMapper extends ObjectMapper {
 
         public Builder stylesBuilder(final Styles.Builder builder) {
             _mapper.setStylesBuilder(builder);
+            return _this();
+        }
+
+        public Builder sheetConfigurer(final SheetConfigurer configurer) {
+            _mapper.setSheetConfigurer(configurer);
             return _this();
         }
 

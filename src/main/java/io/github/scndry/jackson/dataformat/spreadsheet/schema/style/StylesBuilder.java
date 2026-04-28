@@ -99,6 +99,11 @@ public final class StylesBuilder implements Styles.Builder, Builder<Styles> {
         }
 
         @Override
+        public CellStyle getStyle(final String name) {
+            return _styles.get(name);
+        }
+
+        @Override
         public CellStyle getHeaderStyle(final Column column) {
             return _findStyle(column.getValue().getHeaderStyle(), column);
         }
