@@ -17,7 +17,7 @@ import com.fasterxml.jackson.databind.cfg.MapperBuilder;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetInput;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetParser;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.feature.ConditionalFormattingConfigurer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.sheet.SheetConfigurer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.ColumnNameResolver;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetGenerator;
@@ -310,17 +310,9 @@ public final class SpreadsheetMapper extends ObjectMapper {
         return setSchemaGenerator(_schemaGenerator.withStylesBuilder(builder));
     }
 
-    public SpreadsheetMapper setConditionalFormattings(final ConditionalFormattingConfigurer builder) {
-        _assertNotNull("builder", builder);
-        return setSchemaGenerator(_schemaGenerator.withConditionalFormattings(builder));
-    }
-
-    public SpreadsheetMapper setAutoFilter(final boolean state) {
-        return setSchemaGenerator(_schemaGenerator.withAutoFilter(state));
-    }
-
-    public SpreadsheetMapper setFreezePane(final int colSplit, final int rowSplit) {
-        return setSchemaGenerator(_schemaGenerator.withFreezePane(colSplit, rowSplit));
+    public SpreadsheetMapper setSheetConfigurer(final SheetConfigurer configurer) {
+        _assertNotNull("configurer", configurer);
+        return setSchemaGenerator(_schemaGenerator.withSheetConfigurer(configurer));
     }
 
     public SpreadsheetMapper setColumnNameResolver(final ColumnNameResolver resolver) {
@@ -634,18 +626,8 @@ public final class SpreadsheetMapper extends ObjectMapper {
             return _this();
         }
 
-        public Builder conditionalFormattings(final ConditionalFormattingConfigurer builder) {
-            _mapper.setConditionalFormattings(builder);
-            return _this();
-        }
-
-        public Builder autoFilter(final boolean state) {
-            _mapper.setAutoFilter(state);
-            return _this();
-        }
-
-        public Builder freezePane(final int colSplit, final int rowSplit) {
-            _mapper.setFreezePane(colSplit, rowSplit);
+        public Builder sheetConfigurer(final SheetConfigurer configurer) {
+            _mapper.setSheetConfigurer(configurer);
             return _this();
         }
 

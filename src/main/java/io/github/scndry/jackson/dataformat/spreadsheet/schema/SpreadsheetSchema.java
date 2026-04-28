@@ -12,11 +12,10 @@ import org.apache.poi.ss.usermodel.Drawing;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellAddress;
-import org.apache.poi.ss.util.CellRangeAddress;
 
 import com.fasterxml.jackson.core.FormatSchema;
 
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.feature.ConditionalFormattingConfigurer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.sheet.SheetConfigurer;
 
 /**
  * {@link FormatSchema} implementation that defines the column
@@ -36,32 +35,26 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
 
     public static final int DEFAULT_FEATURES = FEATURE_USE_HEADER;
 
+    private static final int COMMENT_BOX_WIDTH_COLS = 2;
+    private static final int COMMENT_BOX_HEIGHT_ROWS = 3;
+
     private final List<Column> _columns;
     private final CellAddress _origin;
     private final int _features;
     private final Styles.Builder _stylesBuilder;
-    private final ConditionalFormattingConfigurer _conditionalFormattings;
-    private final int _freezePaneColSplit;
-    private final int _freezePaneRowSplit;
-    private final boolean _autoFilter;
+    private final SheetConfigurer _sheetConfigurer;
 
     public SpreadsheetSchema(
             final List<Column> columns,
             final CellAddress origin,
             final int features,
             final Styles.Builder stylesBuilder,
-            final ConditionalFormattingConfigurer conditionalFormattings,
-            final int freezePaneColSplit,
-            final int freezePaneRowSplit,
-            final boolean autoFilter) {
+            final SheetConfigurer sheetConfigurer) {
         _columns = columns;
         _origin = origin;
         _features = features;
         _stylesBuilder = stylesBuilder;
-        _conditionalFormattings = conditionalFormattings;
-        _freezePaneColSplit = freezePaneColSplit;
-        _freezePaneRowSplit = freezePaneRowSplit;
-        _autoFilter = autoFilter;
+        _sheetConfigurer = sheetConfigurer;
     }
 
     @Override
@@ -115,8 +108,7 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
             }
             reordered.add(matched);
         }
-        return new SpreadsheetSchema(reordered, _origin, _features, _stylesBuilder, _conditionalFormattings,
-            _freezePaneColSplit, _freezePaneRowSplit, _autoFilter);
+        return new SpreadsheetSchema(reordered, _origin, _features, _stylesBuilder, _sheetConfigurer);
     }
 
     public int getOriginColumn() {
@@ -173,35 +165,16 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
             final ClientAnchor anchor = factory.createClientAnchor();
             anchor.setCol1(col);
             anchor.setRow1(row);
-            anchor.setCol2(col + 2);
-            anchor.setRow2(row + 3);
+            anchor.setCol2(col + COMMENT_BOX_WIDTH_COLS);
+            anchor.setRow2(row + COMMENT_BOX_HEIGHT_ROWS);
             final Comment comment = drawing.createCellComment(anchor);
             comment.setString(factory.createRichTextString(text));
             comment.setAddress(row, col);
         }
     }
 
-    public void applyAutoFilter(final Sheet sheet, final int lastRow) {
-        if (!_autoFilter || _columns.isEmpty()) return;
-        final int firstCol = getOriginColumn();
-        final int lastCol = firstCol + _columns.size() - 1;
-        final int firstRow = getOriginRow();
-        final int endRow = lastRow < 0
-                ? sheet.getWorkbook().getSpreadsheetVersion().getMaxRows() - 1
-                : lastRow;
-        sheet.setAutoFilter(new CellRangeAddress(firstRow, endRow, firstCol, lastCol));
-    }
-
-    public void applyFreezePane(final Sheet sheet) {
-        if (_freezePaneColSplit >= 0 || _freezePaneRowSplit >= 0) {
-            sheet.createFreezePane(
-                    Math.max(_freezePaneColSplit, 0),
-                    Math.max(_freezePaneRowSplit, 0));
-        }
-    }
-
-    public void applyConditionalFormattings(final Sheet sheet, final Styles styles, final int lastRow) {
-        _conditionalFormattings.apply(sheet, styles, this, lastRow);
+    public void configureSheet(final Sheet sheet, final Styles styles, final int lastRow) {
+        _sheetConfigurer.apply(sheet, styles, this, lastRow);
     }
 
     public int columnIndexByName(final String name) {
@@ -212,6 +185,10 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
             }
         }
         return -1;
+    }
+
+    public int columnCount() {
+        return _columns.size();
     }
 
     public List<String> columnNames() {

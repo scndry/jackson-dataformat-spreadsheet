@@ -1,4 +1,4 @@
-package io.github.scndry.jackson.dataformat.spreadsheet.schema.feature;
+package io.github.scndry.jackson.dataformat.spreadsheet.schema.sheet;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,43 +13,84 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 
 /**
- * Configurer for conditional formatting rules.
- * Rules reference style names declared in
+ * Configurer for sheet-level features: freeze pane, auto filter, and conditional formatting.
+ * Conditional formatting rules reference style names declared in
  * {@link io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder}.
  */
-public final class ConditionalFormattingConfigurer {
+public final class SheetConfigurer {
 
-    private final List<Rule> _rules = new ArrayList<>();
+    private int _freezePaneColSplit = -1;
+    private int _freezePaneRowSplit = -1;
+    private boolean _autoFilter;
+    private final List<ConditionalFormattingRuleSpec> _rules = new ArrayList<>();
 
-    public Rule rule() {
-        return new Rule(this);
+    public SheetConfigurer freezePane(final int colSplit, final int rowSplit) {
+        _freezePaneColSplit = colSplit;
+        _freezePaneRowSplit = rowSplit;
+        return this;
     }
 
-    void _addRule(final Rule rule) {
-        _rules.add(rule);
+    public SheetConfigurer autoFilter() {
+        _autoFilter = true;
+        return this;
+    }
+
+    public ConditionalFormattingRuleSpec conditionalFormatting() {
+        return new ConditionalFormattingRuleSpec(this);
+    }
+
+    void _addRule(final ConditionalFormattingRuleSpec spec) {
+        _rules.add(spec);
     }
 
     public void apply(final Sheet sheet, final Styles styles,
+            final SpreadsheetSchema schema, final int lastRow) {
+        _applyFreezePane(sheet);
+        _applyAutoFilter(sheet, schema, lastRow);
+        _applyConditionalFormattings(sheet, styles, schema, lastRow);
+    }
+
+    private void _applyFreezePane(final Sheet sheet) {
+        if (_freezePaneColSplit >= 0 || _freezePaneRowSplit >= 0) {
+            sheet.createFreezePane(
+                    Math.max(_freezePaneColSplit, 0),
+                    Math.max(_freezePaneRowSplit, 0));
+        }
+    }
+
+    private void _applyAutoFilter(final Sheet sheet, final SpreadsheetSchema schema, final int lastRow) {
+        if (!_autoFilter || schema.columnCount() == 0) return;
+        final int firstCol = schema.getOriginColumn();
+        final int lastCol = firstCol + schema.columnCount() - 1;
+        final int firstRow = schema.getOriginRow();
+        final int endRow = lastRow < 0
+                ? sheet.getWorkbook().getSpreadsheetVersion().getMaxRows() - 1
+                : lastRow;
+        sheet.setAutoFilter(new CellRangeAddress(firstRow, endRow, firstCol, lastCol));
+    }
+
+    private void _applyConditionalFormattings(final Sheet sheet, final Styles styles,
             final SpreadsheetSchema schema, final int lastRow) {
         if (_rules.isEmpty()) return;
         final Workbook wb = sheet.getWorkbook();
         final int dataRow = schema.getDataRow();
         final int endRow = lastRow < 0 ? wb.getSpreadsheetVersion().getMaxRows() - 1 : lastRow;
+        if (dataRow > endRow) return;
         final SheetConditionalFormatting scf = sheet.getSheetConditionalFormatting();
 
-        for (final Rule cfRule : _rules) {
-            final int colIndex = schema.columnIndexByName(cfRule._columnName);
+        for (final ConditionalFormattingRuleSpec spec : _rules) {
+            final int colIndex = schema.columnIndexByName(spec._columnName);
             if (colIndex < 0) {
-                throw new IllegalArgumentException("Column '" + cfRule._columnName
+                throw new IllegalArgumentException("Column '" + spec._columnName
                         + "' not found in schema. Available columns: " + schema.columnNames());
             }
-            final CellStyle cs = styles.getStyle(cfRule._styleName);
+            final CellStyle cs = styles.getStyle(spec._styleName);
             if (cs == null) {
-                throw new IllegalArgumentException("Style '" + cfRule._styleName + "' not found");
+                throw new IllegalArgumentException("Style '" + spec._styleName + "' not found");
             }
-            final ConditionalFormattingRule rule = cfRule._formula2 != null
-                    ? scf.createConditionalFormattingRule(cfRule._operator, cfRule._formula1, cfRule._formula2)
-                    : scf.createConditionalFormattingRule(cfRule._operator, cfRule._formula1);
+            final ConditionalFormattingRule rule = spec._formula2 != null
+                    ? scf.createConditionalFormattingRule(spec._operator, spec._formula1, spec._formula2)
+                    : scf.createConditionalFormattingRule(spec._operator, spec._formula1);
             _applyCellStyleToDxf(rule, cs, wb);
             scf.addConditionalFormatting(
                     new CellRangeAddress[]{new CellRangeAddress(dataRow, endRow, colIndex, colIndex)}, rule);
@@ -116,93 +157,5 @@ public final class ConditionalFormattingConfigurer {
         if (cs.getRightBorderColor() != 0) bf.setRightBorderColor(cs.getRightBorderColor());
         if (cs.getTopBorderColor() != 0) bf.setTopBorderColor(cs.getTopBorderColor());
         if (cs.getBottomBorderColor() != 0) bf.setBottomBorderColor(cs.getBottomBorderColor());
-    }
-
-    public static final class Rule {
-
-        private final ConditionalFormattingConfigurer _parent;
-        private String _columnName;
-        private byte _operator;
-        private String _formula1;
-        private String _formula2;
-        private String _styleName;
-
-        Rule(final ConditionalFormattingConfigurer parent) {
-            _parent = parent;
-        }
-
-        public Rule column(final String name) {
-            _columnName = name;
-            return this;
-        }
-
-        public Rule greaterThan(final String formula) {
-            _operator = ComparisonOperator.GT;
-            _formula1 = formula;
-            return this;
-        }
-
-        public Rule greaterThanOrEqual(final String formula) {
-            _operator = ComparisonOperator.GE;
-            _formula1 = formula;
-            return this;
-        }
-
-        public Rule lessThan(final String formula) {
-            _operator = ComparisonOperator.LT;
-            _formula1 = formula;
-            return this;
-        }
-
-        public Rule lessThanOrEqual(final String formula) {
-            _operator = ComparisonOperator.LE;
-            _formula1 = formula;
-            return this;
-        }
-
-        public Rule equalTo(final String formula) {
-            _operator = ComparisonOperator.EQUAL;
-            _formula1 = formula;
-            return this;
-        }
-
-        public Rule notEqualTo(final String formula) {
-            _operator = ComparisonOperator.NOT_EQUAL;
-            _formula1 = formula;
-            return this;
-        }
-
-        public Rule between(final String formula1, final String formula2) {
-            _operator = ComparisonOperator.BETWEEN;
-            _formula1 = formula1;
-            _formula2 = formula2;
-            return this;
-        }
-
-        public Rule notBetween(final String formula1, final String formula2) {
-            _operator = ComparisonOperator.NOT_BETWEEN;
-            _formula1 = formula1;
-            _formula2 = formula2;
-            return this;
-        }
-
-        public Rule style(final String name) {
-            _styleName = name;
-            return this;
-        }
-
-        public ConditionalFormattingConfigurer end() {
-            if (_columnName == null) {
-                throw new IllegalStateException("column() must be called before end()");
-            }
-            if (_formula1 == null) {
-                throw new IllegalStateException("A comparison method (greaterThan, equalTo, etc.) must be called before end()");
-            }
-            if (_styleName == null) {
-                throw new IllegalStateException("style() must be called before end()");
-            }
-            _parent._addRule(this);
-            return _parent;
-        }
     }
 }

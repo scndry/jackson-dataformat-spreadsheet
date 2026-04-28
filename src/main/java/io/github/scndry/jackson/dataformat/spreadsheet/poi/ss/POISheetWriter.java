@@ -63,7 +63,6 @@ public final class POISheetWriter implements SheetWriter {
     public void setSchema(final SpreadsheetSchema schema) {
         _schema = schema;
         _styles = _schema.buildStyles(_sheet.getWorkbook());
-        _schema.applyFreezePane(_sheet);
         _schema.applyHeaderComments(_sheet);
     }
 
@@ -180,8 +179,7 @@ public final class POISheetWriter implements SheetWriter {
 
     @Override
     public void write() throws IOException {
-        _schema.applyAutoFilter(_sheet, _lastRow);
-        _schema.applyConditionalFormattings(_sheet, _styles, _lastRow);
+        _schema.configureSheet(_sheet, _styles, _lastRow);
         if (_out != null) {
             _sheet.getWorkbook().write(_out);
         } else if (log.isDebugEnabled()) {

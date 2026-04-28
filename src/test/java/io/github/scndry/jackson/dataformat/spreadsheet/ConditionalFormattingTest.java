@@ -1,7 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.feature.ConditionalFormattingConfigurer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.sheet.SheetConfigurer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -22,6 +22,7 @@ import org.w3c.dom.NodeList;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static io.github.scndry.jackson.dataformat.spreadsheet.OpcXmlHelper.NS_SPREADSHEETML;
@@ -57,8 +58,8 @@ class ConditionalFormattingTest {
                             .fillForegroundColor(IndexedColors.RED.getIndex())
                             .fillPattern().solidForeground()
                             .end())
-                .conditionalFormattings(new ConditionalFormattingConfigurer()
-                        .rule()
+                .sheetConfigurer(new SheetConfigurer()
+                        .conditionalFormatting()
                             .column("score")
                             .greaterThanOrEqual("80")
                             .style("highlight")
@@ -93,8 +94,8 @@ class ConditionalFormattingTest {
                             .fillForegroundColor(IndexedColors.RED.getIndex())
                             .fillPattern().solidForeground()
                             .end())
-                .conditionalFormattings(new ConditionalFormattingConfigurer()
-                        .rule()
+                .sheetConfigurer(new SheetConfigurer()
+                        .conditionalFormatting()
                             .column("score")
                             .greaterThanOrEqual("80")
                             .style("highlight")
@@ -141,8 +142,8 @@ class ConditionalFormattingTest {
                             .fillForegroundColor(IndexedColors.RED.getIndex())
                             .fillPattern().solidForeground()
                             .end())
-                .conditionalFormattings(new ConditionalFormattingConfigurer()
-                        .rule()
+                .sheetConfigurer(new SheetConfigurer()
+                        .conditionalFormatting()
                             .column("score")
                             .greaterThanOrEqual("80")
                             .style("highlight")
@@ -167,8 +168,8 @@ class ConditionalFormattingTest {
                     .fillForegroundColor(IndexedColors.RED.getIndex())
                     .fillPattern().solidForeground()
                     .end();
-        ConditionalFormattingConfigurer conditionalFormattings = new ConditionalFormattingConfigurer()
-                .rule()
+        SheetConfigurer sheetConfigurer = new SheetConfigurer()
+                .conditionalFormatting()
                     .column("score")
                     .greaterThanOrEqual("80")
                     .style("highlight")
@@ -177,7 +178,7 @@ class ConditionalFormattingTest {
         // SSML path (default)
         SpreadsheetMapper ssmlMapper = SpreadsheetMapper.builder()
                 .stylesBuilder(styles)
-                .conditionalFormattings(conditionalFormattings)
+                .sheetConfigurer(sheetConfigurer)
                 .build();
         ssmlMapper.writeValue(ssmlFile, data, Score.class);
 
@@ -185,7 +186,7 @@ class ConditionalFormattingTest {
         SpreadsheetMapper poiMapper = SpreadsheetMapper.builder()
                 .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
                 .stylesBuilder(styles)
-                .conditionalFormattings(conditionalFormattings)
+                .sheetConfigurer(sheetConfigurer)
                 .build();
         poiMapper.writeValue(poiFile, data, Score.class);
 
@@ -194,6 +195,35 @@ class ConditionalFormattingTest {
 
         // Compare cfRule in sheet1.xml (ignoring sqref range differences)
         _assertCfRuleEquivalent(poiFile, ssmlFile);
+    }
+
+    @Test
+    void poiPathZeroDataRows() throws Exception {
+        File file = new File(tempDir, "cf-poi-zero-rows.xlsx");
+        List<Score> data = Collections.emptyList();
+
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+                .stylesBuilder(new StylesBuilder()
+                        .cellStyle("highlight")
+                            .fillForegroundColor(IndexedColors.RED.getIndex())
+                            .fillPattern().solidForeground()
+                            .end())
+                .sheetConfigurer(new SheetConfigurer()
+                        .conditionalFormatting()
+                            .column("score")
+                            .greaterThanOrEqual("80")
+                            .style("highlight")
+                            .end())
+                .build();
+
+        mapper.writeValue(file, data, Score.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            SheetConditionalFormatting scf = wb.getSheetAt(0).getSheetConditionalFormatting();
+            // No data rows — CF rules are skipped
+            assertThat(scf.getNumConditionalFormattings()).isZero();
+        }
     }
 
     private static void _assertDxfEquivalent(File expected, File actual) throws Exception {

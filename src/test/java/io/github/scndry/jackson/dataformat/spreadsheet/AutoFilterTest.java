@@ -1,6 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.sheet.SheetConfigurer;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -42,7 +43,7 @@ class AutoFilterTest {
 
         SpreadsheetMapper mapper = SpreadsheetMapper.builder()
                 .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
-                .autoFilter(true)
+                .sheetConfigurer(new SheetConfigurer().autoFilter())
                 .build();
         mapper.writeValue(file, data, Item.class);
 
@@ -59,7 +60,7 @@ class AutoFilterTest {
         List<Item> data = Arrays.asList(new Item("A", 1), new Item("B", 2));
 
         SpreadsheetMapper mapper = SpreadsheetMapper.builder()
-                .autoFilter(true)
+                .sheetConfigurer(new SheetConfigurer().autoFilter())
                 .build();
         mapper.writeValue(file, data, Item.class);
 
@@ -90,7 +91,7 @@ class AutoFilterTest {
         List<Item> data = Arrays.asList(new Item("A", 1), new Item("B", 2));
 
         SpreadsheetMapper mapper = SpreadsheetMapper.builder()
-                .autoFilter(true)
+                .sheetConfigurer(new SheetConfigurer().autoFilter())
                 .build();
         mapper.writeValue(file, data, Item.class);
 
@@ -105,13 +106,13 @@ class AutoFilterTest {
         List<Item> data = Arrays.asList(new Item("A", 1), new Item("B", 2));
 
         SpreadsheetMapper ssmlMapper = SpreadsheetMapper.builder()
-                .autoFilter(true)
+                .sheetConfigurer(new SheetConfigurer().autoFilter())
                 .build();
         ssmlMapper.writeValue(ssmlFile, data, Item.class);
 
         SpreadsheetMapper poiMapper = SpreadsheetMapper.builder()
                 .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
-                .autoFilter(true)
+                .sheetConfigurer(new SheetConfigurer().autoFilter())
                 .build();
         poiMapper.writeValue(poiFile, data, Item.class);
 
