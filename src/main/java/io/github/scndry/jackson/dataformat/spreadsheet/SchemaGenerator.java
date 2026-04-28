@@ -66,11 +66,11 @@ public final class SchemaGenerator {
     }
 
     public SchemaGenerator withAutoFilter(final boolean state) {
-        return new SchemaGenerator(_generatorSettings.withAutoFilter(state));
+        return new SchemaGenerator(_generatorSettings.with(state));
     }
 
     public SchemaGenerator withFreezePane(final int colSplit, final int rowSplit) {
-        return new SchemaGenerator(_generatorSettings.withFreezePane(colSplit, rowSplit));
+        return new SchemaGenerator(_generatorSettings.with(colSplit, rowSplit));
     }
 
     SpreadsheetSchema generate(
@@ -201,11 +201,11 @@ public final class SchemaGenerator {
                     : new GeneratorSettings(_origin, _stylesBuilder, _conditionalFormattings, _columnNameResolver, f, _freezePaneColSplit, _freezePaneRowSplit, _autoFilter);
         }
 
-        private GeneratorSettings withFreezePane(final int colSplit, final int rowSplit) {
+        private GeneratorSettings with(final int colSplit, final int rowSplit) {
             return new GeneratorSettings(_origin, _stylesBuilder, _conditionalFormattings, _columnNameResolver, _features, colSplit, rowSplit, _autoFilter);
         }
 
-        private GeneratorSettings withAutoFilter(final boolean autoFilter) {
+        private GeneratorSettings with(final boolean autoFilter) {
             return new GeneratorSettings(_origin, _stylesBuilder, _conditionalFormattings, _columnNameResolver, _features, _freezePaneColSplit, _freezePaneRowSplit, autoFilter);
         }
     }

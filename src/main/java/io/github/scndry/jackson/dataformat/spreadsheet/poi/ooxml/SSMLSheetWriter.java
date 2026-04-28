@@ -481,19 +481,34 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     // ECMA-376 CT_Worksheet elements that follow mergeCells in xsd:sequence order.
     // Used to locate the correct insertion point for <mergeCells> in the skeleton suffix.
+    // Full list from sml.xsd CT_Worksheet — verified against POI 5.2.5 schema.
     private static final String[] POST_MERGE_CELLS_ELEMENTS = {
             "<phoneticPr", "<conditionalFormatting", "<dataValidations",
             "<hyperlinks", "<printOptions", "<pageMargins", "<pageSetup",
-            "<headerFooter", "<rowBreaks", "<colBreaks", "<drawing",
+            "<headerFooter", "<rowBreaks", "<colBreaks",
+            "<customProperties", "<cellWatches", "<ignoredErrors", "<smartTags",
+            "<drawing", "<legacyDrawing", "<legacyDrawingHF", "<drawingHF",
+            "<picture", "<oleObjects", "<controls", "<webPublishItems",
             "<tableParts", "<extLst", "</worksheet"
     };
 
     private static int _findMergeCellsInsertPos(final String suffix) {
         for (final String tag : POST_MERGE_CELLS_ELEMENTS) {
-            final int pos = suffix.indexOf(tag);
-            if (pos >= 0) return pos;
+            int from = 0;
+            int pos;
+            while ((pos = suffix.indexOf(tag, from)) >= 0) {
+                final int end = pos + tag.length();
+                if (end >= suffix.length() || _isTagDelimiter(suffix.charAt(end))) {
+                    return pos;
+                }
+                from = end;
+            }
         }
         return suffix.length();
+    }
+
+    private static boolean _isTagDelimiter(final char c) {
+        return c == ' ' || c == '>' || c == '/' || c == '\n' || c == '\r' || c == '\t';
     }
 
     private static IOException _mergeFailure(final IOException failure, final IOException next) {
