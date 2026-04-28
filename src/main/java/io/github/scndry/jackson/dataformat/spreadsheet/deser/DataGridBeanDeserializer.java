@@ -19,7 +19,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
  */
 public final class DataGridBeanDeserializer extends DelegatingDeserializer {
 
-    public DataGridBeanDeserializer(final JsonDeserializer<?> d) {
+    DataGridBeanDeserializer(final JsonDeserializer<?> d) {
         super(d);
     }
 

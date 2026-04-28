@@ -3,8 +3,6 @@ package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -14,8 +12,8 @@ import org.apache.poi.openxml4j.opc.PackagePart;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.XmlElementReader.Matcher;
-import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.SpreadsheetML;
 
 /**
  * File-backed shared string table using H2 MVStore.
@@ -110,18 +108,6 @@ final class FileBackedSharedStringsLookup implements SharedStringsLookup {
     }
 
     private static Path _createSecureTempFile() throws IOException {
-        Path path;
-        try {
-            path = Files.createTempFile("jackson-spreadsheet-sst-read-", ".mv",
-                    PosixFilePermissions.asFileAttribute(
-                            java.util.EnumSet.of(
-                                    PosixFilePermission.OWNER_READ,
-                                    PosixFilePermission.OWNER_WRITE)));
-        } catch (UnsupportedOperationException e) {
-            // Windows — POSIX permissions not supported
-            path = Files.createTempFile("jackson-spreadsheet-sst-read-", ".mv");
-        }
-        path.toFile().deleteOnExit();
-        return path;
+        return POICompat.createSecureTempFile("jackson-spreadsheet-sst-read-", ".mv");
     }
 }

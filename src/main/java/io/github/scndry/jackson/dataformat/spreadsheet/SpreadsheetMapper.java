@@ -17,7 +17,8 @@ import com.fasterxml.jackson.databind.cfg.MapperBuilder;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetInput;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetParser;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.GridConfigurer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.ColumnNameResolver;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetGenerator;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetOutput;
@@ -304,9 +305,14 @@ public final class SpreadsheetMapper extends ObjectMapper {
         return setSchemaGenerator(_schemaGenerator.withOrigin(address));
     }
 
-    public SpreadsheetMapper setStylesBuilder(final Styles.Builder builder) {
+    public SpreadsheetMapper setStylesBuilder(final StylesBuilder builder) {
         _assertNotNull("builder", builder);
         return setSchemaGenerator(_schemaGenerator.withStylesBuilder(builder));
+    }
+
+    public SpreadsheetMapper setGridConfigurer(final GridConfigurer configurer) {
+        _assertNotNull("configurer", configurer);
+        return setSchemaGenerator(_schemaGenerator.withGridConfigurer(configurer));
     }
 
     public SpreadsheetMapper setColumnNameResolver(final ColumnNameResolver resolver) {
@@ -615,8 +621,13 @@ public final class SpreadsheetMapper extends ObjectMapper {
             return _this();
         }
 
-        public Builder stylesBuilder(final Styles.Builder builder) {
+        public Builder stylesBuilder(final StylesBuilder builder) {
             _mapper.setStylesBuilder(builder);
+            return _this();
+        }
+
+        public Builder gridConfigurer(final GridConfigurer configurer) {
+            _mapper.setGridConfigurer(configurer);
             return _this();
         }
 

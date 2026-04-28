@@ -10,8 +10,8 @@ import com.fasterxml.jackson.databind.ser.SerializerFactory;
 import com.fasterxml.jackson.databind.util.ClassUtil;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.GridConfigurer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.ColumnNameResolver;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.FormatVisitorWrapper;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
@@ -29,9 +29,10 @@ public final class SchemaGenerator {
     public SchemaGenerator() {
         _generatorSettings = new GeneratorSettings(
                 CellAddress.A1,
-                new StylesBuilder(),
+                SpreadsheetSchema.DEFAULT_FEATURES,
                 ColumnNameResolver.NULL,
-                SpreadsheetSchema.DEFAULT_FEATURES);
+                new StylesBuilder(),
+                new GridConfigurer());
     }
 
     private SchemaGenerator(final GeneratorSettings generatorSettings) {
@@ -42,7 +43,7 @@ public final class SchemaGenerator {
         return new SchemaGenerator(_generatorSettings.with(origin));
     }
 
-    public SchemaGenerator withStylesBuilder(final Styles.Builder builder) {
+    public SchemaGenerator withStylesBuilder(final StylesBuilder builder) {
         return new SchemaGenerator(_generatorSettings.with(builder));
     }
 
@@ -56,6 +57,10 @@ public final class SchemaGenerator {
 
     public SchemaGenerator withColumnReordering(final boolean state) {
         return new SchemaGenerator(_generatorSettings.with(SpreadsheetSchema.FEATURE_COLUMN_REORDERING, state));
+    }
+
+    public SchemaGenerator withGridConfigurer(final GridConfigurer configurer) {
+        return new SchemaGenerator(_generatorSettings.with(configurer));
     }
 
     SpreadsheetSchema generate(
@@ -86,9 +91,10 @@ public final class SchemaGenerator {
         }
         return new SpreadsheetSchema(
                 columns,
-                _generatorSettings._stylesBuilder,
                 _generatorSettings._origin,
-                _generatorSettings._features);
+                _generatorSettings._features,
+                _generatorSettings._stylesBuilder,
+                _generatorSettings._gridConfigurer);
     }
 
     private void _verifyType(
@@ -130,41 +136,47 @@ public final class SchemaGenerator {
     static final class GeneratorSettings {
 
         private final CellAddress _origin;
-        private final Styles.Builder _stylesBuilder;
-        private final ColumnNameResolver _columnNameResolver;
         private final int _features;
+        private final ColumnNameResolver _columnNameResolver;
+        private final StylesBuilder _stylesBuilder;
+        private final GridConfigurer _gridConfigurer;
 
-        GeneratorSettings(final CellAddress origin, final Styles.Builder stylesBuilder,
-                          final ColumnNameResolver columnNameResolver, final int features) {
+        GeneratorSettings(final CellAddress origin, final int features, final ColumnNameResolver columnNameResolver,
+                          final StylesBuilder stylesBuilder, final GridConfigurer gridConfigurer) {
             _origin = origin;
-            _stylesBuilder = stylesBuilder;
-            _columnNameResolver = columnNameResolver;
             _features = features;
+            _columnNameResolver = columnNameResolver;
+            _stylesBuilder = stylesBuilder;
+            _gridConfigurer = gridConfigurer;
         }
 
         private GeneratorSettings with(final CellAddress origin) {
             return _origin.equals(origin)
-                    ? this
-                    : new GeneratorSettings(origin, _stylesBuilder, _columnNameResolver, _features);
-        }
-
-        private GeneratorSettings with(final Styles.Builder styles) {
-            return _stylesBuilder.equals(styles)
-                    ? this
-                    : new GeneratorSettings(_origin, styles, _columnNameResolver, _features);
-        }
-
-        private GeneratorSettings with(final ColumnNameResolver resolver) {
-            return _columnNameResolver.equals(resolver)
-                    ? this
-                    : new GeneratorSettings(_origin, _stylesBuilder, resolver, _features);
+                ? this
+                : new GeneratorSettings(origin, _features, _columnNameResolver, _stylesBuilder, _gridConfigurer);
         }
 
         private GeneratorSettings with(final int flag, final boolean state) {
             final int f = state ? (_features | flag) : (_features & ~flag);
             return f == _features
-                    ? this
-                    : new GeneratorSettings(_origin, _stylesBuilder, _columnNameResolver, f);
+                ? this
+                : new GeneratorSettings(_origin, f, _columnNameResolver, _stylesBuilder, _gridConfigurer);
+        }
+
+        private GeneratorSettings with(final ColumnNameResolver resolver) {
+            return _columnNameResolver.equals(resolver)
+                ? this
+                : new GeneratorSettings(_origin, _features, resolver, _stylesBuilder, _gridConfigurer);
+        }
+
+        private GeneratorSettings with(final StylesBuilder styles) {
+            return _stylesBuilder.equals(styles)
+                ? this
+                : new GeneratorSettings(_origin, _features, _columnNameResolver, styles, _gridConfigurer);
+        }
+
+        private GeneratorSettings with(final GridConfigurer gridConfigurer) {
+            return new GeneratorSettings(_origin, _features, _columnNameResolver, _stylesBuilder, gridConfigurer);
         }
     }
 }

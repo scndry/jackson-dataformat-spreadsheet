@@ -1,4 +1,4 @@
-package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec;
+package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 
 /**
  * Lightweight representation of {@code CT_Cell} (ECMA-376 §18.3.1.4).
@@ -12,7 +12,7 @@ package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec;
  *   <li>{@code is} — inline string text from {@code <is>}</li>
  * </ul>
  */
-public final class CTCell {
+final class CTCell {
 
     private final String _r;
     private final STCellType _t;
@@ -20,8 +20,8 @@ public final class CTCell {
     private final STCellFormulaType _ft;
     private final String _is;
 
-    public CTCell(final String r, final STCellType t, final String v,
-                  final STCellFormulaType ft, final String is) {
+    CTCell(final String r, final STCellType t, final String v,
+           final STCellFormulaType ft, final String is) {
         _r = r;
         _t = t;
         _v = v;
@@ -29,9 +29,9 @@ public final class CTCell {
         _is = is;
     }
 
-    public String getR() { return _r; }
-    public STCellType getT() { return _t; }
-    public String getV() { return _v; }
-    public STCellFormulaType getFt() { return _ft; }
-    public String getIs() { return _is; }
+    String getR() { return _r; }
+    STCellType getT() { return _t; }
+    String getV() { return _v; }
+    STCellFormulaType getFt() { return _ft; }
+    String getIs() { return _is; }
 }

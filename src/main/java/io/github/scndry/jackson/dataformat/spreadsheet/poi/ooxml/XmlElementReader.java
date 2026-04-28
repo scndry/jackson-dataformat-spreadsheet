@@ -6,11 +6,6 @@ import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 
-import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.CTCell;
-import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.STCellFormulaType;
-import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.STCellType;
-import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.SpreadsheetML;
-
 /**
  * Lightweight StAX reader for OOXML SpreadsheetML.
  * Provides Matcher-based navigation, attribute access, and string content reading.

@@ -57,13 +57,13 @@ But this is not a POI replacement. POI types (`Sheet`, `Workbook`) are first-cla
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.3.2</version>
+    <version>1.4.0</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.3.2"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.4.0"
 ```
 
 ## Quick Start
@@ -461,6 +461,7 @@ Customizes individual column properties. Unset attributes inherit from the enclo
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `value` | field name | Column header name |
+| `comment` | `""` | Header cell comment text |
 | `style` | `""` | Cell style for data cells |
 | `headerStyle` | `""` | Cell style for the header cell |
 | `width` | `-1` (auto) | Column width in character units |
@@ -597,6 +598,41 @@ Excel stores dates as numeric serial values. `ExcelDateModule` is registered by 
 Supported: `Date`, `Calendar`, `LocalDate`, `LocalDateTime`.
 
 No configuration needed. Read an Excel date cell and get a `LocalDate`. Write a `LocalDate` and get an Excel-formatted date.
+
+## Sheet-Level Features
+
+`GridConfigurer` controls sheet-level features anchored on the data grid:
+
+```java
+SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+    .stylesBuilder(new StylesBuilder()
+        .cellStyle("highlight")
+            .fillForegroundColor(IndexedColors.RED)
+            .fillPattern().solidForeground()
+            .end())
+    .gridConfigurer(new GridConfigurer()
+        .freezePane(0, 1)
+        .autoFilter()
+        .conditionalFormatting()
+            .column("score").greaterThanOrEqual("80").style("highlight").end())
+    .build();
+```
+
+`freezePane(colSplit, rowSplit)` delegates to POI `Sheet#createFreezePane`. `autoFilter()` enables the filter dropdown across all schema columns; the range is computed from the schema and row count.
+
+### Conditional Formatting
+
+`column(name)` matches `@DataColumn(value)`, the field name, or `@JsonAlias`. `style(name)` matches a `cellStyle(name)` in `StylesBuilder`. Both resolve at write time — typos throw `IllegalArgumentException` listing the available names.
+
+```java
+.conditionalFormatting().column("score").greaterThan("90").style("good").end()
+.conditionalFormatting().column("status").equalTo("\"URGENT\"").style("warn").end()  // text: quote the value
+.conditionalFormatting().column("price").between("100", "500").style("warn").end()
+```
+
+Operators: `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `equalTo`, `notEqualTo`, `between`, `notBetween`.
+
+Style → DXF: fill, font, and border only. Alignment and wrap-text are silently skipped.
 
 ## Configuration
 

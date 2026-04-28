@@ -18,7 +18,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 /**
  * Registry of named {@link CellStyleBuilder} instances that builds a {@link Styles} collection from a {@link Workbook}.
  */
-public final class StylesBuilder implements Styles.Builder, Builder<Styles> {
+public final class StylesBuilder implements Builder<Styles> {
 
     private final Map<Object, CellStyleBuilder> _builders;
 
@@ -96,6 +96,11 @@ public final class StylesBuilder implements Styles.Builder, Builder<Styles> {
         @Override
         public CellStyle getStyle(final Column column) {
             return _findStyle(column.getValue().getStyle(), column);
+        }
+
+        @Override
+        public CellStyle getStyle(final String name) {
+            return _styles.get(name);
         }
 
         @Override

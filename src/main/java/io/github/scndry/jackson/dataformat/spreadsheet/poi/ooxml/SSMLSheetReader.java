@@ -15,9 +15,6 @@ import io.github.scndry.jackson.dataformat.spreadsheet.deser.CellValue;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetReader;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetToken;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.XmlElementReader.Matcher;
-import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.CTCell;
-import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.STCellFormulaType;
-import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.SpreadsheetML;
 
 /**
  * Streaming SpreadsheetML {@link SheetReader} implementation.
