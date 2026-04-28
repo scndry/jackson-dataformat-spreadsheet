@@ -37,28 +37,28 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     public static final int DEFAULT_FEATURES = FEATURE_USE_HEADER;
 
     private final List<Column> _columns;
-    private final Styles.Builder _stylesBuilder;
-    private final ConditionalFormattingConfigurer _conditionalFormattings;
     private final CellAddress _origin;
     private final int _features;
+    private final Styles.Builder _stylesBuilder;
+    private final ConditionalFormattingConfigurer _conditionalFormattings;
     private final int _freezePaneColSplit;
     private final int _freezePaneRowSplit;
     private final boolean _autoFilter;
 
     public SpreadsheetSchema(
             final List<Column> columns,
-            final Styles.Builder stylesBuilder,
-            final ConditionalFormattingConfigurer conditionalFormattings,
             final CellAddress origin,
             final int features,
+            final Styles.Builder stylesBuilder,
+            final ConditionalFormattingConfigurer conditionalFormattings,
             final int freezePaneColSplit,
             final int freezePaneRowSplit,
             final boolean autoFilter) {
         _columns = columns;
-        _stylesBuilder = stylesBuilder;
-        _conditionalFormattings = conditionalFormattings;
         _origin = origin;
         _features = features;
+        _stylesBuilder = stylesBuilder;
+        _conditionalFormattings = conditionalFormattings;
         _freezePaneColSplit = freezePaneColSplit;
         _freezePaneRowSplit = freezePaneRowSplit;
         _autoFilter = autoFilter;
@@ -115,8 +115,8 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
             }
             reordered.add(matched);
         }
-        return new SpreadsheetSchema(reordered, _stylesBuilder, _conditionalFormattings, _origin, _features,
-                _freezePaneColSplit, _freezePaneRowSplit, _autoFilter);
+        return new SpreadsheetSchema(reordered, _origin, _features, _stylesBuilder, _conditionalFormattings,
+            _freezePaneColSplit, _freezePaneRowSplit, _autoFilter);
     }
 
     public int getOriginColumn() {
@@ -158,6 +158,7 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     }
 
     public void applyHeaderComments(final Sheet sheet) {
+        if (!usesHeader()) return;
         final int row = getOriginRow();
         final CreationHelper factory = sheet.getWorkbook().getCreationHelper();
         Drawing<?> drawing = null;

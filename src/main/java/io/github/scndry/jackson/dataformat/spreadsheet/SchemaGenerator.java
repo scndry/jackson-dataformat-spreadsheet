@@ -30,11 +30,11 @@ public final class SchemaGenerator {
     public SchemaGenerator() {
         _generatorSettings = new GeneratorSettings(
                 CellAddress.A1,
+                SpreadsheetSchema.DEFAULT_FEATURES,
+                ColumnNameResolver.NULL,
                 new StylesBuilder(),
                 new ConditionalFormattingConfigurer(),
-                ColumnNameResolver.NULL,
-                SpreadsheetSchema.DEFAULT_FEATURES,
-                -1, -1, false);
+            -1, -1, false);
     }
 
     private SchemaGenerator(final GeneratorSettings generatorSettings) {
@@ -101,10 +101,10 @@ public final class SchemaGenerator {
         }
         return new SpreadsheetSchema(
                 columns,
-                _generatorSettings._stylesBuilder,
-                _generatorSettings._conditionalFormattings,
                 _generatorSettings._origin,
                 _generatorSettings._features,
+                _generatorSettings._stylesBuilder,
+                _generatorSettings._conditionalFormattings,
                 _generatorSettings._freezePaneColSplit,
                 _generatorSettings._freezePaneRowSplit,
                 _generatorSettings._autoFilter);
@@ -149,19 +149,17 @@ public final class SchemaGenerator {
     static final class GeneratorSettings {
 
         private final CellAddress _origin;
+        private final int _features;
+        private final ColumnNameResolver _columnNameResolver;
         private final Styles.Builder _stylesBuilder;
         private final ConditionalFormattingConfigurer _conditionalFormattings;
-        private final ColumnNameResolver _columnNameResolver;
-        private final int _features;
         private final int _freezePaneColSplit;
         private final int _freezePaneRowSplit;
         private final boolean _autoFilter;
 
-        GeneratorSettings(final CellAddress origin, final Styles.Builder stylesBuilder,
-                          final ConditionalFormattingConfigurer conditionalFormattings,
-                          final ColumnNameResolver columnNameResolver, final int features,
-                          final int freezePaneColSplit, final int freezePaneRowSplit,
-                          final boolean autoFilter) {
+        GeneratorSettings(final CellAddress origin, final int features, final ColumnNameResolver columnNameResolver,
+                          final Styles.Builder stylesBuilder, final ConditionalFormattingConfigurer conditionalFormattings,
+                          final int freezePaneColSplit, final int freezePaneRowSplit, final boolean autoFilter) {
             _origin = origin;
             _stylesBuilder = stylesBuilder;
             _conditionalFormattings = conditionalFormattings;
@@ -175,38 +173,38 @@ public final class SchemaGenerator {
         private GeneratorSettings with(final CellAddress origin) {
             return _origin.equals(origin)
                     ? this
-                    : new GeneratorSettings(origin, _stylesBuilder, _conditionalFormattings, _columnNameResolver, _features, _freezePaneColSplit, _freezePaneRowSplit, _autoFilter);
-        }
-
-        private GeneratorSettings with(final Styles.Builder styles) {
-            return _stylesBuilder.equals(styles)
-                    ? this
-                    : new GeneratorSettings(_origin, styles, _conditionalFormattings, _columnNameResolver, _features, _freezePaneColSplit, _freezePaneRowSplit, _autoFilter);
-        }
-
-        private GeneratorSettings with(final ConditionalFormattingConfigurer conditionalFormattings) {
-            return new GeneratorSettings(_origin, _stylesBuilder, conditionalFormattings, _columnNameResolver, _features, _freezePaneColSplit, _freezePaneRowSplit, _autoFilter);
-        }
-
-        private GeneratorSettings with(final ColumnNameResolver resolver) {
-            return _columnNameResolver.equals(resolver)
-                    ? this
-                    : new GeneratorSettings(_origin, _stylesBuilder, _conditionalFormattings, resolver, _features, _freezePaneColSplit, _freezePaneRowSplit, _autoFilter);
+                    : new GeneratorSettings(origin, _features, _columnNameResolver, _stylesBuilder, _conditionalFormattings, _freezePaneColSplit, _freezePaneRowSplit, _autoFilter);
         }
 
         private GeneratorSettings with(final int flag, final boolean state) {
             final int f = state ? (_features | flag) : (_features & ~flag);
             return f == _features
+                ? this
+                : new GeneratorSettings(_origin, f, _columnNameResolver, _stylesBuilder, _conditionalFormattings, _freezePaneColSplit, _freezePaneRowSplit, _autoFilter);
+        }
+
+        private GeneratorSettings with(final ColumnNameResolver resolver) {
+            return _columnNameResolver.equals(resolver)
+                ? this
+                : new GeneratorSettings(_origin, _features, resolver, _stylesBuilder, _conditionalFormattings, _freezePaneColSplit, _freezePaneRowSplit, _autoFilter);
+        }
+
+        private GeneratorSettings with(final Styles.Builder styles) {
+            return _stylesBuilder.equals(styles)
                     ? this
-                    : new GeneratorSettings(_origin, _stylesBuilder, _conditionalFormattings, _columnNameResolver, f, _freezePaneColSplit, _freezePaneRowSplit, _autoFilter);
+                    : new GeneratorSettings(_origin, _features, _columnNameResolver, styles, _conditionalFormattings, _freezePaneColSplit, _freezePaneRowSplit, _autoFilter);
+        }
+
+        private GeneratorSettings with(final ConditionalFormattingConfigurer conditionalFormattings) {
+            return new GeneratorSettings(_origin, _features, _columnNameResolver, _stylesBuilder, conditionalFormattings, _freezePaneColSplit, _freezePaneRowSplit, _autoFilter);
         }
 
         private GeneratorSettings with(final int colSplit, final int rowSplit) {
-            return new GeneratorSettings(_origin, _stylesBuilder, _conditionalFormattings, _columnNameResolver, _features, colSplit, rowSplit, _autoFilter);
+            return new GeneratorSettings(_origin, _features, _columnNameResolver, _stylesBuilder, _conditionalFormattings, colSplit, rowSplit, _autoFilter);
         }
 
         private GeneratorSettings with(final boolean autoFilter) {
-            return new GeneratorSettings(_origin, _stylesBuilder, _conditionalFormattings, _columnNameResolver, _features, _freezePaneColSplit, _freezePaneRowSplit, autoFilter);
+            return new GeneratorSettings(_origin, _features, _columnNameResolver, _stylesBuilder, _conditionalFormattings, _freezePaneColSplit, _freezePaneRowSplit, autoFilter);
         }
     }
 }

@@ -72,7 +72,7 @@ class AnnotationValueTest {
 
     @Test
     void dataColumnWithName() {
-        DataColumn.Value val = new DataColumn.Value("original", "", "", 0, OptBoolean.DEFAULT, 0, 0, OptBoolean.DEFAULT, "");
+        DataColumn.Value val = new DataColumn.Value("original", "", "", "", 0, OptBoolean.DEFAULT, 0, 0, OptBoolean.DEFAULT);
         DataColumn.Value renamed = val.withName("renamed");
         assertThat(renamed.getName()).isEqualTo("renamed");
         assertThat(renamed.getStyle()).isEqualTo(val.getStyle());
@@ -80,7 +80,7 @@ class AnnotationValueTest {
 
     @Test
     void dataColumnWithDefaults() {
-        DataColumn.Value field = new DataColumn.Value("field", "fieldStyle", "", 10, OptBoolean.DEFAULT, 0, 0, OptBoolean.DEFAULT, "");
+        DataColumn.Value field = new DataColumn.Value("field", "", "fieldStyle", "", 10, OptBoolean.DEFAULT, 0, 0, OptBoolean.DEFAULT);
         DataGrid.Value grid = new DataGrid.Value("gridStyle", "gridHeaderStyle", 20, OptBoolean.TRUE, 5, 50, OptBoolean.TRUE);
         DataColumn.Value result = field.withDefaults(grid);
 

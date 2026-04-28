@@ -3,10 +3,10 @@ package io.github.scndry.jackson.dataformat.spreadsheet.schema.feature;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
-import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
@@ -66,17 +66,27 @@ public final class ConditionalFormattingConfigurer {
             }
         }
         final Font font = wb.getFontAt(cs.getFontIndex());
-        final boolean hasColor = font instanceof XSSFFont
-                && ((XSSFFont) font).getXSSFColor() != null;
+        final boolean isXssf = wb.getSpreadsheetVersion() == SpreadsheetVersion.EXCEL2007;
+        final boolean hasColor = isXssf
+                ? ((XSSFFont) font).getXSSFColor() != null
+                : font.getColor() != 0;
         final boolean hasUnderline = font.getUnderline() != Font.U_NONE;
-        if (font.getBold() || font.getItalic() || hasColor || hasUnderline) {
+        final boolean hasHeight = font.getFontHeightInPoints() != XSSFFont.DEFAULT_FONT_SIZE;
+        if (font.getBold() || font.getItalic() || hasColor || hasUnderline || hasHeight) {
             final FontFormatting ff = rule.createFontFormatting();
             ff.setFontStyle(font.getItalic(), font.getBold());
             if (hasColor) {
-                ff.setFontColor(((XSSFFont) font).getXSSFColor());
+                if (isXssf) {
+                    ff.setFontColor(((XSSFFont) font).getXSSFColor());
+                } else {
+                    ff.setFontColorIndex(font.getColor());
+                }
             }
             if (hasUnderline) {
                 ff.setUnderlineType(font.getUnderline());
+            }
+            if (hasHeight) {
+                ff.setFontHeight(font.getFontHeight());
             }
         }
         if (cs.getBorderLeft() != BorderStyle.NONE || cs.getBorderRight() != BorderStyle.NONE
@@ -86,23 +96,26 @@ public final class ConditionalFormattingConfigurer {
             bf.setBorderRight(cs.getBorderRight());
             bf.setBorderTop(cs.getBorderTop());
             bf.setBorderBottom(cs.getBorderBottom());
-            if (cs instanceof XSSFCellStyle) {
-                final XSSFCellStyle xcs = (XSSFCellStyle) cs;
-                _setBorderColorIfPresent(bf, xcs);
+            if (isXssf) {
+                _applyBorderColor(bf, (XSSFCellStyle) cs);
+            } else {
+                _applyBorderColor(bf, cs);
             }
         }
     }
 
-    private static void _setBorderColorIfPresent(final BorderFormatting bf,
-            final XSSFCellStyle xcs) {
-        final XSSFColor left = xcs.getLeftBorderXSSFColor();
-        if (left != null) bf.setLeftBorderColor(left);
-        final XSSFColor right = xcs.getRightBorderXSSFColor();
-        if (right != null) bf.setRightBorderColor(right);
-        final XSSFColor top = xcs.getTopBorderXSSFColor();
-        if (top != null) bf.setTopBorderColor(top);
-        final XSSFColor bottom = xcs.getBottomBorderXSSFColor();
-        if (bottom != null) bf.setBottomBorderColor(bottom);
+    private static void _applyBorderColor(final BorderFormatting bf, final XSSFCellStyle xcs) {
+        if (xcs.getLeftBorderXSSFColor() != null) bf.setLeftBorderColor(xcs.getLeftBorderXSSFColor());
+        if (xcs.getRightBorderXSSFColor() != null) bf.setRightBorderColor(xcs.getRightBorderXSSFColor());
+        if (xcs.getTopBorderXSSFColor() != null) bf.setTopBorderColor(xcs.getTopBorderXSSFColor());
+        if (xcs.getBottomBorderXSSFColor() != null) bf.setBottomBorderColor(xcs.getBottomBorderXSSFColor());
+    }
+
+    private static void _applyBorderColor(final BorderFormatting bf, final CellStyle cs) {
+        if (cs.getLeftBorderColor() != 0) bf.setLeftBorderColor(cs.getLeftBorderColor());
+        if (cs.getRightBorderColor() != 0) bf.setRightBorderColor(cs.getRightBorderColor());
+        if (cs.getTopBorderColor() != 0) bf.setTopBorderColor(cs.getTopBorderColor());
+        if (cs.getBottomBorderColor() != 0) bf.setBottomBorderColor(cs.getBottomBorderColor());
     }
 
     public static final class Rule {
