@@ -64,6 +64,7 @@ public final class POISheetWriter implements SheetWriter {
         _schema = schema;
         _styles = _schema.buildStyles(_sheet.getWorkbook());
         _schema.applyFreezePane(_sheet);
+        _schema.applyHeaderComments(_sheet);
     }
 
     @Override

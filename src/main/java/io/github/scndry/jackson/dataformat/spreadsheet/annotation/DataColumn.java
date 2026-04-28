@@ -50,6 +50,9 @@ public @interface DataColumn {
     /** Whether to merge cells vertically for repeated values. */
     OptBoolean merge() default OptBoolean.DEFAULT;
 
+    /** Comment text for the header cell of this column. */
+    String comment() default "";
+
     @EqualsAndHashCode
     final class Value implements JacksonAnnotationValue<DataColumn> {
 
@@ -63,10 +66,12 @@ public @interface DataColumn {
         private final int _minWidth;
         private final int _maxWidth;
         private final OptBoolean _merge;
+        private final String _comment;
 
         public Value(final String name, final String style, final String headerStyle,
                      final int width, final OptBoolean autoSize,
-                     final int minWidth, final int maxWidth, final OptBoolean merge) {
+                     final int minWidth, final int maxWidth, final OptBoolean merge,
+                     final String comment) {
             _name = name;
             _style = style;
             _headerStyle = headerStyle;
@@ -75,17 +80,19 @@ public @interface DataColumn {
             _minWidth = minWidth;
             _maxWidth = maxWidth;
             _merge = merge;
+            _comment = comment;
         }
 
         private Value() {
             this("", "", "", DataGrid.DEFAULT_COLUMN_WIDTH, OptBoolean.DEFAULT,
                     DataGrid.DEFAULT_MIN_COLUMN_WIDTH, DataGrid.DEFAULT_MAX_COLUMN_WIDTH,
-                    OptBoolean.DEFAULT);
+                    OptBoolean.DEFAULT, "");
         }
 
         private Value(final DataColumn ann) {
             this(ann.value(), ann.style(), ann.headerStyle(), ann.width(),
-                    ann.autoSize(), ann.minWidth(), ann.maxWidth(), ann.merge());
+                    ann.autoSize(), ann.minWidth(), ann.maxWidth(), ann.merge(),
+                    ann.comment());
         }
 
         public static Value empty() { return EMPTY; }
@@ -102,11 +109,12 @@ public @interface DataColumn {
         public int getMinWidth() { return _minWidth; }
         public int getMaxWidth() { return _maxWidth; }
         public OptBoolean getMerge() { return _merge; }
+        public String getComment() { return _comment; }
 
         public Value withName(final String name) {
             if (name == null || name.isEmpty()) return this;
             return new Value(name, _style, _headerStyle, _width, _autoSize,
-                    _minWidth, _maxWidth, _merge);
+                    _minWidth, _maxWidth, _merge, _comment);
         }
 
         public Value withDefaults(final DataGrid.Value defaults) {
@@ -120,7 +128,8 @@ public @interface DataColumn {
                             ? defaults.getMinColumnWidth() : _minWidth,
                     _maxWidth == DataGrid.DEFAULT_MAX_COLUMN_WIDTH
                             ? defaults.getMaxColumnWidth() : _maxWidth,
-                    _merge == OptBoolean.DEFAULT ? defaults.getMergeColumn() : _merge
+                    _merge == OptBoolean.DEFAULT ? defaults.getMergeColumn() : _merge,
+                    _comment
             );
         }
 
@@ -144,7 +153,8 @@ public @interface DataColumn {
                     + ", autoSize=" + _autoSize
                     + ", minWidth=" + _minWidth
                     + ", maxWidth=" + _maxWidth
-                    + ", merge=" + _merge + ")";
+                    + ", merge=" + _merge
+                    + ", comment=" + _comment + ")";
         }
     }
 }

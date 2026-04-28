@@ -5,6 +5,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.poi.ss.usermodel.ClientAnchor;
+import org.apache.poi.ss.usermodel.Comment;
+import org.apache.poi.ss.usermodel.CreationHelper;
+import org.apache.poi.ss.usermodel.Drawing;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellAddress;
@@ -151,6 +155,29 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
 
     public Styles buildStyles(final Workbook workbook) {
         return _stylesBuilder.build(workbook);
+    }
+
+    public void applyHeaderComments(final Sheet sheet) {
+        final int row = getOriginRow();
+        final CreationHelper factory = sheet.getWorkbook().getCreationHelper();
+        Drawing<?> drawing = null;
+        for (final Column column : _columns) {
+            if (column == null) continue;
+            final String text = column.getValue().getComment();
+            if (text.isEmpty()) continue;
+            if (drawing == null) {
+                drawing = sheet.createDrawingPatriarch();
+            }
+            final int col = columnIndexOf(column);
+            final ClientAnchor anchor = factory.createClientAnchor();
+            anchor.setCol1(col);
+            anchor.setRow1(row);
+            anchor.setCol2(col + 2);
+            anchor.setRow2(row + 3);
+            final Comment comment = drawing.createCellComment(anchor);
+            comment.setString(factory.createRichTextString(text));
+            comment.setAddress(row, col);
+        }
     }
 
     public void applyAutoFilter(final Sheet sheet, final int lastRow) {
