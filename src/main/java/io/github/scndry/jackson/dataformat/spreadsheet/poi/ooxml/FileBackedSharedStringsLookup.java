@@ -14,7 +14,6 @@ import org.h2.mvstore.MVStore;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.XmlElementReader.Matcher;
-import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.SpreadsheetML;
 
 /**
  * File-backed shared string table using H2 MVStore.

@@ -1,4 +1,4 @@
-package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec;
+package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -9,7 +9,7 @@ import java.util.Map;
  * Replaces XMLBeans {@code STCellType.Enum} with a static enum mapped
  * directly from StAX attribute values.
  */
-public enum STCellType {
+enum STCellType {
     BOOLEAN("b"),
     NUMBER("n"),
     ERROR("e"),
@@ -33,7 +33,7 @@ public enum STCellType {
     }
 
     /** Maps the {@code t} attribute value to an enum. Defaults to {@link #NUMBER} when absent. */
-    public static STCellType of(final String code) {
+    static STCellType of(final String code) {
         if (code == null) return NUMBER;
         final STCellType type = BY_CODE.get(code);
         if (type == null) {

@@ -1,4 +1,4 @@
-package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec;
+package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -6,7 +6,7 @@ import java.util.Map;
 /**
  * Lightweight representation of {@code ST_CellFormulaType} (ECMA-376 §18.18.6).
  */
-public enum STCellFormulaType {
+enum STCellFormulaType {
     NORMAL("normal"),
     ARRAY("array"),
     DATA_TABLE("dataTable"),
@@ -31,7 +31,7 @@ public enum STCellFormulaType {
      * Maps the {@code t} attribute value of {@code <f>}.
      * Defaults to {@link #NORMAL} when absent.
      */
-    public static STCellFormulaType of(final String code) {
+    static STCellFormulaType of(final String code) {
         if (code == null) return NORMAL;
         final STCellFormulaType type = BY_CODE.get(code);
         if (type == null) {

@@ -6,7 +6,6 @@ import java.util.Arrays;
 import org.apache.poi.openxml4j.opc.PackagePart;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.XmlElementReader.Matcher;
-import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.spec.SpreadsheetML;
 
 /**
  * Lazy, streaming shared string table that reads entries on demand via StAX.
