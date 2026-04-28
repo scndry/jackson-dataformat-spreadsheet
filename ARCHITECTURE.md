@@ -5,7 +5,7 @@ A Jackson streaming dataformat module for SpreadsheetML — same pattern as `jac
 | jackson-dataformat-csv | jackson-dataformat-spreadsheet |
 |---|---|
 | `CsvMapper extends ObjectMapper` | `SpreadsheetMapper extends ObjectMapper` |
-| `CsvParser extends CsvParserBase extends ParserMinimalBase` | `SheetParser extends ParserMinimalBase` |
+| `CsvParser extends ParserMinimalBase` | `SheetParser extends ParserMinimalBase` |
 | `CsvGenerator extends GeneratorBase` | `SheetGenerator extends GeneratorBase` |
 | `CsvFactory extends JsonFactory` | `SpreadsheetFactory extends JsonFactory` |
 | `CsvSchema` via `FormatVisitor` | `SpreadsheetSchema` via `FormatVisitor` |
@@ -322,6 +322,6 @@ By default, both XLSX read and write paths bypass POI's User Model — the read 
 
 ---
 
-Public API surface: `SpreadsheetMapper`, `SheetInput`, `SheetOutput`, `@DataGrid`, `@DataColumn`, `SpreadsheetSchema`, `SheetParser.Feature`, `SpreadsheetFactory.Feature`.
+Public API surface (types users typically import): `SpreadsheetMapper`, `@DataGrid`, `@DataColumn`, `SheetInput`, `SheetOutput`, `SpreadsheetSchema`, `StylesBuilder`, `GridConfigurer`, `SheetMappingIterator`, `SheetLocation`, `SheetParser.Feature`, `SpreadsheetFactory.Feature`.
 
 Everything under `poi/` is implementation detail — swappable without affecting the streaming contract.
