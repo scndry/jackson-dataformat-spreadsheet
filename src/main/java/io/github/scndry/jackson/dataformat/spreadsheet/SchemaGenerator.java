@@ -12,7 +12,6 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.sheet.SheetConfigurer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.ColumnNameResolver;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.FormatVisitorWrapper;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
@@ -44,7 +43,7 @@ public final class SchemaGenerator {
         return new SchemaGenerator(_generatorSettings.with(origin));
     }
 
-    public SchemaGenerator withStylesBuilder(final Styles.Builder builder) {
+    public SchemaGenerator withStylesBuilder(final StylesBuilder builder) {
         return new SchemaGenerator(_generatorSettings.with(builder));
     }
 
@@ -139,11 +138,11 @@ public final class SchemaGenerator {
         private final CellAddress _origin;
         private final int _features;
         private final ColumnNameResolver _columnNameResolver;
-        private final Styles.Builder _stylesBuilder;
+        private final StylesBuilder _stylesBuilder;
         private final SheetConfigurer _sheetConfigurer;
 
         GeneratorSettings(final CellAddress origin, final int features, final ColumnNameResolver columnNameResolver,
-                          final Styles.Builder stylesBuilder, final SheetConfigurer sheetConfigurer) {
+                          final StylesBuilder stylesBuilder, final SheetConfigurer sheetConfigurer) {
             _origin = origin;
             _features = features;
             _columnNameResolver = columnNameResolver;
@@ -170,7 +169,7 @@ public final class SchemaGenerator {
                 : new GeneratorSettings(_origin, _features, resolver, _stylesBuilder, _sheetConfigurer);
         }
 
-        private GeneratorSettings with(final Styles.Builder styles) {
+        private GeneratorSettings with(final StylesBuilder styles) {
             return _stylesBuilder.equals(styles)
                 ? this
                 : new GeneratorSettings(_origin, _features, _columnNameResolver, styles, _sheetConfigurer);

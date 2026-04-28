@@ -16,6 +16,7 @@ import org.apache.poi.ss.util.CellAddress;
 import com.fasterxml.jackson.core.FormatSchema;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.sheet.SheetConfigurer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
 
 /**
  * {@link FormatSchema} implementation that defines the column
@@ -41,14 +42,14 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     private final List<Column> _columns;
     private final CellAddress _origin;
     private final int _features;
-    private final Styles.Builder _stylesBuilder;
+    private final StylesBuilder _stylesBuilder;
     private final SheetConfigurer _sheetConfigurer;
 
     public SpreadsheetSchema(
             final List<Column> columns,
             final CellAddress origin,
             final int features,
-            final Styles.Builder stylesBuilder,
+            final StylesBuilder stylesBuilder,
             final SheetConfigurer sheetConfigurer) {
         _columns = columns;
         _origin = origin;
