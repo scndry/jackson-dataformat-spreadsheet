@@ -691,6 +691,114 @@ class JacksonAnnotationTest {
         assertThat(read.get(0).inner.y).isEqualTo(2);
     }
 
+    @DataGrid
+    static class WithPrefixUnwrapped {
+        public String name;
+        @JsonUnwrapped(prefix = "inner_")
+        public InnerValue inner;
+
+        public WithPrefixUnwrapped() {}
+        public WithPrefixUnwrapped(String name, InnerValue inner) {
+            this.name = name;
+            this.inner = inner;
+        }
+    }
+
+    @Test
+    void jsonUnwrappedWithPrefix_roundTrip() throws Exception {
+        File file = tempFile("unwrapped-prefix.xlsx");
+        mapper.writeValue(file, Arrays.asList(
+                new WithPrefixUnwrapped("A", new InnerValue(1, 2))),
+                WithPrefixUnwrapped.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Row header = wb.getSheetAt(0).getRow(0);
+            assertThat(header.getCell(0).getStringCellValue()).isEqualTo("name");
+            assertThat(header.getCell(1).getStringCellValue()).isEqualTo("inner_x");
+            assertThat(header.getCell(2).getStringCellValue()).isEqualTo("inner_y");
+        }
+
+        List<WithPrefixUnwrapped> read = mapper.readValues(file, WithPrefixUnwrapped.class);
+        assertThat(read.get(0).name).isEqualTo("A");
+        assertThat(read.get(0).inner.x).isEqualTo(1);
+        assertThat(read.get(0).inner.y).isEqualTo(2);
+    }
+
+    @DataGrid
+    static class WithSuffixUnwrapped {
+        public String name;
+        @JsonUnwrapped(suffix = "_v")
+        public InnerValue inner;
+
+        public WithSuffixUnwrapped() {}
+        public WithSuffixUnwrapped(String name, InnerValue inner) {
+            this.name = name;
+            this.inner = inner;
+        }
+    }
+
+    @Test
+    void jsonUnwrappedWithSuffix_roundTrip() throws Exception {
+        File file = tempFile("unwrapped-suffix.xlsx");
+        mapper.writeValue(file, Arrays.asList(
+                new WithSuffixUnwrapped("A", new InnerValue(1, 2))),
+                WithSuffixUnwrapped.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Row header = wb.getSheetAt(0).getRow(0);
+            assertThat(header.getCell(0).getStringCellValue()).isEqualTo("name");
+            assertThat(header.getCell(1).getStringCellValue()).isEqualTo("x_v");
+            assertThat(header.getCell(2).getStringCellValue()).isEqualTo("y_v");
+        }
+
+        List<WithSuffixUnwrapped> read = mapper.readValues(file, WithSuffixUnwrapped.class);
+        assertThat(read.get(0).name).isEqualTo("A");
+        assertThat(read.get(0).inner.x).isEqualTo(1);
+        assertThat(read.get(0).inner.y).isEqualTo(2);
+    }
+
+    @DataGrid
+    static class WithMultipleUnwrapped {
+        public String name;
+        @JsonUnwrapped(prefix = "home_")
+        public InnerValue home;
+        @JsonUnwrapped(prefix = "work_")
+        public InnerValue work;
+
+        public WithMultipleUnwrapped() {}
+        public WithMultipleUnwrapped(String name, InnerValue home, InnerValue work) {
+            this.name = name;
+            this.home = home;
+            this.work = work;
+        }
+    }
+
+    @Test
+    void jsonUnwrappedWithDistinctPrefixes_avoidsCollision() throws Exception {
+        File file = tempFile("unwrapped-multi.xlsx");
+        mapper.writeValue(file, Arrays.asList(
+                new WithMultipleUnwrapped("A",
+                        new InnerValue(1, 2),
+                        new InnerValue(3, 4))),
+                WithMultipleUnwrapped.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Row header = wb.getSheetAt(0).getRow(0);
+            assertThat(header.getCell(0).getStringCellValue()).isEqualTo("name");
+            assertThat(header.getCell(1).getStringCellValue()).isEqualTo("home_x");
+            assertThat(header.getCell(2).getStringCellValue()).isEqualTo("home_y");
+            assertThat(header.getCell(3).getStringCellValue()).isEqualTo("work_x");
+            assertThat(header.getCell(4).getStringCellValue()).isEqualTo("work_y");
+        }
+
+        List<WithMultipleUnwrapped> read = mapper.readValues(file, WithMultipleUnwrapped.class);
+        assertThat(read.get(0).name).isEqualTo("A");
+        assertThat(read.get(0).home.x).isEqualTo(1);
+        assertThat(read.get(0).home.y).isEqualTo(2);
+        assertThat(read.get(0).work.x).isEqualTo(3);
+        assertThat(read.get(0).work.y).isEqualTo(4);
+    }
+
     // ----------------------------------------------------------------
     // @JsonIncludeProperties
     // ----------------------------------------------------------------
