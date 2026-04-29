@@ -8,6 +8,17 @@
 - GC profiler enabled (`gc.alloc.rate.norm` = bytes allocated per operation)
 - Test data: mixed types (String + int + double + boolean), `XSSFWorkbook` (shared string table), 6 columns
 - All benchmarks use each library's default configuration for fair comparison
+- Apache POI mode: `XSSFWorkbook` for read (User Model), `SXSSFWorkbook` for write (POI's streaming write API)
+
+### Library Versions
+
+| Library | Version |
+|---------|---------|
+| jackson-dataformat-spreadsheet | 1.4.0 |
+| Apache POI | 5.5.1 |
+| FastExcel | 0.20.0 |
+| Fesod | 2.0.1-incubating |
+| Poiji | 5.4.0 |
 
 ## Read — Throughput
 

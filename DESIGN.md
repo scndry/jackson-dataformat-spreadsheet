@@ -26,9 +26,9 @@ This library doesn't wrap POI. It sits **above** POI at the streaming layer:
 Your code → ObjectMapper (Jackson) → SheetParser/SheetGenerator (this library) → SheetReader/SheetWriter → POI or StAX
 ```
 
-POI is one of two I/O backends — the other being direct StAX. The default XLSX path bypasses POI entirely (StAX + StringBuilder). POI is used when the user needs it — direct `Sheet` access, XLS format, or `USE_POI_USER_MODEL`. It's opt-in, not the foundation.
+POI is one of two I/O backends — the other being direct StAX. The default XLSX path bypasses POI's User Model: StAX for read, StringBuilder + POI skeleton for write. POI remains a dependency for skeleton generation, XLS support, style API, and opt-in modes (`Sheet` direct access or `USE_POI_USER_MODEL`).
 
-This is why the library can outperform POI for reading and writing. POI is still a dependency (skeleton generation, XLS support, style API), but the default XLSX path avoids POI's Sheet/Row/Cell overhead at runtime.
+This is why the library can outperform POI for reading and writing — the default XLSX path avoids POI's Sheet/Row/Cell overhead at runtime.
 
 ## The Mental Model Shift
 

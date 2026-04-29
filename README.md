@@ -146,12 +146,14 @@ Fastest read and write throughput at 100K rows. See [BENCHMARK.md](BENCHMARK.md)
 | POJO data binding | Yes | No | Yes | No |
 | Nested object support | Yes | No | No | No |
 | Jackson ecosystem | Yes | No | No | No |
-| Streaming read | Yes | Event API | Yes | Yes |
-| Streaming write | Yes | SXSSF | Yes | Yes |
+| Streaming read | Yes¹ | Event API | Yes | Yes |
+| Streaming write | Yes¹ | SXSSF | Yes | Yes |
 | Cell styling | Yes | Yes | Yes | No |
 | XLSX read/write | Yes | Yes | Yes | Yes |
 | XLS read/write | Yes | Yes | No | No |
 | Annotation mapping | Yes | No | Yes | No |
+
+¹ XLSX streams via StAX; XLS uses in-memory POI workbook (HSSF has no streaming API).
 
 ## Key Features
 
