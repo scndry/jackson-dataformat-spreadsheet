@@ -618,7 +618,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .build();
 ```
 
-`freezePane(colSplit, rowSplit)` delegates to POI `Sheet#createFreezePane`. `autoFilter()` enables the filter dropdown across all schema columns; the range is computed from the schema and row count.
+`freezePane(colSplit, rowSplit)` delegates to POI `Sheet#createFreezePane` — the leftmost `colSplit` columns and topmost `rowSplit` rows stay fixed while scrolling. `autoFilter()` enables the filter dropdown across all schema columns; the range is computed from the schema and row count. Both the streaming default and `USE_POI_USER_MODEL` write paths apply these identically.
 
 ### Conditional Formatting
 

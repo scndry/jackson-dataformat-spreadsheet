@@ -65,9 +65,9 @@ Layer 3 is fully inherited — all Jackson annotations, overloads, and features 
 
 ## Scope
 
-This module handles **data binding between POJOs and spreadsheet cells**. Nothing more.
+This library handles **data binding between POJOs and spreadsheet cells**. Nothing more.
 
-| This module | POI (or user code) |
+| This library | POI (or user code) |
 |---|---|
 | POJO → flat cells (write) | Workbook lifecycle, file I/O |
 | Flat cells → POJO (read) | Charts, images, pivot tables |
@@ -75,7 +75,7 @@ This module handles **data binding between POJOs and spreadsheet cells**. Nothin
 | Header generation, cell styling | Macros (.xlsm) |
 | Schema generation from class structure | Cell-level random access |
 
-`Sheet` is an I/O type — like `OutputStream` in jackson-core. The module reads from and writes to a POI `Sheet` but does not manage the `Workbook` lifecycle. Users open a workbook with POI, pass a `Sheet` to the mapper, and close the workbook themselves. This enables template-based writing, multi-sheet workbooks, and post-processing with POI — all outside the module's concern.
+`Sheet` is an I/O type — like `OutputStream` in jackson-core. The library reads from and writes to a POI `Sheet` but does not manage the `Workbook` lifecycle. Users open a workbook with POI, pass a `Sheet` to the mapper, and close the workbook themselves. This enables template-based writing, multi-sheet workbooks, and post-processing with POI — all outside the library's concern.
 
 ## Design Decisions
 
@@ -153,6 +153,8 @@ pointer1.relativize(pointer2)                                        → relativ
 
 When the parser moves from one cell to the next, it computes the relative path between the current and previous `ColumnPointer`.
 If the parent changes (e.g., `address/city` → `employment/title`), the parser emits `END_OBJECT` for the old scope and `START_OBJECT` + `FIELD_NAME` for the new one.
+
+`ColumnPointer` is custom rather than reusing Jackson's `JsonPointer` because spreadsheet columns flatten arrays in place — `items[0]/qty` and `items[1]/qty` map to the same column, not distinct paths. `ColumnPointer.resolveArray()` collapses the index, while `JsonPointer` would preserve it.
 
 ### SheetToken
 
@@ -275,7 +277,31 @@ mapper.writeValue(file, employee)
 | Performance | ~150 ms / 100K rows | ~335 ms / 100K rows |
 | Format | XLSX only (requires XSSFWorkbook) | XLSX, XLS |
 
-SSMLSheetWriter creates a POI XSSFWorkbook with styles and an empty sheet, saves it to a temp file as a complete XLSX skeleton. It then opens the skeleton as a zip, copies all entries except `sheet1.xml` and `sharedStrings.xml`, and writes those two parts via StringBuilder streaming. POI guarantees the metadata (styles, rels, content types, core properties); StringBuilder provides the throughput.
+### Skeleton-Based Streaming
+
+The split is **correctness vs. throughput**. The throughput bottleneck is `sheetData` + `sharedStrings.xml` — one entry per cell, scaling with row count. Everything else (relationships, content types, core properties, theme, drawing rels, namespace declarations, even `mergeCells`/`autoFilter`/`conditionalFormatting`) is bounded in size and OOXML spec-sensitive. Hand-rolling those in StringBuilder is not a throughput question; it's a compatibility risk.
+
+`SSMLSheetWriter` lets POI generate a complete XLSX skeleton with the target schema's styles and an empty sheet, then patches only the two streaming entries:
+
+```
+setSchema()
+  ├─ XSSFWorkbook (styles + empty sheet) → temp file
+  ├─ schema.configureSheet() applies sheet-level features to the skeleton
+  └─ split sheet1.xml at <sheetData>:
+        head, tail   (POI-generated; copied verbatim)
+        data         (<row> entries — streamed at write time)
+
+close()
+  ├─ for each zip entry:
+  │     sheet1.xml        → head + streamed rows + tail
+  │     sharedStrings.xml → SharedStringsStore-driven streaming
+  │     others            → copied as-is
+  └─ delete temp file
+```
+
+POI owns OOXML correctness. StringBuilder owns per-cell throughput. The skeleton is the contract between them.
+
+`GridConfigurer` attaches sheet-level features (freeze pane, auto filter, conditional formatting) to the schema. `POISheetWriter` applies them after data is written; `SSMLSheetWriter` applies them to the skeleton in `setSchema()`, so POI's generated XML carries through the `sheet1.xml` split.
 
 ## Schema Generation
 

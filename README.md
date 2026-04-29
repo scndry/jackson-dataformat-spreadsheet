@@ -56,7 +56,7 @@ implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.4.0"
 
 ## Quick Start
 
-### Define your model
+### Define Your Model
 
 ```java
 @DataGrid
@@ -197,6 +197,23 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .stylesBuilder(styles)
     .build();
 ```
+
+### Sheet-Level Features
+
+`GridConfigurer` adds conditional formatting, freeze pane, and auto filter on top of the data grid — without dropping into POI Sheet/Cell code.
+
+```java
+SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+    .stylesBuilder(styles)
+    .gridConfigurer(new GridConfigurer()
+        .freezePane(0, 1)
+        .autoFilter()
+        .conditionalFormatting()
+            .column("score").greaterThanOrEqual("80").style("highlight").end())
+    .build();
+```
+
+Conditional formatting rules reference columns from the model class and styles from `StylesBuilder` — both name-based and resolved at write time.
 
 ### Configuration
 
