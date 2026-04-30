@@ -51,6 +51,27 @@ class AutoSizeTest {
         private String second;
     }
 
+    @Data @NoArgsConstructor @AllArgsConstructor
+    @DataGrid(autoSizeColumn = OptBoolean.TRUE)
+    static class MaxBound {
+        @DataColumn(value = "Name", maxWidth = 10)
+        private String name;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    @DataGrid(autoSizeColumn = OptBoolean.TRUE)
+    static class MinBound {
+        @DataColumn(value = "Name", minWidth = 20)
+        private String name;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    @DataGrid(autoSizeColumn = OptBoolean.TRUE)
+    static class Numeric {
+        @DataColumn("Value")
+        private long value;
+    }
+
     @Test
     void sxssfCapturesWidthFromFlushedRows() throws Exception {
         File file = new File(tempDir, "as-sxssf.xlsx");
@@ -150,11 +171,15 @@ class AutoSizeTest {
     void multipleColumnsTrackedIndependently() throws Exception {
         File file = new File(tempDir, "as-multi-col.xlsx");
 
-        // Different long values in different columns at different rows. Both within the
-        // first-100 full-scan range so sampling doesn't interfere with the assertion.
+        // Different-length long values in different columns. If a single global max were
+        // tracked across columns, both would reach the longer value's width. Per-column
+        // tracking keeps each column at its own outlier's width.
+        final String longForFirst = "narrow-long";              // 11 chars
+        final String longForSecond = "much-longer-string-value"; // 24 chars
+
         List<Pair> data = new ArrayList<>();
-        data.add(new Pair(LONG_VALUE, SHORT_VALUE));   // wide for col 0 only
-        data.add(new Pair(SHORT_VALUE, LONG_VALUE));   // wide for col 1 only
+        data.add(new Pair(longForFirst, SHORT_VALUE));
+        data.add(new Pair(SHORT_VALUE, longForSecond));
         for (int i = 2; i < 50; i++) {
             data.add(new Pair(SHORT_VALUE, SHORT_VALUE));
         }
@@ -166,8 +191,78 @@ class AutoSizeTest {
 
         try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
             XSSFSheet sheet = wb.getSheetAt(0);
-            assertThat(sheet.getColumnWidth(0)).as("col 0 must reflect its own long value").isGreaterThan(20 * 256);
-            assertThat(sheet.getColumnWidth(1)).as("col 1 must reflect its own long value").isGreaterThan(20 * 256);
+            int width0 = sheet.getColumnWidth(0);
+            int width1 = sheet.getColumnWidth(1);
+            assertThat(width0).as("col 0 widened by its own long value").isGreaterThan(5 * 256);
+            assertThat(width1).as("col 1 widened by its own (longer) long value").isGreaterThan(15 * 256);
+            assertThat(width0).as("col 0 must NOT inherit col 1's wider value").isLessThan(width1);
+        }
+    }
+
+    @Test
+    void maxWidthCapsAutoSize() throws Exception {
+        File file = new File(tempDir, "as-maxwidth.xlsx");
+
+        // LONG_VALUE measures to ~46 chars but maxWidth=10 caps the final width.
+        List<MaxBound> data = new ArrayList<>();
+        data.add(new MaxBound(LONG_VALUE));
+        for (int i = 1; i < 10; i++) {
+            data.add(new MaxBound(SHORT_VALUE));
+        }
+
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+                .build();
+        mapper.writeValue(file, data, MaxBound.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            int width = wb.getSheetAt(0).getColumnWidth(0);
+            assertThat(width).as("autoSize must respect maxWidth").isEqualTo(10 * 256);
+        }
+    }
+
+    @Test
+    void minWidthFloorsAutoSize() throws Exception {
+        File file = new File(tempDir, "as-minwidth.xlsx");
+
+        // All-short data measures to a tiny width, but minWidth=20 raises it.
+        List<MinBound> data = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            data.add(new MinBound(SHORT_VALUE));
+        }
+
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+                .build();
+        mapper.writeValue(file, data, MinBound.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            int width = wb.getSheetAt(0).getColumnWidth(0);
+            assertThat(width).as("autoSize must respect minWidth").isEqualTo(20 * 256);
+        }
+    }
+
+    @Test
+    void autoSizeMeasuresNumericValues() throws Exception {
+        File file = new File(tempDir, "as-numeric.xlsx");
+
+        // Non-String paths route through DataFormatter. Stay below ~12 digits so the General
+        // format doesn't switch to scientific notation, which would compress the rendered text.
+        List<Numeric> data = new ArrayList<>();
+        data.add(new Numeric(1234567890L));
+        for (int i = 1; i < 50; i++) {
+            data.add(new Numeric(0L));
+        }
+
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+                .build();
+        mapper.writeValue(file, data, Numeric.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            int width = wb.getSheetAt(0).getColumnWidth(0);
+            // 10-digit number should yield a column wider than the header "Value" (5 chars).
+            assertThat(width).as("autoSize must measure numeric cells via DataFormatter").isGreaterThan(7 * 256);
         }
     }
 
