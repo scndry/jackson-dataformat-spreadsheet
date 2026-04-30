@@ -116,8 +116,19 @@ public final class SSMLSheetWriter implements SheetWriter {
             _startSheetXmlEntry();
             _appendFixedColumns();
             _startSheetData();
+            _warnIfAutoSizeUsed();
         } catch (IOException e) {
             throw new IllegalStateException("Failed to build skeleton", e);
+        }
+    }
+
+    private void _warnIfAutoSizeUsed() {
+        for (final Column column : _schema) {
+            if (column.getValue().isAutoSize()) {
+                log.warn("autoSize on column '{}' is ignored in default streaming mode."
+                        + " Enable USE_POI_USER_MODEL or set an explicit width to apply autoSize.",
+                        column.getName());
+            }
         }
     }
 

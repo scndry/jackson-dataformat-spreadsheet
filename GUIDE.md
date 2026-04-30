@@ -472,6 +472,10 @@ Customizes individual column properties. Unset attributes inherit from the enclo
 
 `autoSize` may not be accurate for [fullwidth forms](https://en.wikipedia.org/wiki/Halfwidth_and_fullwidth_forms) like [CJK characters](https://en.wikipedia.org/wiki/CJK_characters).
 
+`autoSize` is not supported in the default streaming write path because the worksheet XML is emitted directly and no POI `Cell` objects exist to measure. Enable `SpreadsheetFactory.Feature.USE_POI_USER_MODEL` to use `autoSize`, or set `width` explicitly. A warning is logged when `autoSize` is set in the default path.
+
+When `USE_POI_USER_MODEL` is enabled, `autoSize` measures the first 100 data rows in full, then samples every 100th data row thereafter. Sampling is anchored to the data start row, so a high `origin` does not skip the early data. This keeps overhead bounded for large workbooks (~1.5× write time at 100K rows). Outlier-long values that fall between sample rows after the first 100 may not influence the final width — pin a known column with `width` if exact fit matters more than sampling speed.
+
 ### Attribute Resolution Order
 
 Column attributes resolve in priority order:

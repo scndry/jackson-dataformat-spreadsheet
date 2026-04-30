@@ -2,13 +2,16 @@ package io.github.scndry.jackson.dataformat.spreadsheet.poi.ss;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellAddress;
@@ -36,6 +39,10 @@ import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
 public final class POISheetWriter implements SheetWriter {
 
     private static final int MAX_COLUMN_WIDTH = 255 * 256;
+    // AUTOSIZE_FULL_SCAN_ROWS must be >= AUTOSIZE_SAMPLE_PERIOD; otherwise rows between the
+    // full-scan range and the first sample point would be silently skipped.
+    private static final int AUTOSIZE_FULL_SCAN_ROWS = 100;
+    private static final int AUTOSIZE_SAMPLE_PERIOD = 100;
 
     private final Sheet _sheet;
     private final OutputStream _out;
@@ -44,6 +51,9 @@ public final class POISheetWriter implements SheetWriter {
     private Styles _styles;
     private int _lastRow;
     private int _savedWindowSize = -1;
+    private final Map<Integer, Double> _columnMaxWidth = new HashMap<>();
+    private DataFormatter _dataFormatter;
+    private int _defaultCharWidth;
 
     public POISheetWriter(final Sheet sheet) {
         this(sheet, null);
@@ -64,6 +74,8 @@ public final class POISheetWriter implements SheetWriter {
         _schema = schema;
         _styles = _schema.buildStyles(_sheet.getWorkbook());
         _schema.applyHeaderComments(_sheet);
+        _dataFormatter = new DataFormatter();
+        _defaultCharWidth = SheetUtil.getDefaultCharWidth(_sheet.getWorkbook());
     }
 
     @Override
@@ -76,9 +88,6 @@ public final class POISheetWriter implements SheetWriter {
         final int row = _schema.getOriginRow();
         for (final Column column : _schema) {
             final int col = _schema.columnIndexOf(column);
-            if (_sheet instanceof SXSSFSheet && column.getValue().isAutoSize()) {
-                ((SXSSFSheet) _sheet).trackColumnForAutoSizing(col);
-            }
             setReference(new CellAddress(row, col));
             writeString(column.getName());
         }
@@ -129,6 +138,9 @@ public final class POISheetWriter implements SheetWriter {
                     ? _styles.getHeaderStyle(column) : _styles.getStyle(column);
             if (style != null) {
                 cell.setCellStyle(style);
+            }
+            if (column.getValue().isAutoSize() && _shouldMeasureAutoSize(row)) {
+                _accumulateAutoSizeWidth(_reference.getColumn(), cell);
             }
         }
         _lastRow = Math.max(_lastRow, row);
@@ -194,13 +206,7 @@ public final class POISheetWriter implements SheetWriter {
             final DataColumn.Value value = column.getValue();
             double width;
             if (value.isAutoSize()) {
-                if (_sheet instanceof SXSSFSheet) {
-                    _sheet.autoSizeColumn(col, true);
-                    width = _sheet.getColumnWidth(col) / 256d;
-                } else {
-                    int firstRow = Math.max(_sheet.getFirstRowNum(), _lastRow - 100);
-                    width = SheetUtil.getColumnWidth(_sheet, col, true, firstRow, _lastRow);
-                }
+                width = _columnMaxWidth.getOrDefault(col, 0.0);
                 width = Math.max(width, value.getMinWidth());
                 width = Math.min(width, value.getMaxWidth());
             } else {
@@ -210,6 +216,26 @@ public final class POISheetWriter implements SheetWriter {
             width *= 256;
             width = Math.min(width, MAX_COLUMN_WIDTH);
             _sheet.setColumnWidth(col, (int) width);
+        }
+    }
+
+    private boolean _shouldMeasureAutoSize(final int row) {
+        final int dataStart = _schema.getDataRow();
+        if (row < dataStart) return true;
+        final int relRow = row - dataStart;
+        return relRow < AUTOSIZE_FULL_SCAN_ROWS || relRow % AUTOSIZE_SAMPLE_PERIOD == 0;
+    }
+
+    private void _accumulateAutoSizeWidth(final int col, final Cell cell) {
+        try {
+            final double w = SheetUtil.getCellWidth(cell, _defaultCharWidth, _dataFormatter, false);
+            if (w > 0) {
+                _columnMaxWidth.merge(col, w, Math::max);
+            }
+        } catch (RuntimeException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("autoSize measurement failed at col {}: {}", col, e.getMessage());
+            }
         }
     }
 
