@@ -279,7 +279,7 @@ mapper.writeValue(file, employee)
 
 ### Skeleton-Based Streaming
 
-The split is **correctness vs. throughput**. The throughput bottleneck is `sheetData` + `sharedStrings.xml` — one entry per cell, scaling with row count. Everything else (relationships, content types, core properties, theme, drawing rels, namespace declarations, even `mergeCells`/`autoFilter`/`conditionalFormatting`) is bounded in size and OOXML spec-sensitive. Hand-rolling those in StringBuilder is not a throughput question; it's a compatibility risk.
+The split **separates correctness from throughput**. The throughput bottleneck is `sheetData` + `sharedStrings.xml` — one entry per cell, scaling with row count. Everything else (relationships, content types, core properties, theme, drawing rels, namespace declarations, even `mergeCells`/`autoFilter`/`conditionalFormatting`) is bounded in size and OOXML spec-sensitive. Hand-rolling those in StringBuilder is not a throughput question; it's a compatibility risk.
 
 `SSMLSheetWriter` lets POI generate a complete XLSX skeleton with the target schema's styles and an empty sheet, then patches only the two streaming entries:
 
