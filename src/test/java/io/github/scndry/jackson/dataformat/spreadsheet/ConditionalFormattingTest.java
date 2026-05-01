@@ -61,7 +61,7 @@ class ConditionalFormattingTest {
                 .gridConfigurer(new GridConfigurer()
                         .conditionalFormatting()
                             .column("score")
-                            .greaterThanOrEqual("80")
+                            .greaterThanOrEqual(80)
                             .style("highlight")
                             .end())
                 .build();
@@ -97,7 +97,7 @@ class ConditionalFormattingTest {
                 .gridConfigurer(new GridConfigurer()
                         .conditionalFormatting()
                             .column("score")
-                            .greaterThanOrEqual("80")
+                            .greaterThanOrEqual(80)
                             .style("highlight")
                             .end())
                 .build();
@@ -145,7 +145,7 @@ class ConditionalFormattingTest {
                 .gridConfigurer(new GridConfigurer()
                         .conditionalFormatting()
                             .column("score")
-                            .greaterThanOrEqual("80")
+                            .greaterThanOrEqual(80)
                             .style("highlight")
                             .end())
                 .build();
@@ -171,7 +171,7 @@ class ConditionalFormattingTest {
         GridConfigurer gridConfigurer = new GridConfigurer()
                 .conditionalFormatting()
                     .column("score")
-                    .greaterThanOrEqual("80")
+                    .greaterThanOrEqual(80)
                     .style("highlight")
                     .end();
 
@@ -212,7 +212,7 @@ class ConditionalFormattingTest {
                 .gridConfigurer(new GridConfigurer()
                         .conditionalFormatting()
                             .column("score")
-                            .greaterThanOrEqual("80")
+                            .greaterThanOrEqual(80)
                             .style("highlight")
                             .end())
                 .build();
