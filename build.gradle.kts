@@ -32,7 +32,7 @@ dependencies {
     testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.14.4")
     testRuntimeOnly("ch.qos.logback:logback-classic:1.3.16")
-    testRuntimeOnly("org.apache.logging.log4j:log4j-to-slf4j:2.24.3")
+    testRuntimeOnly("org.apache.logging.log4j:log4j-to-slf4j:2.25.4")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.14.4")
     testRuntimeOnly("com.h2database:h2:2.3.232")
 }
