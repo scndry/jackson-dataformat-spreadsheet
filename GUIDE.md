@@ -618,7 +618,10 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
         .freezePane(0, 1)
         .autoFilter()
         .conditionalFormatting()
-            .column("score").greaterThanOrEqual("80").style("highlight").end())
+            .column("score")
+            .greaterThanOrEqual(80)
+            .style("highlight")
+            .end())
     .build();
 ```
 
@@ -628,13 +631,59 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 
 `column(name)` matches `@DataColumn(value)`, the field name, or `@JsonAlias`. `style(name)` matches a `cellStyle(name)` in `StylesBuilder`. Both resolve at write time — typos throw `IllegalArgumentException` listing the available names.
 
+Operators accept typed values (numeric, boolean, string, date) or `Formula` for cell references and Excel expressions. String operands are auto-quoted; dates emit as `DATE(y,m,d)+TIME(h,m,s)`.
+
 ```java
-.conditionalFormatting().column("score").greaterThan("90").style("good").end()
-.conditionalFormatting().column("status").equalTo("\"URGENT\"").style("warn").end()  // text: quote the value
-.conditionalFormatting().column("price").between("100", "500").style("warn").end()
+// Typed primitives
+.conditionalFormatting().column("score").greaterThan(90).style("good").end()
+.conditionalFormatting().column("price").between(100, 500).style("warn").end()
+.conditionalFormatting().column("status").equalTo("URGENT").style("warn").end()
+.conditionalFormatting().column("active").equalTo(true).style("info").end()
+
+// Date types — LocalDate, LocalDateTime, Date, Calendar all supported
+.conditionalFormatting().column("createdAt").greaterThan(LocalDate.of(2026, 1, 1)).style("recent").end()
+
+// Cell reference / function — Formula.of for raw passthrough
+.conditionalFormatting().column("price").greaterThan(Formula.of("$D$1")).style("warn").end()
+.conditionalFormatting().column("price").greaterThan(Formula.of("AVERAGE($B$2:$B$100)")).style("aboveAvg").end()
+
+// Schema-aware cross-column reference — row-relative, schema-safe
+.conditionalFormatting().column("price").greaterThan(Formula.column("minPrice")).style("warn").end()
+
+// Arbitrary boolean expression rule (type="expression")
+.conditionalFormatting().column("score").expression("AND($A1>0, $B1<100)").style("warn").end()
 ```
 
-Operators: `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `equalTo`, `notEqualTo`, `between`, `notBetween`.
+Operators: `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `equalTo`, `notEqualTo`, `between`, `notBetween`. Equality also accepts `boolean` and `String`.
+
+Operand types: any `Number` (`int`, `long`, `double`, `float`, `BigDecimal`, etc. — primitives are autoboxed), `boolean`, `String` (equality only — auto-escaped to Excel string literal), `LocalDate`, `LocalDateTime`, `Date`, `Calendar`, `Formula`.
+
+#### Date and time precision
+
+Dates emit as Excel formula expressions:
+
+| Type | Formula |
+|------|---------|
+| `LocalDate` | `DATE(y,m,d)` |
+| `LocalDateTime` | `DATE(y,m,d)+TIME(h,m,s)` — sub-second truncated |
+| `Date` | `DATE(y,m,d)+TIME(h,m,s)` — converted via system default timezone |
+| `Calendar` | `DATE(y,m,d)+TIME(h,m,s)` — converted via Calendar's timezone |
+
+Prefer `LocalDate` / `LocalDateTime` for deterministic CF rules. `Date` carries a system-timezone dependence; the resulting formula varies with the JVM `ZoneId.systemDefault()`.
+
+#### `cellIs` vs `expression`
+
+| | `cellIs` operators | `expression` |
+|---|---|---|
+| Compares | The cell against operand(s) | Arbitrary boolean formula |
+| Example | `.column("price").greaterThan(100)` | `.column("price").expression("$E1<$F1")` |
+| Use when | Direct comparison fits | Need cross-cell logic, `AND`/`OR`, `ISBLANK`, etc. |
+
+`expression(formula)` is passed verbatim to POI; do not include a leading `=`.
+
+#### Formula escape
+
+`Formula.of(text)` is a power-user escape — the text is emitted verbatim into the OOXML `<formula>` element. The library does not validate Excel syntax. `Formula.column(name)` resolves the schema column name to a row-relative reference (`$<col><dataStartRow>`) at write time, so Excel auto-shifts per cell in the formatting range.
 
 Style → DXF: fill, font, and border only. Alignment and wrap-text are silently skipped.
 

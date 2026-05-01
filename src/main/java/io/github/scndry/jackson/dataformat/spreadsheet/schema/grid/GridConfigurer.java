@@ -6,6 +6,7 @@ import java.util.List;
 import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.ss.util.CellReference;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 
@@ -88,13 +89,40 @@ public final class GridConfigurer {
             if (cs == null) {
                 throw new IllegalArgumentException("Style '" + spec._styleName + "' not found");
             }
-            final ConditionalFormattingRule rule = spec._formula2 != null
-                    ? scf.createConditionalFormattingRule(spec._operator, spec._formula1, spec._formula2)
-                    : scf.createConditionalFormattingRule(spec._operator, spec._formula1);
+            final ConditionalFormattingRule rule;
+            if (spec._type == ConditionalFormattingRuleSpec.Type.EXPRESSION) {
+                rule = scf.createConditionalFormattingRule(spec._expression);
+            } else {
+                final String f1 = _resolveOperand(spec._operand1, schema);
+                final String f2 = spec._operand2 != null ? _resolveOperand(spec._operand2, schema) : null;
+                rule = f2 != null
+                        ? scf.createConditionalFormattingRule(spec._operator, f1, f2)
+                        : scf.createConditionalFormattingRule(spec._operator, f1);
+            }
             _applyCellStyleToDxf(rule, cs, wb);
             scf.addConditionalFormatting(
                     new CellRangeAddress[]{new CellRangeAddress(dataRow, endRow, colIndex, colIndex)}, rule);
         }
+    }
+
+    private static String _resolveOperand(final Object operand, final SpreadsheetSchema schema) {
+        if (operand instanceof Formula) {
+            final Formula f = (Formula) operand;
+            switch (f.kind()) {
+                case OF:
+                    return f.value();
+                case COLUMN:
+                    final int col = schema.columnIndexByName(f.value());
+                    if (col < 0) {
+                        throw new IllegalArgumentException("Formula column '" + f.value()
+                                + "' not found in schema. Available columns: " + schema.columnNames());
+                    }
+                    return "$" + CellReference.convertNumToColString(col) + (schema.getDataRow() + 1);
+                default:
+                    throw new IllegalStateException("Unknown Formula kind: " + f.kind());
+            }
+        }
+        return (String) operand;
     }
 
     private static void _applyCellStyleToDxf(final ConditionalFormattingRule rule,
