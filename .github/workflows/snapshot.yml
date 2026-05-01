@@ -22,6 +22,11 @@ jobs:
       - name: Build and test
         run: ./gradlew check --console=plain
 
+      - name: Read version
+        id: version
+        run: |
+          echo "value=$(./gradlew -q properties | grep ^version: | awk '{print $2}')" >> $GITHUB_OUTPUT
+
       - name: Publish snapshot to Maven Central
         run: |
           echo "${{ secrets.GPG_SECRET_KEY }}" | base64 -d | gpg --batch --import
