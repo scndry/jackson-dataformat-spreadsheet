@@ -38,12 +38,12 @@ dependencies {
 }
 
 dependencies {
-    annotationProcessor("org.projectlombok:lombok:1.18.44")
-    compileOnly("org.projectlombok:lombok:1.18.44")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.44")
-    testCompileOnly("org.projectlombok:lombok:1.18.44")
-    jmhAnnotationProcessor("org.projectlombok:lombok:1.18.44")
-    jmhCompileOnly("org.projectlombok:lombok:1.18.44")
+    annotationProcessor("org.projectlombok:lombok:1.18.46")
+    compileOnly("org.projectlombok:lombok:1.18.46")
+    testAnnotationProcessor("org.projectlombok:lombok:1.18.46")
+    testCompileOnly("org.projectlombok:lombok:1.18.46")
+    jmhAnnotationProcessor("org.projectlombok:lombok:1.18.46")
+    jmhCompileOnly("org.projectlombok:lombok:1.18.46")
 }
 
 dependencies {
