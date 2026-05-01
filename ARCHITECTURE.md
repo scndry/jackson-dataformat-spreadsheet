@@ -299,7 +299,7 @@ close()
   └─ delete temp file
 ```
 
-POI owns OOXML correctness. StringBuilder owns per-cell throughput. The scaffold is the contract between them.
+POI owns OOXML correctness. StringBuilder owns per-cell throughput. The scaffold is the handoff between them.
 
 `GridConfigurer` attaches sheet-level features (freeze pane, auto filter, conditional formatting) to the schema. `POISheetWriter` applies them after data is written; `SSMLSheetWriter` applies them to the scaffold in `setSchema()`, so POI's generated XML carries through the `sheet1.xml` split.
 
