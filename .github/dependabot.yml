@@ -13,14 +13,8 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
-    ignore:
-      - dependency-name: "ch.qos.logback:logback-classic"
-        versions: "[1.4,)"
-      - dependency-name: "com.h2database:h2"
-        versions: "[2.3,)"
-      - dependency-name: "org.junit.jupiter:*"
-        versions: "[5.12,)"
-      - dependency-name: "gradle-wrapper"
-        versions: "[9,)"
-      - dependency-name: "com.vanniktech.maven.publish"
-        versions: "[0.31,)"
+    allow:
+      - dependency-name: "com.fasterxml.jackson.core:jackson-databind"
+      - dependency-name: "org.apache.poi:*"
+      - dependency-name: "com.fasterxml:aalto-xml"
+      - dependency-name: "org.slf4j:slf4j-api"
