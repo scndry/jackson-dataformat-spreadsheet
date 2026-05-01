@@ -270,23 +270,23 @@ mapper.writeValue(file, employee)
 
 | | SSMLSheetWriter (default) | POISheetWriter (`USE_POI_USER_MODEL`) |
 |---|---|---|
-| Packaging | POI skeleton + ZipOutputStream | POI `Workbook.write()` |
+| Packaging | POI scaffold + ZipOutputStream | POI `Workbook.write()` |
 | Cell writing | StringBuilder → ZipOutputStream | POI `Cell.setCellValue()` |
 | Shared strings | `SharedStringsStore` (in-memory or file-backed) | POI managed |
-| Styles | POI `CellStyle.getIndex()` from skeleton | POI `CellStyle` API |
+| Styles | POI `CellStyle.getIndex()` from scaffold | POI `CellStyle` API |
 | Performance | ~150 ms / 100K rows | ~335 ms / 100K rows |
 | Format | XLSX only (requires XSSFWorkbook) | XLSX, XLS |
 
-### Skeleton-Based Streaming
+### Scaffold-Based Streaming
 
 The split **separates correctness from throughput**. The throughput bottleneck is `sheetData` + `sharedStrings.xml` — one entry per cell, scaling with row count. Everything else (relationships, content types, core properties, theme, drawing rels, namespace declarations, even `mergeCells`/`autoFilter`/`conditionalFormatting`) is bounded in size and OOXML spec-sensitive. Hand-rolling those in StringBuilder is not a throughput question; it's a compatibility risk.
 
-`SSMLSheetWriter` lets POI generate a complete XLSX skeleton with the target schema's styles and an empty sheet, then patches only the two streaming entries:
+`SSMLSheetWriter` lets POI generate a complete XLSX scaffold with the target schema's styles and an empty sheet, then patches only the two streaming entries:
 
 ```
 setSchema()
   ├─ XSSFWorkbook (styles + empty sheet) → temp file
-  ├─ schema.configureSheet() applies sheet-level features to the skeleton
+  ├─ schema.configureSheet() applies sheet-level features to the scaffold
   └─ split sheet1.xml at <sheetData>:
         head, tail   (POI-generated; copied verbatim)
         data         (<row> entries — streamed at write time)
@@ -299,9 +299,9 @@ close()
   └─ delete temp file
 ```
 
-POI owns OOXML correctness. StringBuilder owns per-cell throughput. The skeleton is the contract between them.
+POI owns OOXML correctness. StringBuilder owns per-cell throughput. The scaffold is the contract between them.
 
-`GridConfigurer` attaches sheet-level features (freeze pane, auto filter, conditional formatting) to the schema. `POISheetWriter` applies them after data is written; `SSMLSheetWriter` applies them to the skeleton in `setSchema()`, so POI's generated XML carries through the `sheet1.xml` split.
+`GridConfigurer` attaches sheet-level features (freeze pane, auto filter, conditional formatting) to the schema. `POISheetWriter` applies them after data is written; `SSMLSheetWriter` applies them to the scaffold in `setSchema()`, so POI's generated XML carries through the `sheet1.xml` split.
 
 ## Schema Generation
 
@@ -338,11 +338,11 @@ The read path and the write path have different relationships with POI:
 | **XLSX read (default)** | ZIP package open (`OPCPackage`) | XML parsing (StAX), SharedStrings, cell type resolution |
 | **XLSX read (`USE_POI_USER_MODEL`)** | Everything (`XSSFWorkbook`, `Sheet`, `Row`, `Cell`) | Token translation only |
 | **XLS read** | Everything (`HSSFWorkbook`, `Sheet`, `Row`, `Cell`) | Token translation only |
-| **XLSX write (default)** | Skeleton generation (`XSSFWorkbook.write()`) | StringBuilder streaming for worksheet + SST, zip entry copy for metadata |
+| **XLSX write (default)** | Scaffold generation (`XSSFWorkbook.write()`) | StringBuilder streaming for worksheet + SST, zip entry copy for metadata |
 | **XLSX write (`USE_POI_USER_MODEL`)** | `Workbook.write()`, `CellStyle`, `Font` | Schema-driven cell routing, merge logic |
 | **Styling** | `CellStyle` / `Font` API | `StylesBuilder` (fluent builder layer) |
 
-By default, both XLSX read and write paths bypass POI's User Model — the read path uses direct StAX parsing, the write path uses StringBuilder streaming with a POI skeleton for package metadata. `USE_POI_USER_MODEL` reverts both paths to full POI User Model processing.
+By default, both XLSX read and write paths bypass POI's User Model — the read path uses direct StAX parsing, the write path uses StringBuilder streaming with a POI scaffold for package metadata. `USE_POI_USER_MODEL` reverts both paths to full POI User Model processing.
 
 `POICompat` provides a reflection-based shim for APIs that differ across POI versions (`Date1904Support.isDate1904()` in POI 4.1.1+, `OPCPackage.isStrictOoxmlFormat()` in POI 5.1.0+). Methods are looked up at class load time; missing methods fall back to safe defaults.
 

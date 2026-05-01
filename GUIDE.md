@@ -739,7 +739,7 @@ The two formats use different read paths internally:
 | | XLSX (default) | XLSX (`USE_POI_USER_MODEL`) | XLS |
 |---|---|---|---|
 | Read path | StAX streaming | Apache POI (UserModel) | Apache POI (UserModel) |
-| Write path | StringBuilder + POI skeleton | POI WorkbookProvider (default: `XSSFWorkbook`) | POI `HSSFWorkbook` |
+| Write path | StringBuilder + POI scaffold | POI WorkbookProvider (default: `XSSFWorkbook`) | POI `HSSFWorkbook` |
 
 For large files, XLSX is strongly recommended.
 

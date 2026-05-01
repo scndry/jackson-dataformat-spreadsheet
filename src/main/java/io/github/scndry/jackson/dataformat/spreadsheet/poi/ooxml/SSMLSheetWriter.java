@@ -33,8 +33,8 @@ import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
 
 /**
  * Streaming SpreadsheetML {@link SheetWriter} implementation for XLSX output.
- * Builds a temporary {@link XSSFWorkbook} skeleton for package compatibility, then rewrites worksheet and
- * sharedStrings parts directly while copying the remaining package entries from the skeleton.
+ * Builds a temporary {@link XSSFWorkbook} scaffold for package compatibility, then rewrites worksheet and
+ * sharedStrings parts directly while copying the remaining package entries from the scaffold.
  *
  * @see io.github.scndry.jackson.dataformat.spreadsheet.poi.ss.POISheetWriter
  */
@@ -63,7 +63,7 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     // Styles — resolved from POI XSSFWorkbook
     private XSSFWorkbook _wb;
-    private File _skeleton;
+    private File _scaffold;
     private int[] _columnStyleIndex;
     private int[] _headerColumnStyleIndex;
     private final List<MergeRange> _mergeRanges = new ArrayList<>();
@@ -106,8 +106,8 @@ public final class SSMLSheetWriter implements SheetWriter {
             final Styles styles = _schema.buildStyles(_wb);
             _schema.applyHeaderComments(_sheet);
             _schema.configureSheet(_sheet, styles, -1);
-            _writeSkeletonWorkbook();
-            _splitSkeletonSheetXml();
+            _writeScaffoldWorkbook();
+            _splitScaffoldSheetXml();
             _columnStyleIndex = _resolveColumnStyleIndices(styles, false);
             _headerColumnStyleIndex = _resolveColumnStyleIndices(styles, true);
             _wb.close();
@@ -118,7 +118,7 @@ public final class SSMLSheetWriter implements SheetWriter {
             _startSheetData();
             _warnIfAutoSizeUsed();
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to build skeleton", e);
+            throw new IllegalStateException("Failed to build scaffold", e);
         }
     }
 
@@ -229,7 +229,7 @@ public final class SSMLSheetWriter implements SheetWriter {
     public void write() throws IOException {
         _finishSheetXmlEntry();
         _writeSharedStringsEntry();
-        _copySkeletonEntries();
+        _copyScaffoldEntries();
         _zip.finish();
     }
 
@@ -253,8 +253,8 @@ public final class SSMLSheetWriter implements SheetWriter {
         } catch (IOException e) {
             failure = _mergeFailure(failure, e);
         }
-        if (_skeleton != null && !_skeleton.delete() && log.isDebugEnabled()) {
-            log.debug("Failed to delete skeleton temp file: {}", _skeleton);
+        if (_scaffold != null && !_scaffold.delete() && log.isDebugEnabled()) {
+            log.debug("Failed to delete scaffold temp file: {}", _scaffold);
         }
         if (failure != null) {
             throw failure;
@@ -267,12 +267,12 @@ public final class SSMLSheetWriter implements SheetWriter {
     }
 
     // ----------------------------------------------------------------
-    // Skeleton copy
+    // Scaffold copy
     // ----------------------------------------------------------------
 
-    private void _copySkeletonEntries() throws IOException {
+    private void _copyScaffoldEntries() throws IOException {
         final byte[] buf = new byte[8192];
-        try (ZipInputStream zin = new ZipInputStream(Files.newInputStream(_skeleton.toPath()))) {
+        try (ZipInputStream zin = new ZipInputStream(Files.newInputStream(_scaffold.toPath()))) {
             ZipEntry entry;
             while ((entry = zin.getNextEntry()) != null) {
                 if (_shouldSkipEntry(entry.getName())) {
@@ -399,9 +399,9 @@ public final class SSMLSheetWriter implements SheetWriter {
         _zip.closeEntry();
     }
 
-    private void _writeSkeletonWorkbook() throws IOException {
-        _skeleton = POICompat.createSecureTempFile("jackson-spreadsheet-skeleton-", ".xlsx").toFile();
-        try (OutputStream fos = Files.newOutputStream(_skeleton.toPath())) {
+    private void _writeScaffoldWorkbook() throws IOException {
+        _scaffold = POICompat.createSecureTempFile("jackson-spreadsheet-scaffold-", ".xlsx").toFile();
+        try (OutputStream fos = Files.newOutputStream(_scaffold.toPath())) {
             _wb.write(fos);
         }
     }
@@ -428,8 +428,8 @@ public final class SSMLSheetWriter implements SheetWriter {
         return _entrySheet.equals(entryName) || _entrySst.equals(entryName);
     }
 
-    private void _splitSkeletonSheetXml() throws IOException {
-        try (ZipInputStream zin = new ZipInputStream(Files.newInputStream(_skeleton.toPath()))) {
+    private void _splitScaffoldSheetXml() throws IOException {
+        try (ZipInputStream zin = new ZipInputStream(Files.newInputStream(_scaffold.toPath()))) {
             ZipEntry entry;
             while ((entry = zin.getNextEntry()) != null) {
                 if (_entrySheet.equals(entry.getName())) {
@@ -440,7 +440,7 @@ public final class SSMLSheetWriter implements SheetWriter {
                     final String sheetXml = bos.toString("UTF-8");
                     final int sdStart = sheetXml.indexOf("<sheetData");
                     if (sdStart < 0) {
-                        throw new IOException("Skeleton sheet XML missing <sheetData> element");
+                        throw new IOException("Scaffold sheet XML missing <sheetData> element");
                     }
                     _sheetXmlPrefix = sheetXml.substring(0, sdStart);
                     final int sdEnd = sheetXml.indexOf("</sheetData>");
@@ -449,7 +449,7 @@ public final class SSMLSheetWriter implements SheetWriter {
                     } else {
                         final int selfClose = sheetXml.indexOf("/>", sdStart);
                         if (selfClose < 0) {
-                            throw new IOException("Malformed skeleton sheet XML: unclosed <sheetData> element");
+                            throw new IOException("Malformed scaffold sheet XML: unclosed <sheetData> element");
                         }
                         _sheetXmlSuffix = sheetXml.substring(selfClose + 2);
                     }
@@ -458,7 +458,7 @@ public final class SSMLSheetWriter implements SheetWriter {
                 zin.closeEntry();
             }
         }
-        throw new IOException("Sheet entry '" + _entrySheet + "' not found in skeleton");
+        throw new IOException("Sheet entry '" + _entrySheet + "' not found in scaffold");
     }
 
     private void _appendMergeCellsIntoSuffix() throws IOException {
@@ -490,7 +490,7 @@ public final class SSMLSheetWriter implements SheetWriter {
     }
 
     // ECMA-376 CT_Worksheet elements that follow mergeCells in xsd:sequence order.
-    // Used to locate the correct insertion point for <mergeCells> in the skeleton suffix.
+    // Used to locate the correct insertion point for <mergeCells> in the scaffold suffix.
     // Full list from sml.xsd CT_Worksheet — verified against POI 5.2.5 schema.
     private static final String[] POST_MERGE_CELLS_ELEMENTS = {
             "<phoneticPr", "<conditionalFormatting", "<dataValidations",

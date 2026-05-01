@@ -67,7 +67,7 @@ class AutoFilterTest {
         try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
             XSSFSheet sheet = wb.getSheetAt(0);
             assertThat(sheet.getCTWorksheet().isSetAutoFilter()).isTrue();
-            // SSML uses max rows for skeleton, verify autoFilter exists
+            // SSML uses max rows for scaffold, verify autoFilter exists
             String ref = sheet.getCTWorksheet().getAutoFilter().getRef();
             assertThat(ref).startsWith("A1:");
         }
