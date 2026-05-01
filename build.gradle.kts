@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "io.github.scndry"
-version = "1.5.0-SNAPSHOT"
+version = "1.5.0"
 description = "Support for reading and writing Spreadsheet via Jackson abstractions."
 
 val title = "Jackson dataformat: Spreadsheet"
