@@ -22,7 +22,7 @@ jobs:
           distribution: corretto
           java-version: 11
       - run: ./gradlew javadoc
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: build/docs/javadoc
       - id: deployment
