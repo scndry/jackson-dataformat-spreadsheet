@@ -1,14 +1,12 @@
-import com.vanniktech.maven.publish.SonatypeHost
-
 plugins {
     id("java-library")
-    id("com.vanniktech.maven.publish") version "0.30.0"
+    id("com.vanniktech.maven.publish") version "0.36.0"
     id("jacoco")
     id("me.champeau.jmh") version "0.6.8"
 }
 
 group = "io.github.scndry"
-version = "1.4.1"
+version = "1.5.0"
 description = "Support for reading and writing Spreadsheet via Jackson abstractions."
 
 val title = "Jackson dataformat: Spreadsheet"
@@ -68,7 +66,7 @@ tasks.named<JavaCompile>("compileJmhJava") {
 }
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
     signAllPublications()
 
     pom {

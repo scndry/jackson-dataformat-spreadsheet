@@ -1,15 +1,14 @@
-name: Release
+name: Snapshot
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [ 'release/**' ]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
+  snapshot:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -23,21 +22,22 @@ jobs:
       - name: Build and test
         run: ./gradlew check --console=plain
 
-      - name: Publish to Maven Central
+      - name: Read version
+        id: version
+        run: |
+          echo "value=$(./gradlew -q properties | grep ^version: | awk '{print $2}')" >> $GITHUB_OUTPUT
+
+      - name: Publish snapshot to Maven Central
+        if: endsWith(steps.version.outputs.value, '-SNAPSHOT')
         run: |
           echo "${{ secrets.GPG_SECRET_KEY }}" | base64 -d | gpg --batch --import
           ASCII_KEY=$(gpg --batch --yes --pinentry-mode loopback \
             --passphrase "${{ secrets.GPG_PASSPHRASE }}" \
             --armor --export-secret-keys "${{ secrets.GPG_KEY_ID }}")
           export ORG_GRADLE_PROJECT_signingInMemoryKey="$ASCII_KEY"
-          ./gradlew publishAndReleaseToMavenCentral --console=plain
+          ./gradlew publishToMavenCentral --console=plain
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.OSSRH_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.OSSRH_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          generate_release_notes: true
