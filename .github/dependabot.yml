@@ -16,3 +16,7 @@ updates:
     ignore:
       - dependency-name: "ch.qos.logback:logback-classic"
         versions: "[1.4,)"
+      - dependency-name: "com.h2database:h2"
+        versions: "[2.4,)"
+      - dependency-name: "org.junit.jupiter:*"
+        versions: "[6.0,)"
