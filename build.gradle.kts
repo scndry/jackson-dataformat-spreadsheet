@@ -25,7 +25,7 @@ dependencies {
     api("org.apache.poi:poi-ooxml:$poiVersion")
     implementation("com.fasterxml:aalto-xml:1.3.4")
     implementation("org.slf4j:slf4j-api:2.0.17")
-    compileOnly("com.h2database:h2:2.2.224")
+    compileOnly("com.h2database:h2:2.3.232")
 }
 
 dependencies {
@@ -34,7 +34,7 @@ dependencies {
     testRuntimeOnly("ch.qos.logback:logback-classic:1.3.16")
     testRuntimeOnly("org.apache.logging.log4j:log4j-to-slf4j:2.24.3")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.11.4")
-    testRuntimeOnly("com.h2database:h2:2.2.224")
+    testRuntimeOnly("com.h2database:h2:2.3.232")
 }
 
 dependencies {
@@ -51,7 +51,7 @@ dependencies {
     jmh("com.github.ozlerhakan:poiji:5.4.0") { exclude(group = "org.apache.poi") }
     jmh("org.dhatim:fastexcel:0.20.0")
     jmh("org.dhatim:fastexcel-reader:0.20.0")
-    jmh("com.h2database:h2:2.2.224")
+    jmh("com.h2database:h2:2.3.232")
 }
 
 java {
