@@ -211,7 +211,10 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
         .freezePane(0, 1)
         .autoFilter()
         .conditionalFormatting()
-            .column("score").greaterThanOrEqual("80").style("highlight").end())
+            .column("score")
+            .greaterThanOrEqual(80)
+            .style("highlight")
+            .end())
     .build();
 ```
 
