@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   pages: write
@@ -20,7 +21,7 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: corretto
-          java-version: 11
+          java-version: 17
       - run: ./gradlew javadoc
       - uses: actions/upload-pages-artifact@v5
         with:
