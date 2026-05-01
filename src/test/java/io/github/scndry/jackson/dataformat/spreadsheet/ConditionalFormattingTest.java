@@ -336,6 +336,34 @@ class ConditionalFormattingTest {
     }
 
     @Test
+    void lessThanOrEqualMapsToLE() throws Exception {
+        ConditionalFormattingRule rule = _writeAndGetRule("score",
+                spec -> spec.lessThanOrEqual(20).style("highlight"), Score.class,
+                Arrays.asList(new Score("Alice", 90)));
+        assertThat(rule.getComparisonOperation()).isEqualTo(ComparisonOperator.LE);
+        assertThat(rule.getFormula1()).isEqualTo("20");
+    }
+
+    @Test
+    void notEqualToMapsToNotEqual() throws Exception {
+        ConditionalFormattingRule rule = _writeAndGetRule("score",
+                spec -> spec.notEqualTo(0).style("highlight"), Score.class,
+                Arrays.asList(new Score("Alice", 90)));
+        assertThat(rule.getComparisonOperation()).isEqualTo(ComparisonOperator.NOT_EQUAL);
+        assertThat(rule.getFormula1()).isEqualTo("0");
+    }
+
+    @Test
+    void notBetweenMapsToNotBetween() throws Exception {
+        ConditionalFormattingRule rule = _writeAndGetRule("score",
+                spec -> spec.notBetween(0, 20).style("highlight"), Score.class,
+                Arrays.asList(new Score("Alice", 90)));
+        assertThat(rule.getComparisonOperation()).isEqualTo(ComparisonOperator.NOT_BETWEEN);
+        assertThat(rule.getFormula1()).isEqualTo("0");
+        assertThat(rule.getFormula2()).isEqualTo("20");
+    }
+
+    @Test
     void formulaOfRawCellRef() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("score",
                 spec -> spec.greaterThan(Formula.of("$D$1")).style("highlight"),
