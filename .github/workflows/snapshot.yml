@@ -28,6 +28,7 @@ jobs:
           echo "value=$(./gradlew -q properties | grep ^version: | awk '{print $2}')" >> $GITHUB_OUTPUT
 
       - name: Publish snapshot to Maven Central
+        if: endsWith(steps.version.outputs.value, '-SNAPSHOT')
         run: |
           echo "${{ secrets.GPG_SECRET_KEY }}" | base64 -d | gpg --batch --import
           ASCII_KEY=$(gpg --batch --yes --pinentry-mode loopback \
