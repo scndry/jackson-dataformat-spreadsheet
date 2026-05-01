@@ -656,11 +656,34 @@ Operators accept typed values (numeric, boolean, string, date) or `Formula` for 
 
 Operators: `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `equalTo`, `notEqualTo`, `between`, `notBetween`. Equality also accepts `boolean` and `String`.
 
-Operand types: `Number` (long, double, int, BigDecimal — autoboxed), `boolean`, `String` (equality only — auto-escaped), `LocalDate`, `LocalDateTime`, `Date`, `Calendar`, `Formula`.
+Operand types: any `Number` (`int`, `long`, `double`, `float`, `BigDecimal`, etc. — primitives are autoboxed), `boolean`, `String` (equality only — auto-escaped to Excel string literal), `LocalDate`, `LocalDateTime`, `Date`, `Calendar`, `Formula`.
+
+#### Date and time precision
+
+Dates emit as Excel formula expressions:
+
+| Type | Formula |
+|------|---------|
+| `LocalDate` | `DATE(y,m,d)` |
+| `LocalDateTime` | `DATE(y,m,d)+TIME(h,m,s)` — sub-second truncated |
+| `Date` | `DATE(y,m,d)+TIME(h,m,s)` — converted via system default timezone |
+| `Calendar` | `DATE(y,m,d)+TIME(h,m,s)` — converted via Calendar's timezone |
+
+Prefer `LocalDate` / `LocalDateTime` for deterministic CF rules. `Date` carries a system-timezone dependence; the resulting formula varies with the JVM `ZoneId.systemDefault()`.
+
+#### `cellIs` vs `expression`
+
+| | `cellIs` operators | `expression` |
+|---|---|---|
+| Compares | The cell against operand(s) | Arbitrary boolean formula |
+| Example | `.column("price").greaterThan(100)` | `.column("price").expression("$E1<$F1")` |
+| Use when | Direct comparison fits | Need cross-cell logic, `AND`/`OR`, `ISBLANK`, etc. |
+
+`expression(formula)` is passed verbatim to POI; do not include a leading `=`.
+
+#### Formula escape
 
 `Formula.of(text)` is a power-user escape — the text is emitted verbatim into the OOXML `<formula>` element. The library does not validate Excel syntax. `Formula.column(name)` resolves the schema column name to a row-relative reference (`$<col><dataStartRow>`) at write time, so Excel auto-shifts per cell in the formatting range.
-
-`expression(formula)` creates a `type="expression"` rule where the entire formula must return TRUE/FALSE; useful for conditions that don't fit `cellIs` operators.
 
 Style → DXF: fill, font, and border only. Alignment and wrap-text are silently skipped.
 
