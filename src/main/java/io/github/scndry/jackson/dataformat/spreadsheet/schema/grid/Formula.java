@@ -5,7 +5,7 @@ package io.github.scndry.jackson.dataformat.spreadsheet.schema.grid;
  * Use {@link #of(String)} for raw Excel formula passthrough (cell references, functions, expressions).
  * Use {@link #column(String)} for schema-aware row-relative references to another schema column.
  *
- * @see ConditionalFormattingRuleSpec
+ * @see ConditionalFormats
  */
 public final class Formula {
 

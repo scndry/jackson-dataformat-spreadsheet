@@ -25,7 +25,6 @@ public final class GridConfigurer {
     private int _freezePaneColSplit = -1;
     private int _freezePaneRowSplit = -1;
     private boolean _autoFilter;
-    private final List<ConditionalFormattingRuleSpec> _rules = new ArrayList<>();
     private final List<ColumnRule> _columnRules = new ArrayList<>();
 
     private static final class ColumnRule {
@@ -46,10 +45,6 @@ public final class GridConfigurer {
     public GridConfigurer autoFilter() {
         _autoFilter = true;
         return this;
-    }
-
-    public ConditionalFormattingRuleSpec conditionalFormatting() {
-        return new ConditionalFormattingRuleSpec(this);
     }
 
     /**
@@ -92,10 +87,6 @@ public final class GridConfigurer {
         return this;
     }
 
-    void _addRule(final ConditionalFormattingRuleSpec spec) {
-        _rules.add(spec);
-    }
-
     public void apply(final Sheet sheet, final Styles styles,
             final SpreadsheetSchema schema, final int lastRow) {
         _applyFreezePane(sheet);
@@ -124,37 +115,12 @@ public final class GridConfigurer {
 
     private void _applyConditionalFormattings(final Sheet sheet, final Styles styles,
             final SpreadsheetSchema schema, final int lastRow) {
-        if (_rules.isEmpty() && _columnRules.isEmpty()) return;
+        if (_columnRules.isEmpty()) return;
         final Workbook wb = sheet.getWorkbook();
         final int dataRow = schema.getDataRow();
         final int endRow = lastRow < 0 ? wb.getSpreadsheetVersion().getMaxRows() - 1 : lastRow;
         if (dataRow > endRow) return;
         final SheetConditionalFormatting scf = sheet.getSheetConditionalFormatting();
-
-        for (final ConditionalFormattingRuleSpec spec : _rules) {
-            final int colIndex = schema.columnIndexByName(spec._columnName);
-            if (colIndex < 0) {
-                throw new IllegalArgumentException("Column '" + spec._columnName
-                        + "' not found in schema. Available columns: " + schema.columnNames());
-            }
-            final CellStyle cs = styles.getStyle(spec._styleName);
-            if (cs == null) {
-                throw new IllegalArgumentException("Style '" + spec._styleName + "' not found");
-            }
-            final ConditionalFormattingRule rule;
-            if (spec._type == ConditionalFormattingRuleSpec.Type.EXPRESSION) {
-                rule = scf.createConditionalFormattingRule(spec._expression);
-            } else {
-                final String f1 = _resolveOperand(spec._operand1, schema);
-                final String f2 = spec._operand2 != null ? _resolveOperand(spec._operand2, schema) : null;
-                rule = f2 != null
-                        ? scf.createConditionalFormattingRule(spec._operator, f1, f2)
-                        : scf.createConditionalFormattingRule(spec._operator, f1);
-            }
-            _applyCellStyleToDxf(rule, cs, wb);
-            scf.addConditionalFormatting(
-                    new CellRangeAddress[]{new CellRangeAddress(dataRow, endRow, colIndex, colIndex)}, rule);
-        }
 
         for (final ColumnRule cr : _columnRules) {
             final int colIndex = schema.columnIndexByName(cr.column);
