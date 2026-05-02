@@ -13,6 +13,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
@@ -48,6 +49,11 @@ class SSMLSheetWriterDomEquivalenceTest {
 
     @Test
     void sheetXmlDomEquivalent() throws Exception {
+        // POI 4.x omits default <c s="0"> while SSML writer (and POI 5.x) emit it,
+        // breaking strict DOM equality. Library/test design decision tracked in #96.
+        Assumptions.assumeTrue(PoiVersionProbe.isPoi510OrLater(),
+                "DOM equivalence with POI output diverges on POI 4.x — see #96");
+
         File ssmlFile = _debugFile("dom-sheet-ssml.xlsx");
         File poiFile = _debugFile("dom-sheet-poi.xlsx");
 
