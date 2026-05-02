@@ -49,10 +49,11 @@ class SSMLSheetWriterDomEquivalenceTest {
 
     @Test
     void sheetXmlDomEquivalent() throws Exception {
-        // POI 4.x omits default <c s="0"> while SSML writer (and POI 5.x) emit it,
-        // breaking strict DOM equality. Library/test design decision tracked in #96.
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi510OrLater(),
-                "DOM equivalence with POI output diverges on POI 4.x — see #96");
+        // SSML writer always emits <c s="0">, matching POI 5.2.3+ (bug-51037 fix).
+        // POI 4.x ~ 5.2.2 omit default s, so DOM equality only holds on POI 5.2.3+.
+        // Library policy: follow latest POI behavior; older-version drift is ignored. (#96)
+        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
+                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
 
         File ssmlFile = _debugFile("dom-sheet-ssml.xlsx");
         File poiFile = _debugFile("dom-sheet-poi.xlsx");
