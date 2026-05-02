@@ -1,6 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormatRule;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.Formula;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.GridConfigurer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
@@ -11,6 +12,8 @@ import org.apache.poi.ss.usermodel.ComparisonOperator;
 import org.apache.poi.ss.usermodel.ConditionType;
 import org.apache.poi.ss.usermodel.ConditionalFormatting;
 import org.apache.poi.ss.usermodel.ConditionalFormattingRule;
+import org.apache.poi.ss.usermodel.ConditionalFormattingThreshold;
+import org.apache.poi.ss.usermodel.ConditionalFormattingThreshold.RangeType;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.SheetConditionalFormatting;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -34,6 +37,16 @@ import java.util.TimeZone;
 
 import static io.github.scndry.jackson.dataformat.spreadsheet.OpcXmlHelper.NS_SPREADSHEETML;
 import static io.github.scndry.jackson.dataformat.spreadsheet.OpcXmlHelper.parsePart;
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.between;
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.colorScale;
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.equalTo;
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.expression;
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.greaterThan;
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.greaterThanOrEqual;
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.lessThan;
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.lessThanOrEqual;
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.notBetween;
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.notEqualTo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -67,11 +80,8 @@ class ConditionalFormattingTest {
                             .fillPattern().solidForeground()
                             .end())
                 .gridConfigurer(new GridConfigurer()
-                        .conditionalFormatting()
-                            .column("score")
-                            .greaterThanOrEqual(80)
-                            .style("highlight")
-                            .end())
+                        .conditionalFormatting("score",
+                                greaterThanOrEqual(80).style("highlight")))
                 .build();
 
         mapper.writeValue(file, data, Score.class);
@@ -103,11 +113,8 @@ class ConditionalFormattingTest {
                             .fillPattern().solidForeground()
                             .end())
                 .gridConfigurer(new GridConfigurer()
-                        .conditionalFormatting()
-                            .column("score")
-                            .greaterThanOrEqual(80)
-                            .style("highlight")
-                            .end())
+                        .conditionalFormatting("score",
+                                greaterThanOrEqual(80).style("highlight")))
                 .build();
 
         mapper.writeValue(file, data, Score.class);
@@ -151,11 +158,8 @@ class ConditionalFormattingTest {
                             .fillPattern().solidForeground()
                             .end())
                 .gridConfigurer(new GridConfigurer()
-                        .conditionalFormatting()
-                            .column("score")
-                            .greaterThanOrEqual(80)
-                            .style("highlight")
-                            .end())
+                        .conditionalFormatting("score",
+                                greaterThanOrEqual(80).style("highlight")))
                 .build();
 
         mapper.writeValue(file, data, Score.class);
@@ -177,11 +181,8 @@ class ConditionalFormattingTest {
                     .fillPattern().solidForeground()
                     .end();
         GridConfigurer gridConfigurer = new GridConfigurer()
-                .conditionalFormatting()
-                    .column("score")
-                    .greaterThanOrEqual(80)
-                    .style("highlight")
-                    .end();
+                .conditionalFormatting("score",
+                        greaterThanOrEqual(80).style("highlight"));
 
         // SSML path (default)
         SpreadsheetMapper ssmlMapper = SpreadsheetMapper.builder()
@@ -218,11 +219,8 @@ class ConditionalFormattingTest {
                             .fillPattern().solidForeground()
                             .end())
                 .gridConfigurer(new GridConfigurer()
-                        .conditionalFormatting()
-                            .column("score")
-                            .greaterThanOrEqual(80)
-                            .style("highlight")
-                            .end())
+                        .conditionalFormatting("score",
+                                greaterThanOrEqual(80).style("highlight")))
                 .build();
 
         mapper.writeValue(file, data, Score.class);
@@ -244,7 +242,7 @@ class ConditionalFormattingTest {
     @Test
     void typedNumericLong() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("score",
-                spec -> spec.greaterThan(80L).style("highlight"), Score.class,
+                greaterThan(80L).style("highlight"), Score.class,
                 Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getComparisonOperation()).isEqualTo(ComparisonOperator.GT);
         assertThat(rule.getFormula1()).isEqualTo("80");
@@ -253,7 +251,7 @@ class ConditionalFormattingTest {
     @Test
     void typedNumericDouble() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("score",
-                spec -> spec.lessThan(80.5).style("highlight"), Score.class,
+                lessThan(80.5).style("highlight"), Score.class,
                 Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getComparisonOperation()).isEqualTo(ComparisonOperator.LT);
         assertThat(rule.getFormula1()).isEqualTo("80.5");
@@ -262,7 +260,7 @@ class ConditionalFormattingTest {
     @Test
     void typedBoolean() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("score",
-                spec -> spec.equalTo(true).style("highlight"), Score.class,
+                equalTo(true).style("highlight"), Score.class,
                 Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getComparisonOperation()).isEqualTo(ComparisonOperator.EQUAL);
         assertThat(rule.getFormula1()).isEqualTo("TRUE");
@@ -271,7 +269,7 @@ class ConditionalFormattingTest {
     @Test
     void typedStringAutoEscape() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("name",
-                spec -> spec.equalTo("URGENT").style("highlight"), Score.class,
+                equalTo("URGENT").style("highlight"), Score.class,
                 Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getComparisonOperation()).isEqualTo(ComparisonOperator.EQUAL);
         assertThat(rule.getFormula1()).isEqualTo("\"URGENT\"");
@@ -280,7 +278,7 @@ class ConditionalFormattingTest {
     @Test
     void typedStringInternalQuoteEscape() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("name",
-                spec -> spec.equalTo("say \"hi\"").style("highlight"), Score.class,
+                equalTo("say \"hi\"").style("highlight"), Score.class,
                 Arrays.asList(new Score("Alice", 90)));
         // Excel doubles internal quotes
         assertThat(rule.getFormula1()).isEqualTo("\"say \"\"hi\"\"\"");
@@ -289,7 +287,7 @@ class ConditionalFormattingTest {
     @Test
     void typedLocalDate() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("score",
-                spec -> spec.greaterThan(LocalDate.of(2026, 1, 1)).style("highlight"),
+                greaterThan(LocalDate.of(2026, 1, 1)).style("highlight"),
                 Score.class, Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getFormula1()).isEqualTo("DATE(2026,1,1)");
     }
@@ -297,7 +295,7 @@ class ConditionalFormattingTest {
     @Test
     void typedLocalDateTime() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("score",
-                spec -> spec.greaterThan(LocalDateTime.of(2026, 1, 1, 10, 30, 0)).style("highlight"),
+                greaterThan(LocalDateTime.of(2026, 1, 1, 10, 30, 0)).style("highlight"),
                 Score.class, Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getFormula1()).isEqualTo("DATE(2026,1,1)+TIME(10,30,0)");
     }
@@ -309,7 +307,7 @@ class ConditionalFormattingTest {
         cal.set(Calendar.MILLISECOND, 0);
         Date date = cal.getTime();
         ConditionalFormattingRule rule = _writeAndGetRule("score",
-                spec -> spec.greaterThan(date).style("highlight"),
+                greaterThan(date).style("highlight"),
                 Score.class, Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getFormula1()).startsWith("DATE(2026,1,1)+TIME(");
     }
@@ -320,7 +318,7 @@ class ConditionalFormattingTest {
         cal.set(2026, Calendar.JANUARY, 1, 12, 0, 0);
         cal.set(Calendar.MILLISECOND, 0);
         ConditionalFormattingRule rule = _writeAndGetRule("score",
-                spec -> spec.greaterThan(cal).style("highlight"),
+                greaterThan(cal).style("highlight"),
                 Score.class, Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getFormula1()).isEqualTo("DATE(2026,1,1)+TIME(12,0,0)");
     }
@@ -328,7 +326,7 @@ class ConditionalFormattingTest {
     @Test
     void typedBetween() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("score",
-                spec -> spec.between(80, 100).style("highlight"), Score.class,
+                between(80, 100).style("highlight"), Score.class,
                 Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getComparisonOperation()).isEqualTo(ComparisonOperator.BETWEEN);
         assertThat(rule.getFormula1()).isEqualTo("80");
@@ -338,7 +336,7 @@ class ConditionalFormattingTest {
     @Test
     void lessThanOrEqualMapsToLE() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("score",
-                spec -> spec.lessThanOrEqual(20).style("highlight"), Score.class,
+                lessThanOrEqual(20).style("highlight"), Score.class,
                 Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getComparisonOperation()).isEqualTo(ComparisonOperator.LE);
         assertThat(rule.getFormula1()).isEqualTo("20");
@@ -347,7 +345,7 @@ class ConditionalFormattingTest {
     @Test
     void notEqualToMapsToNotEqual() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("score",
-                spec -> spec.notEqualTo(0).style("highlight"), Score.class,
+                notEqualTo(0).style("highlight"), Score.class,
                 Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getComparisonOperation()).isEqualTo(ComparisonOperator.NOT_EQUAL);
         assertThat(rule.getFormula1()).isEqualTo("0");
@@ -356,7 +354,7 @@ class ConditionalFormattingTest {
     @Test
     void notBetweenMapsToNotBetween() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("score",
-                spec -> spec.notBetween(0, 20).style("highlight"), Score.class,
+                notBetween(0, 20).style("highlight"), Score.class,
                 Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getComparisonOperation()).isEqualTo(ComparisonOperator.NOT_BETWEEN);
         assertThat(rule.getFormula1()).isEqualTo("0");
@@ -366,7 +364,7 @@ class ConditionalFormattingTest {
     @Test
     void formulaOfRawCellRef() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("score",
-                spec -> spec.greaterThan(Formula.of("$D$1")).style("highlight"),
+                greaterThan(Formula.of("$D$1")).style("highlight"),
                 Score.class, Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getFormula1()).isEqualTo("$D$1");
     }
@@ -374,7 +372,7 @@ class ConditionalFormattingTest {
     @Test
     void formulaOfFunction() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("score",
-                spec -> spec.greaterThan(Formula.of("AVERAGE($B$2:$B$100)")).style("highlight"),
+                greaterThan(Formula.of("AVERAGE($B$2:$B$100)")).style("highlight"),
                 Score.class, Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getFormula1()).isEqualTo("AVERAGE($B$2:$B$100)");
     }
@@ -382,7 +380,7 @@ class ConditionalFormattingTest {
     @Test
     void formulaColumnResolvesToRowRelativeRef() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("price",
-                spec -> spec.greaterThan(Formula.column("minPrice")).style("highlight"),
+                greaterThan(Formula.column("minPrice")).style("highlight"),
                 Item.class, Arrays.asList(new Item("Apple", 10.0, 5.0)));
         // Item: name=A, price=B, minPrice=C; data starts at row 2 (origin A1, header at row 1)
         assertThat(rule.getFormula1()).isEqualTo("$C2");
@@ -399,11 +397,8 @@ class ConditionalFormattingTest {
                             .fillPattern().solidForeground()
                             .end())
                 .gridConfigurer(new GridConfigurer()
-                        .conditionalFormatting()
-                            .column("price")
-                            .greaterThan(Formula.column("nonexistent"))
-                            .style("highlight")
-                            .end())
+                        .conditionalFormatting("price",
+                                greaterThan(Formula.column("nonexistent")).style("highlight")))
                 .build();
         assertThatThrownBy(() -> mapper.writeValue(file, Arrays.asList(new Item("A", 1.0, 0.5)), Item.class))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -421,11 +416,8 @@ class ConditionalFormattingTest {
                             .fillPattern().solidForeground()
                             .end())
                 .gridConfigurer(new GridConfigurer()
-                        .conditionalFormatting()
-                            .column("score")
-                            .expression("AND($B2>0, $B2<100)")
-                            .style("highlight")
-                            .end())
+                        .conditionalFormatting("score",
+                                expression("AND($B2>0, $B2<100)").style("highlight")))
                 .build();
         mapper.writeValue(file, Arrays.asList(new Score("Alice", 90)), Score.class);
 
@@ -439,23 +431,144 @@ class ConditionalFormattingTest {
 
     @Test
     void expressionRejectsEmpty() {
-        GridConfigurer configurer = new GridConfigurer();
-        assertThatThrownBy(() -> configurer.conditionalFormatting()
-                .column("score").expression("").style("highlight").end())
+        assertThatThrownBy(() -> expression(""))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("must not be empty");
+    }
+
+    @Test
+    void multipleRulesOnSameColumn() throws Exception {
+        File file = new File(tempDir, "cf-multi.xlsx");
+        List<Score> data = Arrays.asList(new Score("Alice", 90), new Score("Bob", 50));
+
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .stylesBuilder(new StylesBuilder()
+                        .cellStyle("good").fillForegroundColor(IndexedColors.LIGHT_GREEN)
+                            .fillPattern().solidForeground().end()
+                        .cellStyle("bad").fillForegroundColor(IndexedColors.ROSE)
+                            .fillPattern().solidForeground().end())
+                .gridConfigurer(new GridConfigurer()
+                        .conditionalFormatting("score",
+                                greaterThanOrEqual(80).style("good"),
+                                lessThan(60).style("bad")))
+                .build();
+        mapper.writeValue(file, data, Score.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            SheetConditionalFormatting scf = wb.getSheetAt(0).getSheetConditionalFormatting();
+            assertThat(scf.getNumConditionalFormattings()).isEqualTo(2);
+            assertThat(scf.getConditionalFormattingAt(0).getRule(0).getComparisonOperation())
+                    .isEqualTo(ComparisonOperator.GE);
+            assertThat(scf.getConditionalFormattingAt(1).getRule(0).getComparisonOperation())
+                    .isEqualTo(ComparisonOperator.LT);
+        }
+    }
+
+    @Test
+    void colorScaleDefaults() throws Exception {
+        File file = new File(tempDir, "cf-cs-default.xlsx");
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .gridConfigurer(new GridConfigurer()
+                        .conditionalFormatting("score", colorScale()))
+                .build();
+        mapper.writeValue(file, Arrays.asList(new Score("Alice", 90)), Score.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            ConditionalFormattingRule rule = wb.getSheetAt(0).getSheetConditionalFormatting()
+                    .getConditionalFormattingAt(0).getRule(0);
+            assertThat(rule.getConditionType()).isEqualTo(ConditionType.COLOR_SCALE);
+            ConditionalFormattingThreshold[] t = rule.getColorScaleFormatting().getThresholds();
+            assertThat(t).hasSize(3);
+            assertThat(t[0].getRangeType()).isEqualTo(RangeType.MIN);
+            assertThat(t[1].getRangeType()).isEqualTo(RangeType.PERCENTILE);
+            assertThat(t[1].getValue()).isEqualTo(50.0);
+            assertThat(t[2].getRangeType()).isEqualTo(RangeType.MAX);
+            assertThat(rule.getColorScaleFormatting().getColors()).hasSize(3);
+        }
+    }
+
+    @Test
+    void colorScaleExplicitThresholds() throws Exception {
+        File file = new File(tempDir, "cf-cs-explicit.xlsx");
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .gridConfigurer(new GridConfigurer()
+                        .conditionalFormatting("score", colorScale(0, 50, 100)))
+                .build();
+        mapper.writeValue(file, Arrays.asList(new Score("Alice", 90)), Score.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            ConditionalFormattingRule rule = wb.getSheetAt(0).getSheetConditionalFormatting()
+                    .getConditionalFormattingAt(0).getRule(0);
+            assertThat(rule.getConditionType()).isEqualTo(ConditionType.COLOR_SCALE);
+            ConditionalFormattingThreshold[] t = rule.getColorScaleFormatting().getThresholds();
+            assertThat(t[0].getRangeType()).isEqualTo(RangeType.NUMBER);
+            assertThat(t[0].getValue()).isEqualTo(0.0);
+            assertThat(t[1].getRangeType()).isEqualTo(RangeType.NUMBER);
+            assertThat(t[1].getValue()).isEqualTo(50.0);
+            assertThat(t[2].getRangeType()).isEqualTo(RangeType.NUMBER);
+            assertThat(t[2].getValue()).isEqualTo(100.0);
+        }
+    }
+
+    @Test
+    void unknownColumnThrows() {
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .stylesBuilder(new StylesBuilder()
+                        .cellStyle("x").fillForegroundColor(IndexedColors.YELLOW)
+                            .fillPattern().solidForeground().end())
+                .gridConfigurer(new GridConfigurer()
+                        .conditionalFormatting("nonexistent", greaterThanOrEqual(80).style("x")))
+                .build();
+        File file = new File(tempDir, "cf-fail-col.xlsx");
+        assertThatThrownBy(() -> mapper.writeValue(file, Arrays.asList(new Score("A", 1)), Score.class))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("nonexistent");
+    }
+
+    @Test
+    void unknownStyleThrows() {
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .gridConfigurer(new GridConfigurer()
+                        .conditionalFormatting("score", greaterThanOrEqual(80).style("missing-style")))
+                .build();
+        File file = new File(tempDir, "cf-fail-style.xlsx");
+        assertThatThrownBy(() -> mapper.writeValue(file, Arrays.asList(new Score("A", 1)), Score.class))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("missing-style");
+    }
+
+    @Test
+    void styleWithNullNameThrows() {
+        assertThatThrownBy(() -> greaterThanOrEqual(80).style(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("style name");
+    }
+
+    @Test
+    void conditionalFormattingNullColumnThrows() {
+        assertThatThrownBy(() -> new GridConfigurer()
+                .conditionalFormatting(null, greaterThanOrEqual(80).style("x")))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("column");
+    }
+
+    @Test
+    void conditionalFormattingNullRuleElementThrows() {
+        assertThatThrownBy(() -> new GridConfigurer()
+                .conditionalFormatting("score",
+                        greaterThanOrEqual(80).style("x"),
+                        (ConditionalFormatRule) null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("rules element");
     }
 
     /** Helper: write a CF rule and return the resulting POI rule. */
     private <T> ConditionalFormattingRule _writeAndGetRule(
             String column,
-            java.util.function.Function<io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormattingRuleSpec,
-                io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormattingRuleSpec> ruleConfigurer,
+            ConditionalFormatRule rule,
             Class<T> type,
             List<T> data) throws Exception {
         File file = new File(tempDir, "cf-typed-" + System.nanoTime() + ".xlsx");
-        GridConfigurer gc = new GridConfigurer();
-        ruleConfigurer.apply(gc.conditionalFormatting().column(column)).end();
         SpreadsheetMapper mapper = SpreadsheetMapper.builder()
                 .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
                 .stylesBuilder(new StylesBuilder()
@@ -463,7 +576,8 @@ class ConditionalFormattingTest {
                             .fillForegroundColor(IndexedColors.RED)
                             .fillPattern().solidForeground()
                             .end())
-                .gridConfigurer(gc)
+                .gridConfigurer(new GridConfigurer()
+                        .conditionalFormatting(column, rule))
                 .build();
         mapper.writeValue(file, data, type);
         try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
