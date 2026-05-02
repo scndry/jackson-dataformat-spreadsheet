@@ -605,7 +605,7 @@ No configuration needed. Read an Excel date cell and get a `LocalDate`. Write a 
 
 ## Sheet-Level Features
 
-`GridConfigurer` controls sheet-level features anchored on the data grid:
+`GridConfigurer` controls sheet-level features anchored on the data grid. The conditional formatting call below uses factory methods from `ConditionalFormats`, typically static-imported (see [Conditional Formatting](#conditional-formatting) for details):
 
 ```java
 SpreadsheetMapper mapper = SpreadsheetMapper.builder()
@@ -617,11 +617,8 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .gridConfigurer(new GridConfigurer()
         .freezePane(0, 1)
         .autoFilter()
-        .conditionalFormatting()
-            .column("score")
-            .greaterThanOrEqual(80)
-            .style("highlight")
-            .end())
+        .conditionalFormatting("score",
+            greaterThanOrEqual(80).style("highlight")))
     .build();
 ```
 
@@ -629,32 +626,47 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 
 ### Conditional Formatting
 
-`column(name)` matches `@DataColumn(value)`, the field name, or `@JsonAlias`. `style(name)` matches a `cellStyle(name)` in `StylesBuilder`. Both resolve at write time — typos throw `IllegalArgumentException` listing the available names.
-
-Operators accept typed values (numeric, boolean, string, date) or `Formula` for cell references and Excel expressions. String operands are auto-quoted; dates emit as `DATE(y,m,d)+TIME(h,m,s)`.
+`conditionalFormatting(String column, ConditionalFormatRule rule, ConditionalFormatRule... rules)` accepts one or more rules for a single column. Static-import the factory methods from `ConditionalFormats` for fluent chaining:
 
 ```java
-// Typed primitives
-.conditionalFormatting().column("score").greaterThan(90).style("good").end()
-.conditionalFormatting().column("price").between(100, 500).style("warn").end()
-.conditionalFormatting().column("status").equalTo("URGENT").style("warn").end()
-.conditionalFormatting().column("active").equalTo(true).style("info").end()
-
-// Date types — LocalDate, LocalDateTime, Date, Calendar all supported
-.conditionalFormatting().column("createdAt").greaterThan(LocalDate.of(2026, 1, 1)).style("recent").end()
-
-// Cell reference / function — Formula.of for raw passthrough
-.conditionalFormatting().column("price").greaterThan(Formula.of("$D$1")).style("warn").end()
-.conditionalFormatting().column("price").greaterThan(Formula.of("AVERAGE($B$2:$B$100)")).style("aboveAvg").end()
-
-// Schema-aware cross-column reference — row-relative, schema-safe
-.conditionalFormatting().column("price").greaterThan(Formula.column("minPrice")).style("warn").end()
-
-// Arbitrary boolean expression rule (type="expression")
-.conditionalFormatting().column("score").expression("AND($A1>0, $B1<100)").style("warn").end()
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.*;
 ```
 
-Operators: `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `equalTo`, `notEqualTo`, `between`, `notBetween`. Equality also accepts `boolean` and `String`.
+Column names resolve against `@DataColumn(value)`, the field name, or `@JsonAlias`. Style names resolve against `cellStyle(name)` in `StylesBuilder`. Both resolve at write time — typos throw `IllegalArgumentException` listing the available names.
+
+Comparison factories (`greaterThan`, `between`, `equalTo`, ...) accept typed values (numeric, boolean, string, date) or `Formula` for cell references and Excel expressions. String operands are auto-quoted; dates emit as `DATE(y,m,d)+TIME(h,m,s)`. The factory returns a `FormatCondition`; `.style(name)` finishes it as a `ConditionalFormatRule`.
+
+```java
+// Typed primitives — single-rule call
+.conditionalFormatting("score", greaterThan(90).style("good"))
+.conditionalFormatting("price", between(100, 500).style("warn"))
+.conditionalFormatting("status", equalTo("URGENT").style("warn"))
+.conditionalFormatting("active", equalTo(true).style("info"))
+
+// Date types — LocalDate, LocalDateTime, Date, Calendar all supported
+.conditionalFormatting("createdAt", greaterThan(LocalDate.of(2026, 1, 1)).style("recent"))
+
+// Multi-rule for one column — varargs
+.conditionalFormatting("score",
+    greaterThanOrEqual(80).style("good"),
+    lessThan(60).style("bad"))
+
+// Cell reference / function — Formula.of for raw passthrough
+.conditionalFormatting("price", greaterThan(Formula.of("$D$1")).style("warn"))
+.conditionalFormatting("price", greaterThan(Formula.of("AVERAGE($B$2:$B$100)")).style("aboveAvg"))
+
+// Schema-aware cross-column reference — row-relative, schema-safe
+.conditionalFormatting("price", greaterThan(Formula.column("minPrice")).style("warn"))
+
+// Arbitrary boolean expression rule (type="expression")
+.conditionalFormatting("score", expression("AND($A1>0, $B1<100)").style("warn"))
+
+// Color scale — 3-color visualization, no styling required
+.conditionalFormatting("revenue", colorScale())                    // Excel defaults: MIN / PERCENTILE 50 / MAX
+.conditionalFormatting("revenue", colorScale(0, 50_000, 100_000))   // explicit NUMBER thresholds
+```
+
+Comparison factories: `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `equalTo`, `notEqualTo`, `between`, `notBetween`. Equality also accepts `boolean` and `String`.
 
 Operand types: any `Number` (`int`, `long`, `double`, `float`, `BigDecimal`, etc. — primitives are autoboxed), `boolean`, `String` (equality only — auto-escaped to Excel string literal), `LocalDate`, `LocalDateTime`, `Date`, `Calendar`, `Formula`.
 
@@ -676,7 +688,7 @@ Prefer `LocalDate` / `LocalDateTime` for deterministic CF rules. `Date` carries 
 | | `cellIs` operators | `expression` |
 |---|---|---|
 | Compares | The cell against operand(s) | Arbitrary boolean formula |
-| Example | `.column("price").greaterThan(100)` | `.column("price").expression("$E1<$F1")` |
+| Example | `greaterThan(100).style("warn")` | `expression("$E1<$F1").style("warn")` |
 | Use when | Direct comparison fits | Need cross-cell logic, `AND`/`OR`, `ISBLANK`, etc. |
 
 `expression(formula)` is passed verbatim to POI; do not include a leading `=`.
@@ -685,7 +697,31 @@ Prefer `LocalDate` / `LocalDateTime` for deterministic CF rules. `Date` carries 
 
 `Formula.of(text)` is a power-user escape — the text is emitted verbatim into the OOXML `<formula>` element. The library does not validate Excel syntax. `Formula.column(name)` resolves the schema column name to a row-relative reference (`$<col><dataStartRow>`) at write time, so Excel auto-shifts per cell in the formatting range.
 
-Style → DXF: fill, font, and border only. Alignment and wrap-text are silently skipped.
+#### Style → DXF mapping
+
+Style names referenced by `.style(name)` resolve to a `cellStyle` in `StylesBuilder`. Fill, font, and border properties are translated into a DXF entry attached to the rule. Alignment and wrap-text are silently skipped (DXF doesn't support them).
+
+#### Color scale (3-color)
+
+A 3-color gradient based on cell values. `colorScale` returns `ConditionalFormatRule` directly — no `.style()` required, since the visualization carries its own colors.
+
+| Form | Thresholds | Colors |
+|------|-----------|--------|
+| `colorScale()` | Excel defaults — MIN / PERCENTILE 50 / MAX | red → yellow → green |
+| `colorScale(min, mid, max)` | Explicit NUMBER values | red → yellow → green |
+
+Color customization, threshold types other than `NUMBER` (PERCENT / PERCENTILE / FORMULA), the 2-color variant, and other visualization types (`dataBar`, `iconSet`) are deferred to a later 1.6.x release.
+
+#### Migrating from 1.5.0
+
+The 1.5.0 sub-builder form (`.conditionalFormatting().column(...).<op>(...).style(...).end()`) was **removed** in 1.6.0. Translation is mechanical and produces compile errors when not migrated:
+
+| 1.5.0 | 1.6.0 |
+|-------|-------|
+| `.conditionalFormatting().column("score").greaterThanOrEqual(80).style("good").end()` | `.conditionalFormatting("score", greaterThanOrEqual(80).style("good"))` |
+| Two `.conditionalFormatting()...end()` calls on the same column | Single `.conditionalFormatting("score", rule1, rule2)` with varargs |
+| `.conditionalFormatting().column("status").equalTo("URGENT").style("warn").end()` | `.conditionalFormatting("status", equalTo("URGENT").style("warn"))` |
+| `.conditionalFormatting().column("score").expression("AND(...)").style("foo").end()` | `.conditionalFormatting("score", expression("AND(...)").style("foo"))` |
 
 ## Configuration
 

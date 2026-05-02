@@ -210,15 +210,12 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .gridConfigurer(new GridConfigurer()
         .freezePane(0, 1)
         .autoFilter()
-        .conditionalFormatting()
-            .column("score")
-            .greaterThanOrEqual(80)
-            .style("highlight")
-            .end())
+        .conditionalFormatting("score",
+            greaterThanOrEqual(80).style("highlight")))
     .build();
 ```
 
-Conditional formatting rules reference columns from the model class and styles from `StylesBuilder` — both name-based and resolved at write time.
+Conditional formatting rules reference columns from the model class and styles from `StylesBuilder` — both name-based and resolved at write time. Static-import the factory methods from `ConditionalFormats` for fluent chaining; see the [GUIDE](GUIDE.md#conditional-formatting) for typed operators, multi-rule columns, and color scale.
 
 ### Configuration
 
