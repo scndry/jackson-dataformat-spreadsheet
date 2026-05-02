@@ -12,6 +12,8 @@ import org.apache.poi.ss.usermodel.ComparisonOperator;
 import org.apache.poi.ss.usermodel.ConditionType;
 import org.apache.poi.ss.usermodel.ConditionalFormatting;
 import org.apache.poi.ss.usermodel.ConditionalFormattingRule;
+import org.apache.poi.ss.usermodel.ConditionalFormattingThreshold;
+import org.apache.poi.ss.usermodel.ConditionalFormattingThreshold.RangeType;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.SheetConditionalFormatting;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -36,6 +38,7 @@ import java.util.TimeZone;
 import static io.github.scndry.jackson.dataformat.spreadsheet.OpcXmlHelper.NS_SPREADSHEETML;
 import static io.github.scndry.jackson.dataformat.spreadsheet.OpcXmlHelper.parsePart;
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.between;
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.colorScale;
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.equalTo;
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.expression;
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.greaterThan;
@@ -431,6 +434,132 @@ class ConditionalFormattingTest {
         assertThatThrownBy(() -> expression(""))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("must not be empty");
+    }
+
+    @Test
+    void multipleRulesOnSameColumn() throws Exception {
+        File file = new File(tempDir, "cf-multi.xlsx");
+        List<Score> data = Arrays.asList(new Score("Alice", 90), new Score("Bob", 50));
+
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .stylesBuilder(new StylesBuilder()
+                        .cellStyle("good").fillForegroundColor(IndexedColors.LIGHT_GREEN)
+                            .fillPattern().solidForeground().end()
+                        .cellStyle("bad").fillForegroundColor(IndexedColors.ROSE)
+                            .fillPattern().solidForeground().end())
+                .gridConfigurer(new GridConfigurer()
+                        .conditionalFormatting("score",
+                                greaterThanOrEqual(80).style("good"),
+                                lessThan(60).style("bad")))
+                .build();
+        mapper.writeValue(file, data, Score.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            SheetConditionalFormatting scf = wb.getSheetAt(0).getSheetConditionalFormatting();
+            assertThat(scf.getNumConditionalFormattings()).isEqualTo(2);
+            assertThat(scf.getConditionalFormattingAt(0).getRule(0).getComparisonOperation())
+                    .isEqualTo(ComparisonOperator.GE);
+            assertThat(scf.getConditionalFormattingAt(1).getRule(0).getComparisonOperation())
+                    .isEqualTo(ComparisonOperator.LT);
+        }
+    }
+
+    @Test
+    void colorScaleDefaults() throws Exception {
+        File file = new File(tempDir, "cf-cs-default.xlsx");
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .gridConfigurer(new GridConfigurer()
+                        .conditionalFormatting("score", colorScale()))
+                .build();
+        mapper.writeValue(file, Arrays.asList(new Score("Alice", 90)), Score.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            ConditionalFormattingRule rule = wb.getSheetAt(0).getSheetConditionalFormatting()
+                    .getConditionalFormattingAt(0).getRule(0);
+            assertThat(rule.getConditionType()).isEqualTo(ConditionType.COLOR_SCALE);
+            ConditionalFormattingThreshold[] t = rule.getColorScaleFormatting().getThresholds();
+            assertThat(t).hasSize(3);
+            assertThat(t[0].getRangeType()).isEqualTo(RangeType.MIN);
+            assertThat(t[1].getRangeType()).isEqualTo(RangeType.PERCENTILE);
+            assertThat(t[1].getValue()).isEqualTo(50.0);
+            assertThat(t[2].getRangeType()).isEqualTo(RangeType.MAX);
+            assertThat(rule.getColorScaleFormatting().getColors()).hasSize(3);
+        }
+    }
+
+    @Test
+    void colorScaleExplicitThresholds() throws Exception {
+        File file = new File(tempDir, "cf-cs-explicit.xlsx");
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .gridConfigurer(new GridConfigurer()
+                        .conditionalFormatting("score", colorScale(0, 50, 100)))
+                .build();
+        mapper.writeValue(file, Arrays.asList(new Score("Alice", 90)), Score.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            ConditionalFormattingRule rule = wb.getSheetAt(0).getSheetConditionalFormatting()
+                    .getConditionalFormattingAt(0).getRule(0);
+            assertThat(rule.getConditionType()).isEqualTo(ConditionType.COLOR_SCALE);
+            ConditionalFormattingThreshold[] t = rule.getColorScaleFormatting().getThresholds();
+            assertThat(t[0].getRangeType()).isEqualTo(RangeType.NUMBER);
+            assertThat(t[0].getValue()).isEqualTo(0.0);
+            assertThat(t[1].getRangeType()).isEqualTo(RangeType.NUMBER);
+            assertThat(t[1].getValue()).isEqualTo(50.0);
+            assertThat(t[2].getRangeType()).isEqualTo(RangeType.NUMBER);
+            assertThat(t[2].getValue()).isEqualTo(100.0);
+        }
+    }
+
+    @Test
+    void unknownColumnThrows() {
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .stylesBuilder(new StylesBuilder()
+                        .cellStyle("x").fillForegroundColor(IndexedColors.YELLOW)
+                            .fillPattern().solidForeground().end())
+                .gridConfigurer(new GridConfigurer()
+                        .conditionalFormatting("nonexistent", greaterThanOrEqual(80).style("x")))
+                .build();
+        File file = new File(tempDir, "cf-fail-col.xlsx");
+        assertThatThrownBy(() -> mapper.writeValue(file, Arrays.asList(new Score("A", 1)), Score.class))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("nonexistent");
+    }
+
+    @Test
+    void unknownStyleThrows() {
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .gridConfigurer(new GridConfigurer()
+                        .conditionalFormatting("score", greaterThanOrEqual(80).style("missing-style")))
+                .build();
+        File file = new File(tempDir, "cf-fail-style.xlsx");
+        assertThatThrownBy(() -> mapper.writeValue(file, Arrays.asList(new Score("A", 1)), Score.class))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("missing-style");
+    }
+
+    @Test
+    void styleWithNullNameThrows() {
+        assertThatThrownBy(() -> greaterThanOrEqual(80).style(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("style name");
+    }
+
+    @Test
+    void conditionalFormattingNullColumnThrows() {
+        assertThatThrownBy(() -> new GridConfigurer()
+                .conditionalFormatting(null, greaterThanOrEqual(80).style("x")))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("column");
+    }
+
+    @Test
+    void conditionalFormattingNullRuleElementThrows() {
+        assertThatThrownBy(() -> new GridConfigurer()
+                .conditionalFormatting("score",
+                        greaterThanOrEqual(80).style("x"),
+                        (ConditionalFormatRule) null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("rules element");
     }
 
     /** Helper: write a CF rule and return the resulting POI rule. */
