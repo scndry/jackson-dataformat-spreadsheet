@@ -651,12 +651,12 @@ Comparison factories (`greaterThan`, `between`, `equalTo`, ...) accept typed val
     greaterThanOrEqual(80).style("good"),
     lessThan(60).style("bad"))
 
-// Cell reference / function — Formula.of for raw passthrough
-.conditionalFormatting("price", greaterThan(Formula.of("$D$1")).style("warn"))
-.conditionalFormatting("price", greaterThan(Formula.of("AVERAGE($B$2:$B$100)")).style("aboveAvg"))
+// Cell reference / function — formula() for raw passthrough
+.conditionalFormatting("price", greaterThan(formula("$D$1")).style("warn"))
+.conditionalFormatting("price", greaterThan(formula("AVERAGE($B$2:$B$100)")).style("aboveAvg"))
 
 // Schema-aware cross-column reference — row-relative, schema-safe
-.conditionalFormatting("price", greaterThan(Formula.column("minPrice")).style("warn"))
+.conditionalFormatting("price", greaterThan(columnRef("minPrice")).style("warn"))
 
 // Arbitrary boolean expression rule (type="expression")
 .conditionalFormatting("score", expression("AND($A1>0, $B1<100)").style("warn"))
@@ -695,7 +695,7 @@ Prefer `LocalDate` / `LocalDateTime` for deterministic CF rules. `Date` carries 
 
 #### Formula escape
 
-`Formula.of(text)` is a power-user escape — the text is emitted verbatim into the OOXML `<formula>` element. The library does not validate Excel syntax. `Formula.column(name)` resolves the schema column name to a row-relative reference (`$<col><dataStartRow>`) at write time, so Excel auto-shifts per cell in the formatting range.
+`formula(text)` is a power-user escape — the text is emitted verbatim into the OOXML `<formula>` element. The library does not validate Excel syntax. `columnRef(name)` resolves the schema column name to a row-relative reference (`$<col><dataStartRow>`) at write time, so Excel auto-shifts per cell in the formatting range.
 
 #### Style → DXF mapping
 

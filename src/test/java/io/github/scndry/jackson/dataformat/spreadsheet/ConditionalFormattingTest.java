@@ -2,7 +2,6 @@ package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormatRule;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.Formula;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.GridConfigurer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
 import lombok.AllArgsConstructor;
@@ -39,8 +38,10 @@ import static io.github.scndry.jackson.dataformat.spreadsheet.OpcXmlHelper.NS_SP
 import static io.github.scndry.jackson.dataformat.spreadsheet.OpcXmlHelper.parsePart;
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.between;
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.colorScale;
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.columnRef;
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.equalTo;
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.expression;
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.formula;
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.greaterThan;
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.greaterThanOrEqual;
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.lessThan;
@@ -364,7 +365,7 @@ class ConditionalFormattingTest {
     @Test
     void formulaOfRawCellRef() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("score",
-                greaterThan(Formula.of("$D$1")).style("highlight"),
+                greaterThan(formula("$D$1")).style("highlight"),
                 Score.class, Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getFormula1()).isEqualTo("$D$1");
     }
@@ -372,7 +373,7 @@ class ConditionalFormattingTest {
     @Test
     void formulaOfFunction() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("score",
-                greaterThan(Formula.of("AVERAGE($B$2:$B$100)")).style("highlight"),
+                greaterThan(formula("AVERAGE($B$2:$B$100)")).style("highlight"),
                 Score.class, Arrays.asList(new Score("Alice", 90)));
         assertThat(rule.getFormula1()).isEqualTo("AVERAGE($B$2:$B$100)");
     }
@@ -380,7 +381,7 @@ class ConditionalFormattingTest {
     @Test
     void formulaColumnResolvesToRowRelativeRef() throws Exception {
         ConditionalFormattingRule rule = _writeAndGetRule("price",
-                greaterThan(Formula.column("minPrice")).style("highlight"),
+                greaterThan(columnRef("minPrice")).style("highlight"),
                 Item.class, Arrays.asList(new Item("Apple", 10.0, 5.0)));
         // Item: name=A, price=B, minPrice=C; data starts at row 2 (origin A1, header at row 1)
         assertThat(rule.getFormula1()).isEqualTo("$C2");
@@ -398,7 +399,7 @@ class ConditionalFormattingTest {
                             .end())
                 .gridConfigurer(new GridConfigurer()
                         .conditionalFormatting("price",
-                                greaterThan(Formula.column("nonexistent")).style("highlight")))
+                                greaterThan(columnRef("nonexistent")).style("highlight")))
                 .build();
         assertThatThrownBy(() -> mapper.writeValue(file, Arrays.asList(new Item("A", 1.0, 0.5)), Item.class))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -560,6 +561,34 @@ class ConditionalFormattingTest {
                         (ConditionalFormatRule) null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("rules element");
+    }
+
+    @Test
+    void formulaWithNullTextThrows() {
+        assertThatThrownBy(() -> formula(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must not be empty");
+    }
+
+    @Test
+    void formulaWithEmptyTextThrows() {
+        assertThatThrownBy(() -> formula(""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must not be empty");
+    }
+
+    @Test
+    void columnRefWithNullNameThrows() {
+        assertThatThrownBy(() -> columnRef(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must not be empty");
+    }
+
+    @Test
+    void columnRefWithEmptyNameThrows() {
+        assertThatThrownBy(() -> columnRef(""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must not be empty");
     }
 
     /** Helper: write a CF rule and return the resulting POI rule. */

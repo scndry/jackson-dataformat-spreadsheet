@@ -32,12 +32,15 @@ import org.apache.poi.ss.usermodel.ComparisonOperator;
  *       Returns {@link FormatCondition}.</li>
  *   <li><b>visualization</b> — {@link #colorScale()} / {@link #colorScale(double, double, double)}
  *       returns {@link ConditionalFormatRule} directly (no styling required).</li>
+ *   <li><b>operand factories</b> — {@link #formula(String)} (raw passthrough) and
+ *       {@link #columnRef(String)} (schema-aware row-relative reference) produce
+ *       {@link Formula} operands for cellIs comparisons.</li>
  * </ul>
  *
  * <p>Methods that accept a typed value ({@link Number} / {@link LocalDate} /
  * {@link LocalDateTime} / {@link Date} / {@link Calendar} / {@link String} / {@code boolean})
- * auto-convert to the appropriate Excel formula representation. Use {@link Formula} for
- * raw formulas or column-relative cell references.
+ * auto-convert to the appropriate Excel formula representation. Use {@link #formula(String)}
+ * or {@link #columnRef(String)} for raw formulas or column-relative cell references.
  *
  * @since 1.6.0
  */
@@ -314,6 +317,42 @@ public final class ConditionalFormats {
      */
     public static ConditionalFormatRule colorScale(final double min, final double mid, final double max) {
         return new ColorScaleRule(min, mid, max);
+    }
+
+    // ─── operand factories ─────────────────────────────────────────
+
+    /**
+     * Raw Excel formula passthrough operand. The text is emitted verbatim into the OOXML
+     * {@code <formula>} element. The library does not validate or parse it.
+     *
+     * <pre>{@code
+     * grid.conditionalFormatting("price",
+     *         greaterThan(formula("$D$1")).style("warn"),
+     *         greaterThan(formula("AVERAGE($B$2:$B$100)")).style("aboveAvg"));
+     * }</pre>
+     */
+    public static Formula formula(final String text) {
+        if (text == null || text.isEmpty()) {
+            throw new IllegalArgumentException("Formula text must not be empty");
+        }
+        return new Formula(Formula.Kind.OF, text);
+    }
+
+    /**
+     * Schema-aware row-relative reference to another column in the data grid.
+     * Resolved to {@code $<colLetter><dataStartRow>} at apply time, so Excel
+     * auto-shifts the row for each cell in the conditional formatting range.
+     *
+     * <pre>{@code
+     * grid.conditionalFormatting("price",
+     *         greaterThan(columnRef("minPrice")).style("warn"));
+     * }</pre>
+     */
+    public static Formula columnRef(final String name) {
+        if (name == null || name.isEmpty()) {
+            throw new IllegalArgumentException("Column name must not be empty");
+        }
+        return new Formula(Formula.Kind.COLUMN, name);
     }
 
     // ─── private helpers ───────────────────────────────────────────
