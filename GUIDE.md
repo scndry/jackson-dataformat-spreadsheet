@@ -621,6 +621,8 @@ Supported: `Date`, `Calendar`, `LocalDate`, `LocalDateTime`.
 
 No configuration needed. Read an Excel date cell and get a `LocalDate`. Write a `LocalDate` and get an Excel-formatted date.
 
+On read, the workbook's date system (1900 or 1904) is detected and applied automatically. Write defaults to 1900.
+
 ## Sheet-Level Features
 
 `GridConfigurer` controls sheet-level features anchored on the data grid. The conditional formatting call below uses factory methods from `ConditionalFormats`, typically static-imported (see [Conditional Formatting](#conditional-formatting) for details):

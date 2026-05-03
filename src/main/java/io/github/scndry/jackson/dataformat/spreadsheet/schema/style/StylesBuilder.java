@@ -20,6 +20,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
  */
 public final class StylesBuilder implements Builder<Styles> {
 
+    // Each name maps to one POI CellStyle — bounded by Excel's cell-style cap (4K HSSF / 64K XSSF).
     private final Map<Object, CellStyleBuilder> _builders;
 
     public StylesBuilder() {
