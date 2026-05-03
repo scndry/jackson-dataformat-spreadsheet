@@ -14,7 +14,7 @@
 
 | Library | Version |
 |---------|---------|
-| jackson-dataformat-spreadsheet | 1.5.0 |
+| jackson-dataformat-spreadsheet | 1.6.0 |
 | Apache POI | 5.5.1 |
 | FastExcel | 0.20.0 |
 | Fesod | 2.0.1-incubating |
@@ -24,21 +24,21 @@
 
 | Library | 1K rows | 10K rows | 50K rows | 100K rows |
 |---------|---------|----------|----------|-----------|
-| jackson-spreadsheet | 2.8 ms | 21.8 ms | 91.2 ms | 198.1 ms |
-| FastExcel | 2.2 ms | 20.4 ms | 105.8 ms | 212.3 ms |
-| Fesod | 3.6 ms | 29.4 ms | 138.4 ms | 279.4 ms |
-| Poiji | 9.9 ms | 91.2 ms | 429.7 ms | 843.4 ms |
-| Apache POI | 12.1 ms | 107.0 ms | 522.5 ms | 1197.6 ms |
+| jackson-spreadsheet | 2.1 ms | 17.7 ms | 93.2 ms | 196.0 ms |
+| FastExcel | 2.4 ms | 21.1 ms | 105.7 ms | 252.0 ms |
+| Fesod | 3.3 ms | 27.8 ms | 136.3 ms | 266.6 ms |
+| Poiji | 9.3 ms | 86.9 ms | 418.4 ms | 847.7 ms |
+| Apache POI | 10.6 ms | 101.8 ms | 541.1 ms | 1094.5 ms |
 
 ## Read — Memory (bytes/op)
 
 | Library | 10K rows | 50K rows | 100K rows |
 |---------|----------|----------|-----------|
-| jackson-spreadsheet | 38 MB | 189 MB | 378 MB |
-| Fesod | 42 MB | 206 MB | 400 MB |
-| FastExcel | 42 MB | 219 MB | 428 MB |
-| Apache POI | 235 MB | 1167 MB | 2333 MB |
-| Poiji | 288 MB | 1438 MB | 2876 MB |
+| jackson-spreadsheet | 36 MB | 180 MB | 360 MB |
+| Fesod | 39 MB | 197 MB | 384 MB |
+| FastExcel | 41 MB | 209 MB | 407 MB |
+| Apache POI | 222 MB | 1115 MB | 2223 MB |
+| Poiji | 274 MB | 1372 MB | 2743 MB |
 
 ## Write — Throughput
 
@@ -46,19 +46,19 @@ Poiji is read-only and not included.
 
 | Library | 1K rows | 10K rows | 50K rows | 100K rows |
 |---------|---------|----------|----------|-----------|
-| jackson-spreadsheet | 4.5 ms | 17.8 ms | 76.9 ms | 150.3 ms |
-| FastExcel | 2.8 ms | 16.7 ms | 83.7 ms | 165.8 ms |
-| Apache POI | 6.2 ms | 30.9 ms | 147.0 ms | 283.0 ms |
-| Fesod | 7.1 ms | 36.6 ms | 166.9 ms | 336.7 ms |
+| jackson-spreadsheet | 3.4 ms | 16.7 ms | 74.8 ms | 143.7 ms |
+| FastExcel | 2.7 ms | 15.7 ms | 77.9 ms | 153.9 ms |
+| Apache POI | 4.3 ms | 27.6 ms | 133.4 ms | 267.6 ms |
+| Fesod | 4.8 ms | 32.9 ms | 154.5 ms | 314.3 ms |
 
 ## Write — Memory (bytes/op)
 
 | Library | 10K rows | 50K rows | 100K rows |
 |---------|----------|----------|-----------|
-| FastExcel | 16 MB | 78 MB | 156 MB |
-| jackson-spreadsheet | 21 MB | 96 MB | 191 MB |
-| Apache POI | 23 MB | 108 MB | 207 MB |
-| Fesod | 50 MB | 247 MB | 480 MB |
+| FastExcel | 15 MB | 75 MB | 149 MB |
+| jackson-spreadsheet | 20 MB | 92 MB | 182 MB |
+| Apache POI | 21 MB | 104 MB | 207 MB |
+| Fesod | 48 MB | 230 MB | 458 MB |
 
 ## jackson — Streaming vs POI User Model
 
@@ -69,19 +69,19 @@ Apache POI (raw, no jackson) shown as reference.
 
 | Mode | 1K rows | 10K rows | 50K rows | 100K rows | Memory (100K) |
 |------|---------|----------|----------|-----------|---------------|
-| Streaming (default) | 2.8 ms | 21.8 ms | 91.2 ms | 198.1 ms | 378 MB |
-| POI User Model | 15.8 ms | 124.1 ms | 673.6 ms | 1459.8 ms | 2943 MB |
-| Apache POI (reference) | 12.1 ms | 107.0 ms | 522.5 ms | 1197.6 ms | 2333 MB |
+| Streaming (default) | 2.1 ms | 17.7 ms | 93.2 ms | 196.0 ms | 360 MB |
+| POI User Model | 15.2 ms | 123.3 ms | 600.4 ms | 1393.1 ms | 2807 MB |
+| Apache POI (reference) | 10.6 ms | 101.8 ms | 541.1 ms | 1094.5 ms | 2225 MB |
 
 **Write:**
 
 | Mode | 1K rows | 10K rows | 50K rows | 100K rows | Memory (100K) |
 |------|---------|----------|----------|-----------|---------------|
-| Streaming (default) | 4.5 ms | 17.8 ms | 76.9 ms | 150.3 ms | 191 MB |
-| POI User Model | 7.2 ms | 35.4 ms | 166.9 ms | 334.5 ms | 258 MB |
-| Apache POI (reference) | 6.2 ms | 30.9 ms | 147.0 ms | 283.0 ms | 207 MB |
+| Streaming (default) | 3.4 ms | 16.7 ms | 74.8 ms | 143.7 ms | 182 MB |
+| POI User Model | 4.6 ms | 32.6 ms | 155.3 ms | 317.9 ms | 246 MB |
+| Apache POI (reference) | 4.3 ms | 27.6 ms | 133.4 ms | 267.6 ms | 207 MB |
 
-- Read: Streaming is 7.4x faster and uses 87% less memory than POI User Model at 100K rows.
+- Read: Streaming is 7.1x faster and uses 87% less memory than POI User Model at 100K rows.
 - Write: Streaming is 2.2x faster and uses 26% less memory than POI User Model at 100K rows.
 - POI User Model is slower than raw Apache POI due to Jackson serialization and schema overhead.
 
@@ -93,19 +93,32 @@ Apache POI (raw, no jackson) shown as reference.
 
 | Strategy | 10K rows | 50K rows | 100K rows |
 |----------|----------|----------|-----------|
-| InMemory (default) | 16.7 ms | 64.7 ms | 136.7 ms |
-| FileBacked (H2 MVStore) | 30.9 ms | 130.3 ms | 252.5 ms |
-| FileBacked + Encrypted | 32.9 ms | 144.8 ms | 290.4 ms |
+| InMemory (default) | 13.7 ms | 62.7 ms | 134.7 ms |
+| FileBacked (H2 MVStore) | 28.6 ms | 120.0 ms | 222.9 ms |
+| FileBacked + Encrypted | 33.5 ms | 151.2 ms | 256.7 ms |
 
 **Write:**
 
 | Strategy | 10K rows | 50K rows | 100K rows |
 |----------|----------|----------|-----------|
-| InMemory (default) | 17.8 ms | 76.9 ms | 150.3 ms |
-| FileBacked (H2 MVStore) | 35.5 ms | 164.8 ms | 329.0 ms |
-| FileBacked + Encrypted | 39.6 ms | 228.4 ms | 480.5 ms |
+| InMemory (default) | 18.8 ms | 90.9 ms | 184.4 ms |
+| FileBacked (H2 MVStore) | 41.0 ms | 207.5 ms | 419.8 ms |
+| FileBacked + Encrypted | 49.9 ms | 274.9 ms | 626.3 ms |
 
 - FileBacked's value is **peak heap reduction**, not throughput. When the SST exceeds available heap, InMemory causes OOM while FileBacked stays constant.
+
+## Write — AutoSize Cost (POI mode)
+
+`autoSize` is supported only in `USE_POI_USER_MODEL` mode (the streaming default doesn't measure column widths). Cost compared against the same POI mode without `autoSize`:
+
+| Mode | 1K rows | 10K rows | 100K rows |
+|------|---------|----------|-----------|
+| Without autoSize | 4.7 ms | 31.9 ms | 336.6 ms |
+| With autoSize | 13.7 ms | 55.4 ms | 469.9 ms |
+| Overhead | 2.92x | 1.74x | 1.40x |
+
+- Sampling strategy (full first 100 rows + every 100th row thereafter) keeps overhead bounded — overhead amortizes from 2.92x at 1K rows to 1.40x at 100K rows.
+- For exact-fit guarantees on outlier-long values, set `@DataColumn(width = N)` explicitly.
 
 ## How to Run
 
@@ -113,13 +126,14 @@ Apache POI (raw, no jackson) shown as reference.
 ./gradlew jmh
 ```
 
-Filter specific benchmarks:
+Filter specific benchmarks (and route results to per-benchmark files for separate runs):
 
 ```bash
-./gradlew jmh -Pjmh.includes="ReadBenchmark"
-./gradlew jmh -Pjmh.includes="WriteBenchmark"
-./gradlew jmh -Pjmh.includes="MemoryBenchmark"
-./gradlew jmh -Pjmh.includes="SharedStringsBenchmark"
+./gradlew jmh -Pjmh.includes="ReadBenchmark"          -Pjmh.resultsFile="build/results/jmh/read.txt"
+./gradlew jmh -Pjmh.includes="WriteBenchmark"         -Pjmh.resultsFile="build/results/jmh/write.txt"
+./gradlew jmh -Pjmh.includes="MemoryBenchmark"        -Pjmh.resultsFile="build/results/jmh/memory.txt"
+./gradlew jmh -Pjmh.includes="SharedStringsBenchmark" -Pjmh.resultsFile="build/results/jmh/sharedstrings.txt"
+./gradlew jmh -Pjmh.includes="AutoSizeBenchmark"      -Pjmh.resultsFile="build/results/jmh/autosize.txt"
 ```
 
-GC profiler is enabled by default. Results are saved to `build/results/jmh/results.txt`.
+Run benchmarks separately to avoid system noise accumulation across categories. GC profiler is enabled by default.
