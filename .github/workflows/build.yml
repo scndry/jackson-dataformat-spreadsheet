@@ -4,14 +4,25 @@ on:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, 'release/**' ]
 
 permissions:
   contents: read
 
 jobs:
   build:
+    name: build (${{ matrix.name }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: default
+            poiVersion: ""
+            jacksonVersion: ""
+          - name: compat-min
+            poiVersion: "4.1.1"
+            jacksonVersion: "2.14.0"
     steps:
       - uses: actions/checkout@v6
       - name: Set up JDK
@@ -20,4 +31,8 @@ jobs:
           java-version: 17
           distribution: temurin
       - name: Build and test
-        run: ./gradlew check --console=plain
+        run: |
+          ARGS=""
+          [ -n "${{ matrix.poiVersion }}" ] && ARGS="$ARGS -PpoiVersion=${{ matrix.poiVersion }}"
+          [ -n "${{ matrix.jacksonVersion }}" ] && ARGS="$ARGS -PjacksonVersion=${{ matrix.jacksonVersion }}"
+          ./gradlew check --console=plain $ARGS

@@ -1,5 +1,6 @@
-package io.github.scndry.jackson.dataformat.spreadsheet;
+package io.github.scndry.jackson.dataformat.spreadsheet.internal;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.SpreadsheetMapper;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetInput;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
@@ -16,7 +17,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Isolates costs: schema generation vs full read (with reused mapper/schema).
+ * Internal profiling benchmark — isolates costs: schema generation vs full read
+ * (with reused mapper/schema). Used for optimization work; not documented in
+ * BENCHMARK.md.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)

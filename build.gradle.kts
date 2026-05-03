@@ -6,12 +6,13 @@ plugins {
 }
 
 group = "io.github.scndry"
-version = "1.5.0"
+version = "1.6.0"
 description = "Support for reading and writing Spreadsheet via Jackson abstractions."
 
 val title = "Jackson dataformat: Spreadsheet"
-val jacksonVersion = "2.21.3"
-val poiVersion = "5.5.1"
+// Compat-test override: ./gradlew test -PpoiVersion=4.1.1 -PjacksonVersion=2.14.0
+val jacksonVersion = (findProperty("jacksonVersion") as? String)?.takeIf { it.isNotEmpty() } ?: "2.21.3"
+val poiVersion = (findProperty("poiVersion") as? String)?.takeIf { it.isNotEmpty() } ?: "5.5.1"
 val snapshots = version.toString().endsWith("SNAPSHOT")
 
 repositories {
@@ -131,6 +132,9 @@ jmh {
     }
     if (project.hasProperty("jmh.failOnError")) {
         failOnError.set(project.property("jmh.failOnError").toString().toBoolean())
+    }
+    if (project.hasProperty("jmh.resultsFile")) {
+        resultsFile.set(file(project.property("jmh.resultsFile").toString()))
     }
 }
 

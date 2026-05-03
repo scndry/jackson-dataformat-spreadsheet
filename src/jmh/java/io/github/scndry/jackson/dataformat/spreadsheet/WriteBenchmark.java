@@ -70,24 +70,6 @@ public class WriteBenchmark {
     }
 
     @Benchmark
-    public void jacksonSpreadsheetFileBacked(Blackhole bh) throws IOException {
-        SpreadsheetMapper mapper = new SpreadsheetMapper(
-                new SpreadsheetFactory().enable(SpreadsheetFactory.Feature.FILE_BACKED_SHARED_STRINGS));
-        mapper.writeValue(file, data, EntryData.class);
-        bh.consume(file);
-    }
-
-    @Benchmark
-    public void jacksonSpreadsheetFileBackedEncrypted(Blackhole bh) throws IOException {
-        SpreadsheetMapper mapper = new SpreadsheetMapper(
-                new SpreadsheetFactory()
-                        .enable(SpreadsheetFactory.Feature.FILE_BACKED_SHARED_STRINGS)
-                        .enable(SpreadsheetFactory.Feature.ENCRYPT_FILE_BACKED_STORE));
-        mapper.writeValue(file, data, EntryData.class);
-        bh.consume(file);
-    }
-
-    @Benchmark
     public void jacksonSpreadsheetPOI(Blackhole bh) throws IOException {
         SpreadsheetMapper mapper = new SpreadsheetMapper(
                 new SpreadsheetFactory(SXSSFWorkbook::new, SpreadsheetFactory.DEFAULT_SHEET_PARSER_FEATURE_FLAGS)

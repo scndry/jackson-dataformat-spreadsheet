@@ -39,13 +39,13 @@ Available on Maven Central:
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.5.0"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.6.0"
 ```
 
 ### Requirements
@@ -210,15 +210,12 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .gridConfigurer(new GridConfigurer()
         .freezePane(0, 1)
         .autoFilter()
-        .conditionalFormatting()
-            .column("score")
-            .greaterThanOrEqual(80)
-            .style("highlight")
-            .end())
+        .conditionalFormatting("score",
+            greaterThanOrEqual(80).style("highlight")))
     .build();
 ```
 
-Conditional formatting rules reference columns from the model class and styles from `StylesBuilder` — both name-based and resolved at write time.
+Conditional formatting rules reference columns from the model class and styles from `StylesBuilder` — both name-based and resolved at write time. Static-import the factory methods from `ConditionalFormats` for fluent chaining; see the [GUIDE](GUIDE.md#conditional-formatting) for typed operators, multi-rule columns, and color scale.
 
 ### Configuration
 
@@ -274,7 +271,7 @@ Fastest read and write throughput at 100K rows. 6x faster read than Apache POI. 
 XLSX (OOXML) and XLS (legacy). XLSX uses StAX streaming; XLS uses POI object model.
 
 **Q: Is it production-ready?**
-Yes. Version 1.5.0 on Maven Central. Java 8+, Jackson 2.14+, POI 4.1.1+. Listed as a [community data format module](https://github.com/FasterXML/jackson#data-format-modules) in the FasterXML jackson repository.
+Yes. Version 1.6.0 on Maven Central. Java 8+, Jackson 2.14+, POI 4.1.1+. Listed as a [community data format module](https://github.com/FasterXML/jackson#data-format-modules) in the FasterXML jackson repository.
 
 ## License
 

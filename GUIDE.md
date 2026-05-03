@@ -57,13 +57,13 @@ But this is not a POI replacement. POI types (`Sheet`, `Workbook`) are first-cla
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.5.0"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.6.0"
 ```
 
 ## Quick Start
@@ -158,6 +158,24 @@ List<Product> list = mapper.readValues(SheetInput.source(file, 0), Product.class
 ```
 
 By default, columns are matched by position — the spreadsheet's column order must match the field declaration order. Enable `columnReordering(true)` to match by header name instead (see [Column Reordering](#column-reordering)).
+
+### Formula Cells
+
+Formula cells return the **cached computed value**, not the formula text. The reader binds the cached value (emitted when the formula was last evaluated by Excel/POI) to the typed field — no manual `FormulaEvaluator` invocation needed.
+
+```java
+@DataGrid
+class Invoice {
+    String item;
+    int quantity;
+    double unitPrice;
+    // formula reads as the cached value
+    double subtotal;   // `=B2*C2` (quantity*unitPrice) — e.g., 5000.0
+    double total;      // `=D2*1.1` (subtotal*1.1) — e.g., 5500.0 (10% VAT)
+}
+```
+
+If the cached value is missing (rare — produced by a writer that doesn't recompute), the cell reads as blank. To force re-evaluation, open the workbook with POI directly and invoke `FormulaEvaluator.evaluateAll()` before passing the `Sheet` to the mapper.
 
 ### Streaming Read
 
@@ -549,7 +567,7 @@ Note: `mapper.writerWithView()` does not work — it bypasses schema generation.
 
 ## Styling
 
-Register named cell styles with `StylesBuilder` and reference them from annotations:
+Register named cell styles with `StylesBuilder` and reference them from annotations. Each named style maps to exactly one POI `CellStyle` (`workbook.createCellStyle()` invoked once per name at build time), so the [64,000 cell-style per-workbook limit](https://learn.microsoft.com/en-us/office/troubleshoot/excel/excel-specifications-and-limits) is bound by style declarations rather than row count.
 
 ```java
 StylesBuilder styles = new StylesBuilder()
@@ -605,7 +623,7 @@ No configuration needed. Read an Excel date cell and get a `LocalDate`. Write a 
 
 ## Sheet-Level Features
 
-`GridConfigurer` controls sheet-level features anchored on the data grid:
+`GridConfigurer` controls sheet-level features anchored on the data grid. The conditional formatting call below uses factory methods from `ConditionalFormats`, typically static-imported (see [Conditional Formatting](#conditional-formatting) for details):
 
 ```java
 SpreadsheetMapper mapper = SpreadsheetMapper.builder()
@@ -617,11 +635,8 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .gridConfigurer(new GridConfigurer()
         .freezePane(0, 1)
         .autoFilter()
-        .conditionalFormatting()
-            .column("score")
-            .greaterThanOrEqual(80)
-            .style("highlight")
-            .end())
+        .conditionalFormatting("score",
+            greaterThanOrEqual(80).style("highlight")))
     .build();
 ```
 
@@ -629,32 +644,47 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 
 ### Conditional Formatting
 
-`column(name)` matches `@DataColumn(value)`, the field name, or `@JsonAlias`. `style(name)` matches a `cellStyle(name)` in `StylesBuilder`. Both resolve at write time — typos throw `IllegalArgumentException` listing the available names.
-
-Operators accept typed values (numeric, boolean, string, date) or `Formula` for cell references and Excel expressions. String operands are auto-quoted; dates emit as `DATE(y,m,d)+TIME(h,m,s)`.
+`conditionalFormatting(String column, ConditionalFormatRule rule, ConditionalFormatRule... rules)` accepts one or more rules for a single column. Static-import the factory methods from `ConditionalFormats` for fluent chaining:
 
 ```java
-// Typed primitives
-.conditionalFormatting().column("score").greaterThan(90).style("good").end()
-.conditionalFormatting().column("price").between(100, 500).style("warn").end()
-.conditionalFormatting().column("status").equalTo("URGENT").style("warn").end()
-.conditionalFormatting().column("active").equalTo(true).style("info").end()
-
-// Date types — LocalDate, LocalDateTime, Date, Calendar all supported
-.conditionalFormatting().column("createdAt").greaterThan(LocalDate.of(2026, 1, 1)).style("recent").end()
-
-// Cell reference / function — Formula.of for raw passthrough
-.conditionalFormatting().column("price").greaterThan(Formula.of("$D$1")).style("warn").end()
-.conditionalFormatting().column("price").greaterThan(Formula.of("AVERAGE($B$2:$B$100)")).style("aboveAvg").end()
-
-// Schema-aware cross-column reference — row-relative, schema-safe
-.conditionalFormatting().column("price").greaterThan(Formula.column("minPrice")).style("warn").end()
-
-// Arbitrary boolean expression rule (type="expression")
-.conditionalFormatting().column("score").expression("AND($A1>0, $B1<100)").style("warn").end()
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.*;
 ```
 
-Operators: `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `equalTo`, `notEqualTo`, `between`, `notBetween`. Equality also accepts `boolean` and `String`.
+Column names resolve against `@DataColumn(value)`, the field name, or `@JsonAlias`. Style names resolve against `cellStyle(name)` in `StylesBuilder`. Both resolve at write time — typos throw `IllegalArgumentException` listing the available names.
+
+Comparison factories (`greaterThan`, `between`, `equalTo`, ...) accept typed values (numeric, boolean, string, date) or `Formula` for cell references and Excel expressions. String operands are auto-quoted; dates emit as `DATE(y,m,d)+TIME(h,m,s)`. The factory returns a `FormatCondition`; `.style(name)` finishes it as a `ConditionalFormatRule`.
+
+```java
+// Typed primitives — single-rule call
+.conditionalFormatting("score", greaterThan(90).style("good"))
+.conditionalFormatting("price", between(100, 500).style("warn"))
+.conditionalFormatting("status", equalTo("URGENT").style("warn"))
+.conditionalFormatting("active", equalTo(true).style("info"))
+
+// Date types — LocalDate, LocalDateTime, Date, Calendar all supported
+.conditionalFormatting("createdAt", greaterThan(LocalDate.of(2026, 1, 1)).style("recent"))
+
+// Multi-rule for one column — varargs
+.conditionalFormatting("score",
+    greaterThanOrEqual(80).style("good"),
+    lessThan(60).style("bad"))
+
+// Cell reference / function — formula() for raw passthrough
+.conditionalFormatting("price", greaterThan(formula("$D$1")).style("warn"))
+.conditionalFormatting("price", greaterThan(formula("AVERAGE($B$2:$B$100)")).style("aboveAvg"))
+
+// Schema-aware cross-column reference — row-relative, schema-safe
+.conditionalFormatting("price", greaterThan(columnRef("minPrice")).style("warn"))
+
+// Arbitrary boolean expression rule (type="expression")
+.conditionalFormatting("score", expression("AND($A1>0, $B1<100)").style("warn"))
+
+// Color scale — 3-color visualization, no styling required
+.conditionalFormatting("revenue", colorScale())                    // Excel defaults: MIN / PERCENTILE 50 / MAX
+.conditionalFormatting("revenue", colorScale(0, 50_000, 100_000))   // explicit NUMBER thresholds
+```
+
+Comparison factories: `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `equalTo`, `notEqualTo`, `between`, `notBetween`. Equality also accepts `boolean` and `String`.
 
 Operand types: any `Number` (`int`, `long`, `double`, `float`, `BigDecimal`, etc. — primitives are autoboxed), `boolean`, `String` (equality only — auto-escaped to Excel string literal), `LocalDate`, `LocalDateTime`, `Date`, `Calendar`, `Formula`.
 
@@ -676,16 +706,29 @@ Prefer `LocalDate` / `LocalDateTime` for deterministic CF rules. `Date` carries 
 | | `cellIs` operators | `expression` |
 |---|---|---|
 | Compares | The cell against operand(s) | Arbitrary boolean formula |
-| Example | `.column("price").greaterThan(100)` | `.column("price").expression("$E1<$F1")` |
+| Example | `greaterThan(100).style("warn")` | `expression("$E1<$F1").style("warn")` |
 | Use when | Direct comparison fits | Need cross-cell logic, `AND`/`OR`, `ISBLANK`, etc. |
 
 `expression(formula)` is passed verbatim to POI; do not include a leading `=`.
 
 #### Formula escape
 
-`Formula.of(text)` is a power-user escape — the text is emitted verbatim into the OOXML `<formula>` element. The library does not validate Excel syntax. `Formula.column(name)` resolves the schema column name to a row-relative reference (`$<col><dataStartRow>`) at write time, so Excel auto-shifts per cell in the formatting range.
+`formula(text)` is a power-user escape — the text is emitted verbatim into the OOXML `<formula>` element. The library does not validate Excel syntax. `columnRef(name)` resolves the schema column name to a row-relative reference (`$<col><dataStartRow>`) at write time, so Excel auto-shifts per cell in the formatting range.
 
-Style → DXF: fill, font, and border only. Alignment and wrap-text are silently skipped.
+#### Style → DXF mapping
+
+Style names referenced by `.style(name)` resolve to a `cellStyle` in `StylesBuilder`. Fill, font, and border properties are translated into a DXF entry attached to the rule. Alignment and wrap-text are silently skipped (DXF doesn't support them).
+
+#### Color scale (3-color)
+
+A 3-color gradient based on cell values. `colorScale` returns `ConditionalFormatRule` directly — no `.style()` required, since the visualization carries its own colors.
+
+| Form | Thresholds | Colors |
+|------|-----------|--------|
+| `colorScale()` | Excel defaults — MIN / PERCENTILE 50 / MAX | red → yellow → green |
+| `colorScale(min, mid, max)` | Explicit NUMBER values | red → yellow → green |
+
+Color customization, threshold types other than `NUMBER` (PERCENT / PERCENTILE / FORMULA), the 2-color variant, and other visualization types (`dataBar`, `iconSet`) are deferred to a later 1.6.x release.
 
 ## Configuration
 
@@ -833,7 +876,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .build();
 ```
 
-If the spreadsheet contains sensitive data, enable encryption to protect the temp file at rest:
+If the spreadsheet contains sensitive data, enable encryption to protect the **shared-strings temp file** (H2 MVStore-backed) at rest:
 
 ```java
 SpreadsheetMapper mapper = SpreadsheetMapper.builder()
@@ -841,6 +884,8 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .enable(SpreadsheetFactory.Feature.ENCRYPT_FILE_BACKED_STORE)
     .build();
 ```
+
+This protects the temp file only — the output XLSX is not encrypted. Workbook-level password protection (encrypted XLSX) is out of scope; use POI directly for that.
 
 Requires `com.h2database:h2` on the classpath:
 
