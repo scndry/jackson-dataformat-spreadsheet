@@ -9,6 +9,8 @@ import java.util.Objects;
 
 import org.apache.poi.ss.usermodel.ComparisonOperator;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.Incubating;
+
 /**
  * Catalog of factory methods for conditional formatting rules. Static-import for
  * fluent usage:
@@ -44,6 +46,7 @@ import org.apache.poi.ss.usermodel.ComparisonOperator;
  *
  * @since 1.6.0
  */
+@Incubating
 public final class ConditionalFormats {
 
     private ConditionalFormats() {}

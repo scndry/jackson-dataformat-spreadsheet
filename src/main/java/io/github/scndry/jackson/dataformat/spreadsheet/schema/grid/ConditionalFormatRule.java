@@ -1,5 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema.grid;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.Incubating;
+
 /**
  * Complete conditional formatting rule, accepted by
  * {@link GridConfigurer#conditionalFormatting(String, ConditionalFormatRule, ConditionalFormatRule...)}.
@@ -17,6 +19,7 @@ package io.github.scndry.jackson.dataformat.spreadsheet.schema.grid;
  * @see FormatCondition
  * @since 1.6.0
  */
+@Incubating
 public abstract class ConditionalFormatRule {
 
     ConditionalFormatRule() {}

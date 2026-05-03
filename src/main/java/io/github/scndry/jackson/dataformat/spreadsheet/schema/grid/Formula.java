@@ -1,5 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema.grid;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.Incubating;
+
 /**
  * Operand reference value type for conditional formatting cellIs rules. Produced via
  * {@link ConditionalFormats#formula(String)} (raw Excel formula passthrough) or
@@ -11,6 +13,7 @@ package io.github.scndry.jackson.dataformat.spreadsheet.schema.grid;
  * @see ConditionalFormats#columnRef(String)
  * @since 1.6.0
  */
+@Incubating
 public final class Formula {
 
     enum Kind { OF, COLUMN }

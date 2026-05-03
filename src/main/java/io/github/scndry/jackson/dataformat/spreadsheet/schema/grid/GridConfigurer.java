@@ -12,6 +12,7 @@ import org.apache.poi.ss.util.CellReference;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.Incubating;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 
@@ -72,6 +73,7 @@ public final class GridConfigurer {
      * @return this {@code GridConfigurer} for chaining
      * @since 1.6.0
      */
+    @Incubating
     public GridConfigurer conditionalFormatting(
             final String column,
             final ConditionalFormatRule rule,

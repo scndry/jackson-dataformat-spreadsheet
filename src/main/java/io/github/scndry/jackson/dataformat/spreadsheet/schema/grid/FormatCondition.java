@@ -1,5 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema.grid;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.Incubating;
+
 /**
  * Incomplete conditional format starting point that requires {@code .style(name)}
  * to bind a {@link io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder}
@@ -17,6 +19,7 @@ package io.github.scndry.jackson.dataformat.spreadsheet.schema.grid;
  * @see ConditionalFormatRule
  * @since 1.6.0
  */
+@Incubating
 public abstract class FormatCondition {
 
     FormatCondition() {}
