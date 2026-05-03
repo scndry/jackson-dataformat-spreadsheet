@@ -159,6 +159,24 @@ List<Product> list = mapper.readValues(SheetInput.source(file, 0), Product.class
 
 By default, columns are matched by position — the spreadsheet's column order must match the field declaration order. Enable `columnReordering(true)` to match by header name instead (see [Column Reordering](#column-reordering)).
 
+### Formula Cells
+
+Formula cells return the **cached computed value**, not the formula text. The reader binds the cached value (emitted when the formula was last evaluated by Excel/POI) to the typed field — no manual `FormulaEvaluator` invocation needed.
+
+```java
+@DataGrid
+class Invoice {
+    String item;
+    int quantity;
+    double unitPrice;
+    // formula reads as the cached value
+    double subtotal;   // `=B2*C2` (quantity*unitPrice) — e.g., 5000.0
+    double total;      // `=D2*1.1` (subtotal*1.1) — e.g., 5500.0 (10% VAT)
+}
+```
+
+If the cached value is missing (rare — produced by a writer that doesn't recompute), the cell reads as blank. To force re-evaluation, open the workbook with POI directly and invoke `FormulaEvaluator.evaluateAll()` before passing the `Sheet` to the mapper.
+
 ### Streaming Read
 
 For large files, process rows one at a time with constant memory:
@@ -549,7 +567,7 @@ Note: `mapper.writerWithView()` does not work — it bypasses schema generation.
 
 ## Styling
 
-Register named cell styles with `StylesBuilder` and reference them from annotations:
+Register named cell styles with `StylesBuilder` and reference them from annotations. Each named style maps to exactly one POI `CellStyle` (`workbook.createCellStyle()` invoked once per name at build time), so the [64,000 cell-style per-workbook limit](https://learn.microsoft.com/en-us/office/troubleshoot/excel/excel-specifications-and-limits) is bound by style declarations rather than row count.
 
 ```java
 StylesBuilder styles = new StylesBuilder()
@@ -869,7 +887,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .build();
 ```
 
-If the spreadsheet contains sensitive data, enable encryption to protect the temp file at rest:
+If the spreadsheet contains sensitive data, enable encryption to protect the **shared-strings temp file** (H2 MVStore-backed) at rest:
 
 ```java
 SpreadsheetMapper mapper = SpreadsheetMapper.builder()
@@ -877,6 +895,8 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .enable(SpreadsheetFactory.Feature.ENCRYPT_FILE_BACKED_STORE)
     .build();
 ```
+
+This protects the temp file only — the output XLSX is not encrypted. Workbook-level password protection (encrypted XLSX) is out of scope; use POI directly for that.
 
 Requires `com.h2database:h2` on the classpath:
 
