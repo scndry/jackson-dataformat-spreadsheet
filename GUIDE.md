@@ -57,13 +57,13 @@ But this is not a POI replacement. POI types (`Sheet`, `Workbook`) are first-cla
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.5.0"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.6.0"
 ```
 
 ## Quick Start
@@ -729,17 +729,6 @@ A 3-color gradient based on cell values. `colorScale` returns `ConditionalFormat
 | `colorScale(min, mid, max)` | Explicit NUMBER values | red → yellow → green |
 
 Color customization, threshold types other than `NUMBER` (PERCENT / PERCENTILE / FORMULA), the 2-color variant, and other visualization types (`dataBar`, `iconSet`) are deferred to a later 1.6.x release.
-
-#### Migrating from 1.5.0
-
-The 1.5.0 sub-builder form (`.conditionalFormatting().column(...).<op>(...).style(...).end()`) was **removed** in 1.6.0. Translation is mechanical and produces compile errors when not migrated:
-
-| 1.5.0 | 1.6.0 |
-|-------|-------|
-| `.conditionalFormatting().column("score").greaterThanOrEqual(80).style("good").end()` | `.conditionalFormatting("score", greaterThanOrEqual(80).style("good"))` |
-| Two `.conditionalFormatting()...end()` calls on the same column | Single `.conditionalFormatting("score", rule1, rule2)` with varargs |
-| `.conditionalFormatting().column("status").equalTo("URGENT").style("warn").end()` | `.conditionalFormatting("status", equalTo("URGENT").style("warn"))` |
-| `.conditionalFormatting().column("score").expression("AND(...)").style("foo").end()` | `.conditionalFormatting("score", expression("AND(...)").style("foo"))` |
 
 ## Configuration
 
