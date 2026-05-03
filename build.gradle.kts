@@ -133,6 +133,9 @@ jmh {
     if (project.hasProperty("jmh.failOnError")) {
         failOnError.set(project.property("jmh.failOnError").toString().toBoolean())
     }
+    if (project.hasProperty("jmh.resultsFile")) {
+        resultsFile.set(file(project.property("jmh.resultsFile").toString()))
+    }
 }
 
 tasks.jacocoTestReport {
