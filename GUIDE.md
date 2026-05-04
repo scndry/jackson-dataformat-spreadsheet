@@ -257,6 +257,8 @@ Use `SheetOutput` when you need to specify a sheet name:
 mapper.writeValue(SheetOutput.target(file, "Products"), products, Product.class);
 ```
 
+Sheet names must satisfy Excel constraints: 1–31 characters, no `/ \ ? * ] [`, and no leading or trailing apostrophe. Invalid names throw `IllegalArgumentException` at `SheetOutput.target(..., name)`.
+
 ### Streaming (Default)
 
 By default, XLSX read/write uses streaming — bypassing POI's User Model for direct XML generation. No configuration needed:
