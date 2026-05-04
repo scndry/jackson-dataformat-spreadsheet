@@ -9,6 +9,10 @@ import java.util.stream.Stream;
  * and iteration over path segments, similar to
  * {@link java.nio.file.Path} for file systems.
  *
+ * <p>Array indices collapse: {@code items[0]/qty} and
+ * {@code items[1]/qty} map to the same column (unlike
+ * Jackson's {@code JsonPointer}).
+ *
  * @see Column
  * @see SpreadsheetSchema
  */

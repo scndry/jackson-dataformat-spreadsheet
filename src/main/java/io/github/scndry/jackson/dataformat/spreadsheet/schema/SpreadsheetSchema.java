@@ -22,7 +22,8 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilde
  * {@link FormatSchema} implementation that defines the column
  * layout for spreadsheet reading and writing. Contains an
  * ordered list of {@link Column} definitions, a cell origin,
- * and style configuration.
+ * and style configuration. Do not mutate the builders or
+ * columns after construction.
  *
  * @see Column
  * @see io.github.scndry.jackson.dataformat.spreadsheet.SchemaGenerator
