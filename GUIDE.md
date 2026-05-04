@@ -901,6 +901,10 @@ Requires `com.h2database:h2` on the classpath:
 
 Trades ~40% throughput for constant heap usage regardless of string table size. The temporary file is automatically deleted when the reader is closed.
 
+## Logging
+
+SLF4J `TRACE` level emits per-cell values and addresses — disable in environments handling sensitive data.
+
 ## FAQ
 
 **Q: Does `@DataGrid` have to be on the root class?**
