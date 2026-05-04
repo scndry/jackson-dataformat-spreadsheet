@@ -5,6 +5,7 @@ import java.io.OutputStream;
 import java.nio.file.Path;
 
 import lombok.EqualsAndHashCode;
+import org.apache.poi.ss.util.WorkbookUtil;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetContent;
 
@@ -30,6 +31,10 @@ public final class SheetOutput<T> implements SheetContent<T> {
         _name = name;
     }
 
+    private static void _validateSheetName(final String name) {
+        if (name != null) WorkbookUtil.validateSheetName(name);
+    }
+
     /**
      * Creates a {@code SheetOutput} writing to the given file
      * with an auto-generated sheet name.
@@ -41,8 +46,12 @@ public final class SheetOutput<T> implements SheetContent<T> {
     /**
      * Creates a {@code SheetOutput} writing to the given file
      * with the specified sheet name.
+     *
+     * @throws IllegalArgumentException if {@code sheetName} violates Excel constraints
+     *         (1-31 chars, no {@code / \ ? * ] [}, no leading/trailing apostrophe).
      */
     public static SheetOutput<File> target(final File raw, final String sheetName) {
+        _validateSheetName(sheetName);
         return new SheetOutput<>(raw, sheetName);
     }
 
@@ -57,6 +66,9 @@ public final class SheetOutput<T> implements SheetContent<T> {
     /**
      * Creates a {@code SheetOutput} writing to the given path
      * with the specified sheet name.
+     *
+     * @throws IllegalArgumentException if {@code sheetName} violates Excel constraints
+     *         (1-31 chars, no {@code / \ ? * ] [}, no leading/trailing apostrophe).
      */
     public static SheetOutput<File> target(final Path raw, final String sheetName) {
         return target(raw.toFile(), sheetName);
@@ -73,8 +85,12 @@ public final class SheetOutput<T> implements SheetContent<T> {
     /**
      * Creates a {@code SheetOutput} writing to the given stream
      * with the specified sheet name.
+     *
+     * @throws IllegalArgumentException if {@code sheetName} violates Excel constraints
+     *         (1-31 chars, no {@code / \ ? * ] [}, no leading/trailing apostrophe).
      */
     public static SheetOutput<OutputStream> target(final OutputStream raw, final String sheetName) {
+        _validateSheetName(sheetName);
         return new SheetOutput<>(raw, sheetName);
     }
 
