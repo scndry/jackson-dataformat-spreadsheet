@@ -218,6 +218,7 @@ public final class GridConfigurer {
         return (String) operand;
     }
 
+    // Each rule allocates its own dxf — POI does not deduplicate across rules sharing the same style.
     private static void _applyCellStyleToDxf(final ConditionalFormattingRule rule,
             final CellStyle cs, final Workbook wb) {
         if (cs.getFillPattern() != FillPatternType.NO_FILL) {

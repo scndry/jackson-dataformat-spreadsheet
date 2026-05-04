@@ -243,6 +243,7 @@ public final class POISheetWriter implements SheetWriter {
     public void close() throws IOException {
         final Workbook workbook = _sheet.getWorkbook();
         workbook.close();
+        // Explicit dispose() — close→dispose became automatic only in recent POI (Bug 68183); safe across POI 4.1.1+.
         if (workbook instanceof SXSSFWorkbook) {
             ((SXSSFWorkbook) workbook).dispose();
         }

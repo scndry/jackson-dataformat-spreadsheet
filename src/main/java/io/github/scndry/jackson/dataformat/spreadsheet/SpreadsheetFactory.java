@@ -288,6 +288,7 @@ public final class SpreadsheetFactory extends JsonFactory {
         return new POISheetReader(sheet);
     }
 
+    // Copy InputStream to temp File — POI's File path uses much less heap than InputStream (POIFS HOWTO ~20% vs ~120% for HSSF; OPCPackage Javadoc reports the same trend for OOXML).
     @SuppressWarnings("unchecked")
     private SheetInput<?> _preferRawAsFile(final SheetInput<?> src) throws IOException {
         if (src.isFile()) return src;
