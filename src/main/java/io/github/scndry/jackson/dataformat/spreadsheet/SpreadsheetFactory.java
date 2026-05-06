@@ -251,12 +251,9 @@ public final class SpreadsheetFactory extends JsonFactory {
 
     private SheetReader _createInputStreamSheetReader(
             final SheetInput<InputStream> src) throws IOException {
-        if (Feature.USE_POI_USER_MODEL.enabledIn(_featureFlags)) {
-            return _createPOISheetReader(WorkbookFactory.create(src.getRaw()), src);
-        }
-        if (PackageUtil.isOOXML(src.getRaw())) {
-            return _createSSMLSheetReader(SSMLWorkbook.create(src.getRaw()), src);
-        }
+        // Reachable only when _preferRawAsFile did not spool to a file:
+        //   USE_POI_USER_MODEL enabled, or non-OOXML input.
+        // Either way the read uses POI's User Model — SSML needs seekable I/O.
         return _createPOISheetReader(WorkbookFactory.create(src.getRaw()), src);
     }
 
