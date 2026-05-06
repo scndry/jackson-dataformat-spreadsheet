@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.Iterator;
@@ -25,6 +24,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.PackageVersion;
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetLocation;
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamContext;
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamReadException;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
@@ -309,7 +309,7 @@ public final class SheetParser extends ParserMinimalBase {
         if (content instanceof SheetInput) {
             final SheetInput<?> input = (SheetInput<?>) content;
             if (_ioContext.isResourceManaged() && input.isFile()) {
-                Files.deleteIfExists(((File) input.getRaw()).toPath());
+                POICompat.releaseTempFile(((File) input.getRaw()).toPath());
             }
         }
     }

@@ -257,6 +257,8 @@ Use `SheetOutput` when you need to specify a sheet name:
 mapper.writeValue(SheetOutput.target(file, "Products"), products, Product.class);
 ```
 
+Sheet names must satisfy Excel constraints: 1–31 characters, no `/ \ ? * ] [`, and no leading or trailing apostrophe. Invalid names throw `IllegalArgumentException` at `SheetOutput.target(..., name)`.
+
 ### Streaming (Default)
 
 By default, XLSX read/write uses streaming — bypassing POI's User Model for direct XML generation. No configuration needed:
@@ -812,7 +814,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 
 | Feature | Default | Description |
 |---------|---------|-------------|
-| `USE_POI_USER_MODEL` | disabled | Use POI's User Model (Sheet/Row/Cell) for all read/write, bypassing streaming |
+| `USE_POI_USER_MODEL` | disabled | Use POI's User Model (Sheet/Row/Cell) for all read/write, bypassing streaming. Also skips InputStream temp-file copy — see [InputStream Handling](#inputstream-handling). |
 | `FILE_BACKED_SHARED_STRINGS` | disabled | Store shared strings on disk for read and write (requires `com.h2database:h2`) |
 | `ENCRYPT_FILE_BACKED_STORE` | disabled | Encrypt the file-backed store with AES (requires `FILE_BACKED_SHARED_STRINGS`) |
 
@@ -842,6 +844,19 @@ For large files, XLSX is strongly recommended.
 When reading from an `InputStream`, OOXML (XLSX) files are copied to a temporary file first because ZIP format requires random access. The temp file is cleaned up when the parser is closed.
 
 For best performance with large XLSX files, prefer `File` input over `InputStream`.
+
+**Disk-write-restricted environments** (AWS Lambda read-only filesystem, Kubernetes pods with `readOnlyRootFilesystem: true`, Docker `--read-only`, sandbox runners) cannot create the temp file. Two options:
+
+1. **Use `File` input** — POI reads directly from disk, no temp file.
+2. **Enable `USE_POI_USER_MODEL`** — InputStream is passed directly to POI, which holds the entire ZIP in memory (no temp file). Trade-off: higher heap usage. POI's own javadoc recommends `File` over `InputStream` when possible because of this.
+
+```java
+// In-memory read from InputStream (no temp file)
+SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+    .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+    .build();
+List<Row> rows = mapper.readValues(inputStream, Row.class);
+```
 
 ## Performance
 
@@ -917,7 +932,7 @@ It is ignored. Only columns matching the schema (derived from the class structur
 Yes. Use `SheetInput.source(file, "SheetName")` or `SheetInput.source(file, sheetIndex)` to target a specific sheet. For multiple sheets, use direct `Sheet` access via POI `Workbook`.
 
 **Q: Why does InputStream reading create a temp file?**
-XLSX is a ZIP archive. ZIP requires random access (seek), which `InputStream` does not support. The library copies the stream to a temp file, reads it, and deletes the file when done.
+XLSX is a ZIP archive. ZIP requires random access (seek), which `InputStream` does not support. The library copies the stream to a temp file, reads it, and deletes the file when done. In disk-write-restricted environments (Lambda read-only fs, Kubernetes `readOnlyRootFilesystem`), enable `USE_POI_USER_MODEL` to skip the temp file at the cost of higher heap usage — see [InputStream Handling](#inputstream-handling).
 
 **Q: How is the column order determined?**
 By the field declaration order in the Java class. Nested object fields are flattened in-place.
@@ -932,7 +947,3 @@ Yes. Create a `SpreadsheetMapper` bean and inject it. It is thread-safe like `Ob
 - [Jackson documentation](https://github.com/FasterXML/jackson-docs)
 - [Apache POI](https://poi.apache.org/components/spreadsheet/index.html)
 
----
-
-<sub>Anonymous, aggregated usage tracking via [Scarf](https://about.scarf.sh/). No personal information is collected.</sub>
-<img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=5217c9e5-45fd-4941-a10b-354455edbd72&page=GUIDE.md" />

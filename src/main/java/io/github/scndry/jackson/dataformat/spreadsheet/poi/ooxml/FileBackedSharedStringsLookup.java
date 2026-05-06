@@ -1,9 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -54,7 +52,7 @@ final class FileBackedSharedStringsLookup implements SharedStringsLookup {
                     .cacheSize(4)
                     .autoCommitDisabled();
             if (encrypt) {
-                final char[] key = _generateKey();
+                final char[] key = EncryptionKeys.generate();
                 builder.encryptionKey(key);
                 Arrays.fill(key, '\0');
             }
@@ -62,7 +60,7 @@ final class FileBackedSharedStringsLookup implements SharedStringsLookup {
             _strings = _store.openMap("sharedStrings");
         } catch (RuntimeException e) {
             _reader.close();
-            try { Files.deleteIfExists(_storePath); } catch (IOException ignored) {}
+            try { POICompat.releaseTempFile(_storePath); } catch (IOException ignored) {}
             throw e;
         }
     }
@@ -91,20 +89,8 @@ final class FileBackedSharedStringsLookup implements SharedStringsLookup {
             _reader.close();
             _store.close();
         } finally {
-            Files.deleteIfExists(_storePath);
+            POICompat.releaseTempFile(_storePath);
         }
-    }
-
-    private static char[] _generateKey() {
-        final byte[] bytes = new byte[16];
-        new SecureRandom().nextBytes(bytes);
-        final char[] key = new char[32];
-        for (int i = 0; i < bytes.length; i++) {
-            key[i * 2] = Character.forDigit((bytes[i] >> 4) & 0xF, 16);
-            key[i * 2 + 1] = Character.forDigit(bytes[i] & 0xF, 16);
-        }
-        Arrays.fill(bytes, (byte) 0);
-        return key;
     }
 
     private static Path _createSecureTempFile() throws IOException {

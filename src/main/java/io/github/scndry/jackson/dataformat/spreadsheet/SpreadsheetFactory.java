@@ -251,12 +251,9 @@ public final class SpreadsheetFactory extends JsonFactory {
 
     private SheetReader _createInputStreamSheetReader(
             final SheetInput<InputStream> src) throws IOException {
-        if (Feature.USE_POI_USER_MODEL.enabledIn(_featureFlags)) {
-            return _createPOISheetReader(WorkbookFactory.create(src.getRaw()), src);
-        }
-        if (PackageUtil.isOOXML(src.getRaw())) {
-            return _createSSMLSheetReader(SSMLWorkbook.create(src.getRaw()), src);
-        }
+        // Reachable only when _preferRawAsFile did not spool to a file:
+        //   USE_POI_USER_MODEL enabled, or non-OOXML input.
+        // Either way the read uses POI's User Model — SSML needs seekable I/O.
         return _createPOISheetReader(WorkbookFactory.create(src.getRaw()), src);
     }
 
@@ -300,13 +297,26 @@ public final class SpreadsheetFactory extends JsonFactory {
                     ? SheetInput.source(raw, src.getName())
                     : SheetInput.source(raw, src.getIndex());
         }
-        final File file = POICompat.createSecureTempFile("jackson-spreadsheet-input-", ".xlsx").toFile();
-        try (FileOutputStream out = new FileOutputStream(file)) {
-            final byte[] buf = new byte[8192];
-            int n;
-            while ((n = raw.read(buf)) != -1) {
-                out.write(buf, 0, n);
+        File file = null;
+        try {
+            file = POICompat.createSecureTempFile("jackson-spreadsheet-input-", ".xlsx").toFile();
+            try (FileOutputStream out = new FileOutputStream(file)) {
+                final byte[] buf = new byte[8192];
+                int n;
+                while ((n = raw.read(buf)) != -1) {
+                    out.write(buf, 0, n);
+                }
             }
+        } catch (IOException e) {
+            if (file != null) {
+                try { POICompat.releaseTempFile(file.toPath()); } catch (IOException cleanup) { e.addSuppressed(cleanup); }
+            }
+            throw new IOException(
+                    "Failed to spool InputStream to temp file. "
+                            + "If running in a disk-write-restricted environment "
+                            + "(e.g. Lambda read-only filesystem, Kubernetes readOnlyRootFilesystem), "
+                            + "enable SpreadsheetFactory.Feature.USE_POI_USER_MODEL to read directly "
+                            + "from the InputStream (uses more heap; see POI WorkbookFactory javadoc).", e);
         }
         if (log.isDebugEnabled()) {
             log.debug("Copied InputStream to temp file: {}", file);

@@ -207,7 +207,7 @@ Both implement `SheetReader`. Format is auto-detected via ZIP magic bytes (`File
 | Shared strings | Custom `SharedStringsLookup` (lazy StAX) | POI's built-in `SharedStringsTable` |
 | When used | Auto-detected for XLSX files | XLS files, direct `Sheet` input, or `USE_POI_USER_MODEL` |
 
-When the input is an `InputStream`, OOXML files are copied to a temporary file — ZIP random access requires seekable I/O.
+When the input is an `InputStream`, OOXML files are copied to a temporary file — ZIP random access requires seekable I/O. `USE_POI_USER_MODEL` bypasses this copy: the stream is handed directly to POI, which holds the entire ZIP in memory (`ZipInputStreamZipEntrySource`). This is the escape hatch for disk-write-restricted environments — at the cost of higher heap usage.
 
 ### SharedStrings
 
@@ -352,7 +352,3 @@ Public API surface (types users typically import): `SpreadsheetMapper`, `@DataGr
 
 Everything under `poi/` is implementation detail — swappable without affecting the streaming contract.
 
----
-
-<sub>Anonymous, aggregated usage tracking via [Scarf](https://about.scarf.sh/). No personal information is collected.</sub>
-<img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=5217c9e5-45fd-4941-a10b-354455edbd72&page=ARCHITECTURE.md" />
