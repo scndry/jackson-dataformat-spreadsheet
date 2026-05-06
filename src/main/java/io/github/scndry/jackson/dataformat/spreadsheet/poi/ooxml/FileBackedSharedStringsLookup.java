@@ -1,7 +1,6 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -62,7 +61,7 @@ final class FileBackedSharedStringsLookup implements SharedStringsLookup {
             _strings = _store.openMap("sharedStrings");
         } catch (RuntimeException e) {
             _reader.close();
-            try { Files.deleteIfExists(_storePath); } catch (IOException ignored) {}
+            try { POICompat.releaseTempFile(_storePath); } catch (IOException ignored) {}
             throw e;
         }
     }
@@ -91,7 +90,7 @@ final class FileBackedSharedStringsLookup implements SharedStringsLookup {
             _reader.close();
             _store.close();
         } finally {
-            Files.deleteIfExists(_storePath);
+            POICompat.releaseTempFile(_storePath);
         }
     }
 

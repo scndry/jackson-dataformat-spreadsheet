@@ -312,7 +312,7 @@ public final class SpreadsheetFactory extends JsonFactory {
             }
         } catch (IOException e) {
             if (file != null) {
-                try { Files.deleteIfExists(file.toPath()); } catch (IOException cleanup) { e.addSuppressed(cleanup); }
+                try { POICompat.releaseTempFile(file.toPath()); } catch (IOException cleanup) { e.addSuppressed(cleanup); }
             }
             throw new IOException(
                     "Failed to spool InputStream to temp file. "

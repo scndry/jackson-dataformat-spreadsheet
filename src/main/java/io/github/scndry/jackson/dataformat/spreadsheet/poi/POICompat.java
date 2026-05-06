@@ -8,6 +8,8 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.EnumSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -56,9 +58,27 @@ public final class POICompat {
     private static volatile File _tempDir;
 
     /**
+     * Tracked temp files awaiting cleanup. The shutdown hook deletes any
+     * entries still present at JVM exit. Normal release paths
+     * ({@link #releaseTempFile}) remove their entry, so steady-state usage
+     * does not accumulate — avoiding the unbounded growth of
+     * {@link File#deleteOnExit()} (which has no unregister API).
+     */
+    private static final Set<Path> TRACKED = ConcurrentHashMap.newKeySet();
+
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(POICompat::_cleanupTrackedOnShutdown,
+                "jackson-spreadsheet-temp-cleanup"));
+    }
+
+    /**
      * Creates a temporary file in POI's temp directory under a dedicated
      * {@code jackson-spreadsheet} subdirectory, with owner-only permissions
      * on POSIX systems. Falls back to default permissions on Windows.
+     * <p>
+     * The returned path is tracked for shutdown-time cleanup. Callers must
+     * invoke {@link #releaseTempFile(Path)} when the file is no longer
+     * needed so the tracker entry is removed.
      */
     public static Path createSecureTempFile(final String prefix, final String suffix) throws IOException {
         final Path dir = tempDir().toPath();
@@ -71,8 +91,32 @@ public final class POICompat {
         } catch (UnsupportedOperationException e) {
             path = Files.createTempFile(dir, prefix, suffix);
         }
-        path.toFile().deleteOnExit();
+        TRACKED.add(path);
         return path;
+    }
+
+    /**
+     * Deletes the temp file and removes it from the shutdown tracker.
+     * Safe to call on a path that was never tracked or already released.
+     * <p>
+     * Delete is attempted before the tracker is updated: if delete fails,
+     * the path stays in the tracker so the shutdown hook can retry — useful
+     * for transient failures (full disk, Windows file lock) that may resolve
+     * by JVM exit time.
+     */
+    public static void releaseTempFile(final Path path) throws IOException {
+        Files.deleteIfExists(path);
+        TRACKED.remove(path);
+    }
+
+    private static void _cleanupTrackedOnShutdown() {
+        for (final Path p : TRACKED) {
+            try {
+                Files.deleteIfExists(p);
+            } catch (Exception ignored) {
+            }
+        }
+        TRACKED.clear();
     }
 
     /**

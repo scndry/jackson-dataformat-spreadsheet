@@ -253,8 +253,14 @@ public final class SSMLSheetWriter implements SheetWriter {
         } catch (IOException e) {
             failure = _mergeFailure(failure, e);
         }
-        if (_scaffold != null && !_scaffold.delete() && log.isDebugEnabled()) {
-            log.debug("Failed to delete scaffold temp file: {}", _scaffold);
+        if (_scaffold != null) {
+            try {
+                POICompat.releaseTempFile(_scaffold.toPath());
+            } catch (IOException e) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Failed to delete scaffold temp file: {}", _scaffold, e);
+                }
+            }
         }
         if (failure != null) {
             throw failure;
