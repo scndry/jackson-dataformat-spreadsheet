@@ -207,7 +207,7 @@ Both implement `SheetReader`. Format is auto-detected via ZIP magic bytes (`File
 | Shared strings | Custom `SharedStringsLookup` (lazy StAX) | POI's built-in `SharedStringsTable` |
 | When used | Auto-detected for XLSX files | XLS files, direct `Sheet` input, or `USE_POI_USER_MODEL` |
 
-When the input is an `InputStream`, OOXML files are copied to a temporary file — ZIP random access requires seekable I/O.
+When the input is an `InputStream`, OOXML files are copied to a temporary file — ZIP random access requires seekable I/O. `USE_POI_USER_MODEL` bypasses this copy: the stream is handed directly to POI, which holds the entire ZIP in memory (`ZipInputStreamZipEntrySource`). This is the escape hatch for disk-write-restricted environments — at the cost of higher heap usage.
 
 ### SharedStrings
 
