@@ -2,7 +2,7 @@ name: Snapshot
 
 on:
   push:
-    branches: [ 'release/**' ]
+    branches: [ 'main' ]
     paths-ignore:
       - '**.md'
 
