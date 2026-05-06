@@ -91,7 +91,15 @@ List<Product> products = Arrays.asList(
     new Product("Apple", 10, 1.50),
     new Product("Banana", 20, 0.80));
 
-mapper.writeValue(new File("output.xlsx"), products, Product.class);
+// Single object
+mapper.writeValue(file, products.get(0), Product.class);
+
+// All rows
+mapper.writeValue(file, products, Product.class);
+
+// Specific sheet
+SheetOutput<File> output = SheetOutput.target(file, "Products");
+mapper.writeValue(output, products, Product.class);
 ```
 
 ### Nested Objects
