@@ -14,7 +14,7 @@
 
 | Library | Version |
 |---------|---------|
-| jackson-dataformat-spreadsheet | 1.6.0 |
+| jackson-dataformat-spreadsheet | 1.6.1 |
 | Apache POI | 5.5.1 |
 | FastExcel | 0.20.0 |
 | Fesod | 2.0.1-incubating |
