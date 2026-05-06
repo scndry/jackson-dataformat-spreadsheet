@@ -33,7 +33,7 @@ dependencies {
     testRuntimeOnly("ch.qos.logback:logback-classic:1.3.16")
     testRuntimeOnly("org.apache.logging.log4j:log4j-to-slf4j:2.25.4")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.11.4")
-    testRuntimeOnly("com.h2database:h2:2.2.224")
+    testImplementation("com.h2database:h2:2.2.224")
 }
 
 dependencies {
