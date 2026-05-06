@@ -164,7 +164,3 @@ Same annotations. Same API. Different format. That's the abstraction.
 
 If it doesn't pass this test — if the user has to learn a new API or write spreadsheet-specific code for something Jackson already handles — it's a design failure.
 
----
-
-<sub>Anonymous, aggregated usage tracking via [Scarf](https://about.scarf.sh/). No personal information is collected.</sub>
-<img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=5217c9e5-45fd-4941-a10b-354455edbd72&page=DESIGN.md" />

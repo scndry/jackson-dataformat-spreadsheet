@@ -352,7 +352,3 @@ Public API surface (types users typically import): `SpreadsheetMapper`, `@DataGr
 
 Everything under `poi/` is implementation detail — swappable without affecting the streaming contract.
 
----
-
-<sub>Anonymous, aggregated usage tracking via [Scarf](https://about.scarf.sh/). No personal information is collected.</sub>
-<img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=5217c9e5-45fd-4941-a10b-354455edbd72&page=ARCHITECTURE.md" />
