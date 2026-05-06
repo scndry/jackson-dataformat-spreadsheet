@@ -1,7 +1,6 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -46,7 +45,7 @@ final class FileBackedSharedStringsStore implements SharedStringsStore {
             _stringsByIndex = _store.openMap("indexToString");
         } catch (RuntimeException e) {
             try {
-                Files.deleteIfExists(_storePath);
+                POICompat.releaseTempFile(_storePath);
             } catch (IOException ignored) {
             }
             throw e;
@@ -106,7 +105,7 @@ final class FileBackedSharedStringsStore implements SharedStringsStore {
                 _store.close();
             }
         } finally {
-            Files.deleteIfExists(_storePath);
+            POICompat.releaseTempFile(_storePath);
         }
     }
 
