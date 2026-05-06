@@ -29,8 +29,10 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -978,6 +980,29 @@ class JacksonAnnotationTest {
             assertThat(header.getCell(0).getStringCellValue()).isEqualTo("name");
             assertThat(header.getCell(1).getStringCellValue()).isEqualTo("quantity");
             assertThat(header.getCell(2)).isNull();
+        }
+    }
+
+    @Test
+    void jsonView_detailIncludesAllFields() throws Exception {
+        SpreadsheetMapper viewMapper = SpreadsheetMapper.builder()
+                .configure(MapperFeature.DEFAULT_VIEW_INCLUSION, false)
+                .build();
+
+        File file = tempFile("view-detail.xlsx");
+        viewMapper.sheetWriterForWithView(WithViews.class, Views.Detail.class)
+                .writeValue(file, Arrays.asList(
+                        new WithViews("Apple", "A fruit", 10)));
+
+        // Detail extends Summary — Detail-only field plus Summary fields all present.
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Row header = wb.getSheetAt(0).getRow(0);
+            Set<String> names = new HashSet<>();
+            for (int i = 0; i < 3; i++) {
+                names.add(header.getCell(i).getStringCellValue());
+            }
+            assertThat(names).containsExactlyInAnyOrder("name", "description", "quantity");
+            assertThat(header.getCell(3)).isNull();
         }
     }
 
