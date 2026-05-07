@@ -7,7 +7,7 @@ plugins {
 
 group = "io.github.scndry"
 version = "1.6.2-SNAPSHOT"
-description = "Support for reading and writing Spreadsheet via Jackson abstractions."
+description = "Support for reading and writing Excel (XLSX/XLS) via Jackson abstractions."
 
 val title = "Jackson dataformat: Spreadsheet"
 // Compat-test override: ./gradlew test -PpoiVersion=4.1.1 -PjacksonVersion=2.14.0
