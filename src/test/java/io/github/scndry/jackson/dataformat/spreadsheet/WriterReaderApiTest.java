@@ -2,6 +2,8 @@ package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetInput;
+import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetParser;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetOutput;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
@@ -134,6 +136,20 @@ class WriterReaderApiTest {
             assertThat(iter.hasNext()).isTrue();
             Item item = iter.next();
             assertThat(item.name).isEqualTo("R");
+        }
+    }
+
+    @Test
+    void sheetMappingIterator_castMethods() throws Exception {
+        File file = new File(tempDir, "iter-casts.xlsx");
+        mapper.writeValue(file, Arrays.asList(new Item("X", 1)), Item.class);
+
+        SpreadsheetReader reader = mapper.sheetReaderFor(Item.class);
+        try (SheetMappingIterator<Item> iter = reader.readValues(file)) {
+            assertThat(iter.getParser()).isInstanceOf(SheetParser.class);
+            assertThat(iter.getParserSchema()).isInstanceOf(SpreadsheetSchema.class);
+            iter.next();
+            assertThat(iter.getCurrentLocation()).isInstanceOf(SheetLocation.class);
         }
     }
 
