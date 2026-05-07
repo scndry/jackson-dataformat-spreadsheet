@@ -103,7 +103,7 @@ You don't choose between XLSX and XLS parsers. You pass a file.
 mapper.readValues(file, Employee.class);  // XLSX or XLS — auto-detected
 ```
 
-Why auto-detect? Because the user shouldn't care about the container format. The data is the same. XLSX uses StAX streaming internally; XLS uses POI object model. The API is identical.
+Why auto-detect? Because the user shouldn't care about the container format. The data is the same. XLSX uses StAX for read and StringBuilder over a POI scaffold for write; XLS uses POI object model. The API is identical.
 
 ### Shared strings, styles, packaging → Configuration
 

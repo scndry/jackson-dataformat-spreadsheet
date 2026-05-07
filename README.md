@@ -161,7 +161,7 @@ Fastest read and write throughput at 100K rows. See [BENCHMARK.md](BENCHMARK.md)
 | XLS read/write | Yes | Yes | No | No |
 | Annotation mapping | Yes | No | Yes | No |
 
-¹ XLSX streams via StAX; XLS uses in-memory POI workbook (HSSF has no streaming API).
+¹ XLSX read streams via StAX, write via StringBuilder over a POI scaffold; XLS uses in-memory POI workbook (HSSF has no streaming API).
 
 ## Key Features
 
