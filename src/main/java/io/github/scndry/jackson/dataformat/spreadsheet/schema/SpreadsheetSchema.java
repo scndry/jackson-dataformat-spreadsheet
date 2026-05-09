@@ -45,6 +45,7 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     private final int _features;
     private final StylesBuilder _stylesBuilder;
     private final GridConfigurer _gridConfigurer;
+    private final int _headerRowCount;
 
     public SpreadsheetSchema(
             final List<Column> columns,
@@ -57,6 +58,17 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         _features = features;
         _stylesBuilder = stylesBuilder;
         _gridConfigurer = gridConfigurer;
+        _headerRowCount = _computeHeaderRowCount(columns);
+    }
+
+    private static int _computeHeaderRowCount(final List<Column> columns) {
+        int max = 0;
+        for (final Column col : columns) {
+            if (col == null) continue;
+            final int depth = col.getGroupHierarchy().depth();
+            if (depth > max) max = depth;
+        }
+        return max + 1;
     }
 
     @Override
@@ -85,7 +97,20 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     }
 
     public int getDataRow() {
-        return _origin.getRow() + (usesHeader() ? 1 : 0);
+        return _origin.getRow() + (usesHeader() ? _headerRowCount : 0);
+    }
+
+    public int getHeaderRowCount() {
+        return _headerRowCount;
+    }
+
+    /**
+     * Row index of the last (leaf) header row — the row carrying column
+     * names. Group header rows (when present) sit above this row. When
+     * {@link #usesHeader()} is disabled this collapses to the origin row.
+     */
+    public int getLeafHeaderRow() {
+        return _origin.getRow() + (usesHeader() ? _headerRowCount - 1 : 0);
     }
 
     public boolean usesHeader() {
@@ -153,7 +178,7 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
 
     public void applyHeaderComments(final Sheet sheet) {
         if (!usesHeader()) return;
-        final int row = getOriginRow();
+        final int row = getDataRow() - 1;
         final CreationHelper factory = sheet.getWorkbook().getCreationHelper();
         Drawing<?> drawing = null;
         for (final Column column : _columns) {
