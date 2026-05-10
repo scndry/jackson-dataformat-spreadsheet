@@ -171,41 +171,73 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     private static final int CELL_STYLE_MAX = 5;
     private static final int CELL_TYPE_MAX = 3;
 
+    /** System property name for the back-write buffer limit (bytes).
+     *  Resolved per call by {@link #backWriteBufferLimit()} so test code
+     *  can vary it without JVM restart. */
+    public static final String BACK_WRITE_BUFFER_BYTES_PROPERTY =
+            "spreadsheet.backWriteBufferBytes";
+
+    /** Back-write buffer limit (bytes). System property override:
+     *  {@code -Dspreadsheet.backWriteBufferBytes=<n>}. Default =
+     *  max(16 MB, heap/8) — heap/8 accounts for StringBuilder grow's
+     *  2× peak plus headroom for other allocations. */
+    public static long backWriteBufferLimit() {
+        final String configured = System.getProperty(BACK_WRITE_BUFFER_BYTES_PROPERTY);
+        if (configured != null) {
+            try {
+                final long v = Long.parseLong(configured);
+                if (v > 0) return v;
+            } catch (NumberFormatException ignored) {
+                // fall through to default
+            }
+        }
+        return Math.max(16L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 8);
+    }
+
+    /** Human-readable byte size formatting for diagnostics. */
+    public static String formatBytes(final long bytes) {
+        if (bytes < 1024L) return bytes + " B";
+        if (bytes < 1024L * 1024) return (bytes / 1024) + " KB";
+        if (bytes < 1024L * 1024 * 1024) {
+            return String.format("%.1f MB", bytes / (1024.0 * 1024));
+        }
+        return String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024));
+    }
+
     /** Upper-bound bytes for one cell XML of the given column.
      *
-     *  All numeric primitive types serialize their value inline into <v>...</v>.
-     *  String, Enum, BigDecimal, and BigInteger all route through
-     *  SheetGenerator → _writer.writeString → SharedStringsStore, leaving
-     *  only a shared-string index in the cell — so the cell XML max is
-     *  bounded by Integer.MAX_VALUE digit count regardless of the underlying
-     *  string/BigDecimal length. The actual content lives in
-     *  sharedStrings.xml, a separate stream not gated by back-write buffer
-     *  limits. */
+     *  Cell-XML output paths in this library:
+     *    - All numeric overloads (writeNumber(int|long|float|double))
+     *      route through SheetGenerator → _writer.writeNumeric(double),
+     *      which calls StringBuilder.append(double) — so every numeric
+     *      primitive emits a Double.toString-formatted value (e.g.
+     *      "1.0", "-1.7976931348623157E308"), regardless of the source
+     *      type. Worst-case value length = ~25 chars.
+     *    - boolean emits "0" or "1" (1 char).
+     *    - String / Enum / BigDecimal / BigInteger route through
+     *      SheetGenerator → _writer.writeString → SharedStringsStore,
+     *      leaving only a shared-string index (max 10 digits for
+     *      Integer.MAX_VALUE) in the cell. Their content lives in
+     *      sharedStrings.xml, a separate stream not gated by
+     *      back-write buffer limits.
+     *    - Date / java.time.* route through writeNumber(double serial),
+     *      same 25-char bound.
+     *
+     *  Every supported Java type therefore has a bounded cell XML size. */
     public static int cellMaxBytes(final Column column) {
         final JavaType type = column.getType();
         final Class<?> raw = type.getRawClass();
         final int valueMax;
-        if (raw == int.class || raw == Integer.class
-                || raw == short.class || raw == Short.class
-                || raw == byte.class || raw == Byte.class) {
-            valueMax = 12;                                    // -2147483648
-        } else if (raw == long.class || raw == Long.class) {
-            valueMax = 20;                                    // -9223372036854775808
-        } else if (raw == float.class || raw == Float.class) {
-            valueMax = 17;                                    // -3.4028235E38
-        } else if (raw == double.class || raw == Double.class) {
-            valueMax = 25;                                    // -1.7976931348623157E308
-        } else if (raw == boolean.class || raw == Boolean.class) {
+        if (raw == boolean.class || raw == Boolean.class) {
             valueMax = 1;
         } else if (raw == String.class || raw.isEnum()
                 || raw == java.math.BigDecimal.class
                 || raw == java.math.BigInteger.class) {
-            valueMax = 10;                                    // shared string index (Integer.MAX_VALUE = 2147483647)
-        } else if (java.util.Date.class.isAssignableFrom(raw)
-                || raw.getName().startsWith("java.time.")) {
-            valueMax = 25;                                    // Excel serial date double
+            valueMax = 10;                                    // shared string index
         } else {
-            valueMax = 25;                                    // unknown — assume double-like
+            // All numeric primitives + Date/java.time.* emit
+            // Double.toString-formatted values. Use the double worst case.
+            valueMax = 25;
         }
         return CELL_FIXED_TAGS_BYTES + CELL_REF_MAX + CELL_STYLE_MAX + CELL_TYPE_MAX + valueMax;
     }

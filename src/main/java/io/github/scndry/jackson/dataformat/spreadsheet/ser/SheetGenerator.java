@@ -107,16 +107,17 @@ public final class SheetGenerator extends GeneratorBase {
             // exceeds the configured limit.
             final long projected = _schema.projectBackWriteBuffer(
                     _outputContext.currentPointer(), size);
-            final long limit = _backWriteBufferLimit();
+            final long limit = SpreadsheetSchema.backWriteBufferLimit();
             if (projected > limit) {
                 throw new SheetStreamWriteException(
                         "Nested list size " + size + " projected back-write"
-                        + " buffer " + _humanBytes(projected) + " exceeds limit "
-                        + _humanBytes(limit) + ". Either reduce the list size,"
-                        + " switch to USE_POI_USER_MODEL, declare the outer"
-                        + " field before the list, or raise the limit via"
-                        + " -Dspreadsheet.backWriteBufferBytes="
-                        + projected + " (or larger).",
+                        + " buffer " + SpreadsheetSchema.formatBytes(projected)
+                        + " exceeds limit " + SpreadsheetSchema.formatBytes(limit)
+                        + ". Either reduce the list size, switch to"
+                        + " USE_POI_USER_MODEL, declare the outer field before"
+                        + " the list, or raise the limit via -D"
+                        + SpreadsheetSchema.BACK_WRITE_BUFFER_BYTES_PROPERTY
+                        + "=" + projected + " (or larger).",
                         this);
             }
         }
@@ -129,35 +130,6 @@ public final class SheetGenerator extends GeneratorBase {
         }
     }
 
-    /** Resolves the back-write buffer limit each call so test code can
-     *  vary it via the system property without JVM restart. The limit is
-     *  intentionally not cached. Default = max(16 MB, heap/8) — heap/8
-     *  accounts for StringBuilder grow's 2× peak plus headroom for other
-     *  allocations. */
-    static long _backWriteBufferLimit() {
-        final String configured = System.getProperty("spreadsheet.backWriteBufferBytes");
-        if (configured != null) {
-            try {
-                final long v = Long.parseLong(configured);
-                if (v > 0) return v;
-            } catch (NumberFormatException ignored) {
-                // fall through to default
-            }
-        }
-        return Math.max(16L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 8);
-    }
-
-    /** Human-readable byte size formatting for error messages. */
-    static String _humanBytes(final long bytes) {
-        if (bytes < 1024L) return bytes + " B";
-        if (bytes < 1024L * 1024) return (bytes / 1024) + " KB";
-        if (bytes < 1024L * 1024 * 1024) {
-            final double mb = bytes / (1024.0 * 1024);
-            return String.format("%.1f MB", mb);
-        }
-        final double gb = bytes / (1024.0 * 1024 * 1024);
-        return String.format("%.2f GB", gb);
-    }
 
     @Override
     public void writeEndArray() throws IOException {

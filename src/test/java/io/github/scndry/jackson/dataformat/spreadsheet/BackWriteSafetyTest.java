@@ -14,8 +14,8 @@ import com.fasterxml.jackson.annotation.OptBoolean;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
@@ -39,15 +39,15 @@ class BackWriteSafetyTest {
 
     private static final Path DEBUG_OUTPUT_DIR = Paths.get("build/debug-output");
     private static final String LIMIT_PROP = "spreadsheet.backWriteBufferBytes";
-    private static String _savedLimit;
+    private String _savedLimit;
 
-    @BeforeAll
-    static void saveLimit() {
+    @BeforeEach
+    void saveLimit() {
         _savedLimit = System.getProperty(LIMIT_PROP);
     }
 
-    @AfterAll
-    static void restoreLimit() {
+    @AfterEach
+    void restoreLimit() {
         if (_savedLimit == null) {
             System.clearProperty(LIMIT_PROP);
         } else {

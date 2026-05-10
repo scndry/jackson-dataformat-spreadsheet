@@ -393,18 +393,18 @@ public final class SSMLSheetWriter implements SheetWriter {
             // list size was unknown (-1) at writeStartArray so the build-time
             // projection could not pre-check (Iterator / Stream sources).
             // Fail-fast with a clear error before OutOfMemoryError.
-            final long limit = _backWriteRuntimeLimit();
+            final long limit = SpreadsheetSchema.backWriteBufferLimit();
             if (_sb.length() > limit) {
                 throw new IOException(
                         "Nested list scope buffer reached "
-                        + _humanBytes(_sb.length()) + ", exceeds limit "
-                        + _humanBytes(limit) + ". Runtime monitor triggered"
-                        + " before OOM (list size was not known up-front)."
-                        + " Either reduce the list size, switch to"
-                        + " USE_POI_USER_MODEL, declare the outer field before"
-                        + " the list, or raise the limit via"
-                        + " -Dspreadsheet.backWriteBufferBytes=" + (_sb.length() * 2)
-                        + " (or larger).");
+                        + SpreadsheetSchema.formatBytes(_sb.length())
+                        + ", exceeds limit " + SpreadsheetSchema.formatBytes(limit)
+                        + ". Runtime monitor triggered before OOM (list size"
+                        + " was not known up-front). Either reduce the list"
+                        + " size, switch to USE_POI_USER_MODEL, declare the"
+                        + " outer field before the list, or raise the limit"
+                        + " via -D" + SpreadsheetSchema.BACK_WRITE_BUFFER_BYTES_PROPERTY
+                        + "=" + (_sb.length() * 2) + " (or larger).");
             }
             return;
         }
@@ -413,29 +413,6 @@ public final class SSMLSheetWriter implements SheetWriter {
         }
     }
 
-    /** Same heap-aware default as SheetGenerator._backWriteBufferLimit().
-     *  Not cached so test code can override at any time. */
-    static long _backWriteRuntimeLimit() {
-        final String configured = System.getProperty("spreadsheet.backWriteBufferBytes");
-        if (configured != null) {
-            try {
-                final long v = Long.parseLong(configured);
-                if (v > 0) return v;
-            } catch (NumberFormatException ignored) {
-                // fall through
-            }
-        }
-        return Math.max(16L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 8);
-    }
-
-    private static String _humanBytes(final long bytes) {
-        if (bytes < 1024L) return bytes + " B";
-        if (bytes < 1024L * 1024) return (bytes / 1024) + " KB";
-        if (bytes < 1024L * 1024 * 1024) {
-            return String.format("%.1f MB", bytes / (1024.0 * 1024));
-        }
-        return String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024));
-    }
 
     private void _flush() throws IOException {
         _zip.write(_sb.toString().getBytes(StandardCharsets.UTF_8));
