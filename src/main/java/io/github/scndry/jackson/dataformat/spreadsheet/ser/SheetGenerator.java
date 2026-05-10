@@ -98,15 +98,24 @@ public final class SheetGenerator extends GeneratorBase {
         if (size > 0) {
             _writer.ensureRowWindow(size);
         }
-        _writer.enterArrayScope();
+        // Skip the root-level array (mapper.writeValue(list, T.class)) — only
+        // nested arrays (List<NestedType> fields) need flush suspension so
+        // an outer merge=TRUE field can back-write into the first element row.
+        final boolean nested = !_outputContext.inRoot();
         _outputContext = _outputContext.createChildArrayContext(size);
+        if (nested) {
+            _writer.enterArrayScope();
+        }
     }
 
     @Override
     public void writeEndArray() throws IOException {
+        final boolean nested = !_outputContext.getParent().inRoot();
         _outputContext = _closeStruct(END_ARRAY);
         _writer.restoreRowWindow();
-        _writer.exitArrayScope();
+        if (nested) {
+            _writer.exitArrayScope();
+        }
     }
 
     @Override

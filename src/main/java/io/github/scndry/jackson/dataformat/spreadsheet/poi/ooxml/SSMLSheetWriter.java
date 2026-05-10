@@ -381,6 +381,9 @@ public final class SSMLSheetWriter implements SheetWriter {
     }
 
     private void _checkFlush() throws IOException {
+        // SheetGenerator only invokes enterArrayScope for nested arrays;
+        // any depth > 0 here is a List<NestedType> field where the outer
+        // merge=TRUE field can back-write into the first element row.
         if (_arrayScopeDepth > 0) return;
         if (_sb.capacity() - _sb.length() < FLUSH_THRESHOLD) {
             _flush();
