@@ -388,10 +388,41 @@ public final class SSMLSheetWriter implements SheetWriter {
         // SheetGenerator only invokes enterArrayScope for nested arrays;
         // any depth > 0 here is a List<NestedType> field where the outer
         // merge=TRUE field can back-write into the first element row.
-        if (_arrayScopeDepth > 0) return;
+        if (_arrayScopeDepth > 0) {
+            // Runtime back-write buffer monitor — covers the case where the
+            // list size was unknown (-1) at writeStartArray so the build-time
+            // projection could not pre-check. Fail-fast with a clear error
+            // before OutOfMemoryError.
+            if (_sb.length() > _backWriteRuntimeLimit()) {
+                throw new IOException(
+                        "Nested list scope buffer exceeded "
+                        + (_backWriteRuntimeLimit() / 1024 / 1024) + " MB"
+                        + " (current: " + (_sb.length() / 1024 / 1024) + " MB)."
+                        + " The list size was not known at writeStartArray;"
+                        + " runtime monitor triggered before OOM."
+                        + " Use POISheetWriter, split the data, or raise the"
+                        + " limit via -Dspreadsheet.backWriteBufferBytes=...");
+            }
+            return;
+        }
         if (_sb.capacity() - _sb.length() < FLUSH_THRESHOLD) {
             _flush();
         }
+    }
+
+    /** Same heap-aware default as SheetGenerator._backWriteBufferLimit().
+     *  Not cached so test code can override at any time. */
+    static long _backWriteRuntimeLimit() {
+        final String configured = System.getProperty("spreadsheet.backWriteBufferBytes");
+        if (configured != null) {
+            try {
+                final long v = Long.parseLong(configured);
+                if (v > 0) return v;
+            } catch (NumberFormatException ignored) {
+                // fall through
+            }
+        }
+        return Math.max(16L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 8);
     }
 
     private void _flush() throws IOException {

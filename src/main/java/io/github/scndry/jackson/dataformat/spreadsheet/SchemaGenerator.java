@@ -89,12 +89,14 @@ public final class SchemaGenerator {
             throw _invalidSchemaDefinition(type,
                     "has no visible properties — check field visibility or add getters");
         }
-        return new SpreadsheetSchema(
+        final SpreadsheetSchema schema = new SpreadsheetSchema(
                 columns,
                 _generatorSettings._origin,
                 _generatorSettings._features,
                 _generatorSettings._stylesBuilder,
                 _generatorSettings._gridConfigurer);
+        schema.warnIfBackWriteScenario();
+        return schema;
     }
 
     private void _verifyType(

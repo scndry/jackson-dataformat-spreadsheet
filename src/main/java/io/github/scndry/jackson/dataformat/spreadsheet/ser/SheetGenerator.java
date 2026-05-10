@@ -95,17 +95,53 @@ public final class SheetGenerator extends GeneratorBase {
     @Override
     public void writeStartArray(final Object forValue, final int size) throws IOException {
         _verifyValueWrite(START_ARRAY);
-        if (size > 0) {
-            _writer.ensureRowWindow(size);
-        }
         // Skip the root-level array (mapper.writeValue(list, T.class)) — only
         // nested arrays (List<NestedType> fields) need flush suspension so
         // an outer merge=TRUE field can back-write into the first element row.
         final boolean nested = !_outputContext.inRoot();
+        if (nested && size > 0 && _schema.hasOuterFieldAfterList()) {
+            // Back-write safety: cell XML max is fixed per type (shared
+            // string makes string content out-of-line), so the buffer
+            // accumulation during this nested array scope is bounded by
+            // (size × inner row max bytes). Fail-fast if that bound
+            // exceeds the configured limit.
+            final long projected = _schema.projectBackWriteBuffer(
+                    _outputContext.currentPointer(), size);
+            if (projected > 0 && projected > _backWriteBufferLimit()) {
+                throw new SheetStreamWriteException(
+                        "Nested list size " + size + " projected buffer "
+                        + (projected / 1024 / 1024) + " MB exceeds back-write"
+                        + " limit " + (_backWriteBufferLimit() / 1024 / 1024) + " MB."
+                        + " Use POISheetWriter, split the data, or raise the"
+                        + " limit via -Dspreadsheet.backWriteBufferBytes=...",
+                        this);
+            }
+        }
+        if (size > 0) {
+            _writer.ensureRowWindow(size);
+        }
         _outputContext = _outputContext.createChildArrayContext(size);
         if (nested) {
             _writer.enterArrayScope();
         }
+    }
+
+    /** Resolves the back-write buffer limit each call so test code can
+     *  vary it via the system property without JVM restart. The limit is
+     *  intentionally not cached. Default = max(16 MB, heap/8) — heap/8
+     *  accounts for StringBuilder grow's 2× peak plus headroom for other
+     *  allocations. */
+    static long _backWriteBufferLimit() {
+        final String configured = System.getProperty("spreadsheet.backWriteBufferBytes");
+        if (configured != null) {
+            try {
+                final long v = Long.parseLong(configured);
+                if (v > 0) return v;
+            } catch (NumberFormatException ignored) {
+                // fall through to default
+            }
+        }
+        return Math.max(16L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 8);
     }
 
     @Override
