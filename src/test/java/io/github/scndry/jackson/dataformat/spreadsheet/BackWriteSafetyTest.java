@@ -92,8 +92,9 @@ class BackWriteSafetyTest {
         assertThatThrownBy(() ->
                 new SpreadsheetMapper().writeValue(file,
                         Collections.singletonList(record), Record.class))
-                .hasMessageContaining("Nested list size")
-                .hasMessageContaining("exceeds back-write");
+                .hasMessageContaining("Nested list size 1000")
+                .hasMessageContaining("projected back-write buffer")
+                .hasMessageContaining("exceeds limit");
     }
 
     @Test

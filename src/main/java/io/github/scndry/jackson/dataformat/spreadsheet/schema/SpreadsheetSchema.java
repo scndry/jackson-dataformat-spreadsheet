@@ -245,8 +245,24 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         return false;
     }
 
+    /** Returns true when any inner column (inside a nested array scope) has
+     *  an unbounded type (BigDecimal/BigInteger). Such schemas cannot have
+     *  their back-write buffer projected at writeStartArray — the safety
+     *  layer falls back to the runtime _sb monitor. */
+    public boolean hasUnboundedInnerType() {
+        for (final Column c : _columns) {
+            if (c == null) continue;
+            if (!c.getPointer().contains(ColumnPointer.array())) continue;
+            if (cellMaxBytes(c) < 0) return true;
+        }
+        return false;
+    }
+
     /** Logs a warn once at schema build if an outer field is declared after
-     *  a List<T> field — flags the back-write code path. Call once after
+     *  a List<T> field — flags the back-write code path. Adds a second warn
+     *  when any inner column has an unbounded type (BigDecimal/BigInteger)
+     *  so the user knows the projected check cannot pre-detect, and only
+     *  the runtime monitor will catch limit breaches. Call once after
      *  schema construction. */
     public void warnIfBackWriteScenario() {
         if (!hasOuterFieldAfterList()) return;
@@ -259,6 +275,13 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
                 + " reordering fields so the outer field comes before the list."
                 + " Columns: {}",
                 _columns);
+        if (hasUnboundedInnerType()) {
+            log.warn(
+                    "Schema has inner column(s) with unbounded type"
+                    + " (BigDecimal/BigInteger). writeStartArray cannot"
+                    + " pre-project buffer size; only the runtime _sb monitor"
+                    + " will catch limit breaches.");
+        }
     }
 
     public Styles buildStyles(final Workbook workbook) {

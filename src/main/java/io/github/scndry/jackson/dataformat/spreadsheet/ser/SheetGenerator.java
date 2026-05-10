@@ -107,13 +107,16 @@ public final class SheetGenerator extends GeneratorBase {
             // exceeds the configured limit.
             final long projected = _schema.projectBackWriteBuffer(
                     _outputContext.currentPointer(), size);
-            if (projected > 0 && projected > _backWriteBufferLimit()) {
+            final long limit = _backWriteBufferLimit();
+            if (projected > 0 && projected > limit) {
                 throw new SheetStreamWriteException(
-                        "Nested list size " + size + " projected buffer "
-                        + (projected / 1024 / 1024) + " MB exceeds back-write"
-                        + " limit " + (_backWriteBufferLimit() / 1024 / 1024) + " MB."
-                        + " Use POISheetWriter, split the data, or raise the"
-                        + " limit via -Dspreadsheet.backWriteBufferBytes=...",
+                        "Nested list size " + size + " projected back-write"
+                        + " buffer " + _humanBytes(projected) + " exceeds limit "
+                        + _humanBytes(limit) + ". Either reduce the list size,"
+                        + " switch to USE_POI_USER_MODEL, declare the outer"
+                        + " field before the list, or raise the limit via"
+                        + " -Dspreadsheet.backWriteBufferBytes="
+                        + projected + " (or larger).",
                         this);
             }
         }
@@ -142,6 +145,18 @@ public final class SheetGenerator extends GeneratorBase {
             }
         }
         return Math.max(16L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 8);
+    }
+
+    /** Human-readable byte size formatting for error messages. */
+    static String _humanBytes(final long bytes) {
+        if (bytes < 1024L) return bytes + " B";
+        if (bytes < 1024L * 1024) return (bytes / 1024) + " KB";
+        if (bytes < 1024L * 1024 * 1024) {
+            final double mb = bytes / (1024.0 * 1024);
+            return String.format("%.1f MB", mb);
+        }
+        final double gb = bytes / (1024.0 * 1024 * 1024);
+        return String.format("%.2f GB", gb);
     }
 
     @Override
