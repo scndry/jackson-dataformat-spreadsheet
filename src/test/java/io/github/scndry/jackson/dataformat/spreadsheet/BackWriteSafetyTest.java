@@ -25,15 +25,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Verifies the 3-layer back-write safety:
- *  - Build-time   : SpreadsheetSchema.warnIfBackWriteScenario() (log assertion
- *                   omitted; visual inspection via log)
- *  - Write-time   : SheetGenerator.writeStartArray projected check throws
- *                   SheetStreamWriteException when size × inner-row-bytes
- *                   exceeds the configured limit
- *  - Runtime      : SSMLSheetWriter._checkFlush throws IOException when _sb
- *                   grows past the limit during an array scope where the
- *                   list size was not known up-front
+ * Verifies the write-time layer of the back-write safety:
+ *  - SheetGenerator.writeStartArray throws SheetStreamWriteException when
+ *    size × inner-row-bytes exceeds the configured limit.
+ *  - The same path completes normally when the projected size fits.
+ *
+ * <p>Other layers covered elsewhere:
+ *  - Build-time detection accuracy : BackWriteDetectionTest
+ *  - Runtime _sb monitor           : exercised indirectly by
+ *    BackWriteDetectionTest (unknown-size fallback paths) and by
+ *    RealisticAccuracyTest's largeSingleRecord_crossesBufferThreshold.
  */
 class BackWriteSafetyTest {
 
@@ -109,22 +110,6 @@ class BackWriteSafetyTest {
         new SpreadsheetMapper().writeValue(file,
                 Collections.singletonList(record), Record.class);
 
-        assertThat(file).exists().isNotEmpty();
-    }
-
-    @Test
-    void schemaDetectsOuterFieldAfterList() throws Exception {
-        // hasOuterFieldAfterList() should return true for this schema.
-        // (Direct schema inspection — bypasses writer.)
-        // Build the mapper / schema and ask.
-        SpreadsheetMapper mapper = new SpreadsheetMapper();
-        // No public path to inspect built schema; rely on writeValue
-        // exercising the path. The previous tests cover behavioural side.
-        // This test fixes the unreached-branch coverage placeholder.
-        List<Item> items = Arrays.asList(new Item(1));
-        Record record = new Record(1, items, 1);
-        File file = _debugFile("safety-detect.xlsx");
-        mapper.writeValue(file, Collections.singletonList(record), Record.class);
         assertThat(file).exists().isNotEmpty();
     }
 
