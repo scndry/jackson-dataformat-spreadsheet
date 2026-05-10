@@ -174,9 +174,7 @@ public final class SSMLSheetWriter implements SheetWriter {
     public void writeNumeric(final double value) {
         try {
             if (_isBackReference()) {
-                _insertCellIntoEmittedRow("<c r=\"" + _cellRef()
-                        + "\" s=\"" + _resolveStyleIndex()
-                        + "\" t=\"n\"><v>" + value + "</v></c>");
+                _insertCellIntoEmittedRow(_buildCellXml("n", String.valueOf(value)));
                 return;
             }
             _appendCellStart("n").append(value);
@@ -191,9 +189,7 @@ public final class SSMLSheetWriter implements SheetWriter {
         try {
             final int index = _cacheString(value);
             if (_isBackReference()) {
-                _insertCellIntoEmittedRow("<c r=\"" + _cellRef()
-                        + "\" s=\"" + _resolveStyleIndex()
-                        + "\" t=\"s\"><v>" + index + "</v></c>");
+                _insertCellIntoEmittedRow(_buildCellXml("s", String.valueOf(index)));
                 return;
             }
             _appendCellStart("s").append(index);
@@ -207,9 +203,7 @@ public final class SSMLSheetWriter implements SheetWriter {
     public void writeBoolean(final boolean value) {
         try {
             if (_isBackReference()) {
-                _insertCellIntoEmittedRow("<c r=\"" + _cellRef()
-                        + "\" s=\"" + _resolveStyleIndex()
-                        + "\" t=\"b\"><v>" + (value ? '1' : '0') + "</v></c>");
+                _insertCellIntoEmittedRow(_buildCellXml("b", value ? "1" : "0"));
                 return;
             }
             _appendCellStart("b").append(value ? '1' : '0');
@@ -223,8 +217,7 @@ public final class SSMLSheetWriter implements SheetWriter {
     public void writeBlank() {
         try {
             if (_isBackReference()) {
-                _insertCellIntoEmittedRow("<c r=\"" + _cellRef()
-                        + "\" s=\"" + _resolveStyleIndex() + "\"/>");
+                _insertCellIntoEmittedRow(_buildBlankCellXml());
                 return;
             }
             _ensureRowOpen();
@@ -238,6 +231,17 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     private boolean _isBackReference() {
         return _reference.getRow() < _currentRow;
+    }
+
+    private String _buildCellXml(final String type, final String value) {
+        return "<c r=\"" + _cellRef()
+                + "\" s=\"" + _resolveStyleIndex()
+                + "\" t=\"" + type + "\"><v>" + value + "</v></c>";
+    }
+
+    private String _buildBlankCellXml() {
+        return "<c r=\"" + _cellRef()
+                + "\" s=\"" + _resolveStyleIndex() + "\"/>";
     }
 
     private void _insertCellIntoEmittedRow(final String cellXml) {
