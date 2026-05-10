@@ -290,6 +290,179 @@ class RealisticAccuracyTest {
     }
 
     // ----------------------------------------------------------------
+    // 6) MULTI_RECORD_DEEP_NESTED — 5 records × 2 groups × 2 inners.
+    //    Cycles enter/exit object scopes across record boundaries with
+    //    deep nesting; tests stack reset and patch isolation per record.
+    // ----------------------------------------------------------------
+
+    @Test
+    void multiRecordDeepNested() throws Exception {
+        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
+                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
+
+        java.util.ArrayList<GroupedOrder> data = new java.util.ArrayList<>();
+        for (int r = 0; r < 5; r++) {
+            data.add(new GroupedOrder(r,
+                    Arrays.asList(
+                            new Group("G" + r + "X",
+                                    Arrays.asList(new GroupItem("a" + r, 1),
+                                            new GroupItem("b" + r, 2)),
+                                    3),
+                            new Group("G" + r + "Y",
+                                    Arrays.asList(new GroupItem("c" + r, 4),
+                                            new GroupItem("d" + r, 5)),
+                                    9)),
+                    12));
+        }
+
+        File ssmlFile = _debugFile("rat-multi-deep-ssml.xlsx");
+        File poiFile = _debugFile("rat-multi-deep-poi.xlsx");
+
+        new SpreadsheetMapper().writeValue(ssmlFile, data, GroupedOrder.class);
+        _poiMapper().writeValue(poiFile, data, GroupedOrder.class);
+
+        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+    }
+
+    // ----------------------------------------------------------------
+    // 7) LARGE_SINGLE_RECORD — single record with a list large enough to
+    //    push _sb past the SSML buffer threshold (~512 KB) before the
+    //    outer footer field write. fix branch must keep the row tag
+    //    intact via flush suspension; PoC must keep its patch state
+    //    valid across the suspended scope.
+    // ----------------------------------------------------------------
+
+    @Test
+    void largeSingleRecord_crossesBufferThreshold() throws Exception {
+        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
+                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
+
+        int innerCount = 20000;
+        NestedItem[] items = new NestedItem[innerCount];
+        for (int i = 0; i < innerCount; i++) {
+            items[i] = new NestedItem("p" + i + "_" + (i * 13 % 997), i);
+        }
+        NestedListEntry record = new NestedListEntry(1,
+                Arrays.asList(items), 99.0);
+
+        File ssmlFile = _debugFile("rat-large-single-ssml.xlsx");
+        File poiFile = _debugFile("rat-large-single-poi.xlsx");
+
+        new SpreadsheetMapper().writeValue(ssmlFile,
+                Collections.singletonList(record), NestedListEntry.class);
+        _poiMapper().writeValue(poiFile,
+                Collections.singletonList(record), NestedListEntry.class);
+
+        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class NestedItem {
+        String product;
+        int qty;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class NestedListEntry {
+        @DataColumn(value = "id", merge = OptBoolean.TRUE) int id;
+        List<NestedItem> items;
+        @DataColumn(value = "total", merge = OptBoolean.TRUE) double total;
+    }
+
+    // ----------------------------------------------------------------
+    // 8) DEEP_NESTED_LARGE_STRINGS — list of list with long descriptions
+    //    inside inner items. Stresses both the back-write path and the
+    //    sharedStrings store under deep nesting.
+    // ----------------------------------------------------------------
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class FatInner {
+        @DataColumn("name") String name;
+        @DataColumn("desc") String description;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class FatGroup {
+        @DataColumn(value = "groupName", merge = OptBoolean.TRUE) String groupName;
+        List<FatInner> inners;
+        @DataColumn(value = "groupNote", merge = OptBoolean.TRUE) String groupNote;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class FatRoot {
+        @DataColumn(value = "id", merge = OptBoolean.TRUE) int id;
+        List<FatGroup> groups;
+        @DataColumn(value = "summary", merge = OptBoolean.TRUE) String summary;
+    }
+
+    @Test
+    void deepNestedLargeStrings() throws Exception {
+        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
+                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
+
+        StringBuilder bigDesc = new StringBuilder(2048);
+        for (int i = 0; i < 100; i++) bigDesc.append("긴 설명 chunk ").append(i).append(" / ");
+        StringBuilder bigNote = new StringBuilder(1024);
+        for (int i = 0; i < 50; i++) bigNote.append("group note ").append(i).append(" — ");
+        StringBuilder summary = new StringBuilder(2048);
+        for (int i = 0; i < 100; i++) summary.append("summary line ").append(i).append(". ");
+
+        FatRoot root = new FatRoot(42,
+                Arrays.asList(
+                        new FatGroup("Alpha",
+                                Arrays.asList(new FatInner("a", bigDesc.toString()),
+                                        new FatInner("b", bigDesc.toString())),
+                                bigNote.toString()),
+                        new FatGroup("Beta",
+                                Arrays.asList(new FatInner("c", bigDesc.toString())),
+                                bigNote.toString())),
+                summary.toString());
+
+        File ssmlFile = _debugFile("rat-deep-large-strings-ssml.xlsx");
+        File poiFile = _debugFile("rat-deep-large-strings-poi.xlsx");
+
+        new SpreadsheetMapper().writeValue(ssmlFile,
+                Collections.singletonList(root), FatRoot.class);
+        _poiMapper().writeValue(poiFile,
+                Collections.singletonList(root), FatRoot.class);
+
+        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+    }
+
+    // ----------------------------------------------------------------
+    // 9) PARENT_CHILD_SAME_FIRST_ROW — record + 1 group + 1 inner all
+    //    anchor at the same first row. PoC stack must handle simultaneous
+    //    locking + shifting of multiple entries pointing at the same row.
+    // ----------------------------------------------------------------
+
+    @Test
+    void parentChildSameFirstRow() throws Exception {
+        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
+                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
+
+        // Single group, two inners → row 0 is parent's, group's, and item[0]'s
+        // firstRow simultaneously. Forward advance to row 1 must lock all three
+        // entries that match firstRow=0 in the stack.
+        GroupedOrder order = new GroupedOrder(7,
+                Collections.singletonList(
+                        new Group("OnlyGroup",
+                                Arrays.asList(new GroupItem("x", 1),
+                                        new GroupItem("y", 2)),
+                                3)),
+                3);
+
+        File ssmlFile = _debugFile("rat-same-firstrow-ssml.xlsx");
+        File poiFile = _debugFile("rat-same-firstrow-poi.xlsx");
+
+        new SpreadsheetMapper().writeValue(ssmlFile,
+                Collections.singletonList(order), GroupedOrder.class);
+        _poiMapper().writeValue(poiFile,
+                Collections.singletonList(order), GroupedOrder.class);
+
+        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+    }
+
+    // ----------------------------------------------------------------
     // Helpers
     // ----------------------------------------------------------------
 
