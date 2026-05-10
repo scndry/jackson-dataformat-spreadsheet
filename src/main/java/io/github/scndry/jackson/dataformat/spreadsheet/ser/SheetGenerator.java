@@ -98,6 +98,7 @@ public final class SheetGenerator extends GeneratorBase {
         if (size > 0) {
             _writer.ensureRowWindow(size);
         }
+        _writer.enterArrayScope();
         _outputContext = _outputContext.createChildArrayContext(size);
     }
 
@@ -105,6 +106,7 @@ public final class SheetGenerator extends GeneratorBase {
     public void writeEndArray() throws IOException {
         _outputContext = _closeStruct(END_ARRAY);
         _writer.restoreRowWindow();
+        _writer.exitArrayScope();
     }
 
     @Override

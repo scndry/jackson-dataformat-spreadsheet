@@ -57,6 +57,7 @@ public final class SSMLSheetWriter implements SheetWriter {
     private CellAddress _reference;
     private int _currentRow = -1;
     private boolean _currentRowOpen;
+    private int _arrayScopeDepth;
 
     // SharedStrings
     private final SharedStringsStore _sst;
@@ -265,6 +266,16 @@ public final class SSMLSheetWriter implements SheetWriter {
     }
 
     @Override
+    public void enterArrayScope() {
+        _arrayScopeDepth++;
+    }
+
+    @Override
+    public void exitArrayScope() {
+        _arrayScopeDepth--;
+    }
+
+    @Override
     public void mergeScopedColumns(final ColumnPointer pointer, final int row, final int size) {
         if (size <= 1) return;
         final List<Column> columns = _schema.getColumns(pointer);
@@ -370,6 +381,7 @@ public final class SSMLSheetWriter implements SheetWriter {
     }
 
     private void _checkFlush() throws IOException {
+        if (_arrayScopeDepth > 0) return;
         if (_sb.capacity() - _sb.length() < FLUSH_THRESHOLD) {
             _flush();
         }

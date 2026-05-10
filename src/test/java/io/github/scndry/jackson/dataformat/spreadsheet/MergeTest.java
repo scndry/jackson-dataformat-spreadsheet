@@ -54,6 +54,37 @@ class MergeTest {
     }
 
     @Test
+    void cellValuesArePreserved_ssml_largeList() throws Exception {
+        // List XML accumulation must not push _sb past its flush boundary
+        // before the outer merge=TRUE field is back-written. Use a list
+        // large enough that the cell xml exceeds the SSML buffer.
+        SpreadsheetMapper ssmlMapper = new SpreadsheetMapper();
+        File file = tempFile("merge-ssml-large.xlsx");
+
+        int innerCount = 10000;
+        Inner[] inners = new Inner[innerCount];
+        for (int i = 0; i < innerCount; i++) {
+            inners[i] = new Inner(i, i * 10);
+        }
+
+        Outer value = new Outer(1, Arrays.asList(inners), 99);
+        ssmlMapper.writeValue(file, value);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            // Outer fields anchored at the first inner row (row 1)
+            assertThat((int) sheet.getRow(1).getCell(0).getNumericCellValue()).isEqualTo(1);
+            assertThat((int) sheet.getRow(1).getCell(3).getNumericCellValue()).isEqualTo(99);
+            // First inner row content
+            assertThat((int) sheet.getRow(1).getCell(1).getNumericCellValue()).isEqualTo(0);
+            assertThat((int) sheet.getRow(1).getCell(2).getNumericCellValue()).isEqualTo(0);
+            // Last inner row content
+            assertThat((int) sheet.getRow(innerCount).getCell(1).getNumericCellValue()).isEqualTo(innerCount - 1);
+            assertThat((int) sheet.getRow(innerCount).getCell(2).getNumericCellValue()).isEqualTo((innerCount - 1) * 10);
+        }
+    }
+
+    @Test
     void cellValuesArePreserved_ssml() throws Exception {
         // The SSML default streaming write path must preserve all cell values
         // when an outer field with merge=TRUE is declared after a List<NestedType> field.
