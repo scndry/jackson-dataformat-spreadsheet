@@ -10,7 +10,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -51,124 +50,6 @@ class MergeTest {
     static class Inner {
         @DataColumn("B") int b;
         @DataColumn("C") int c;
-    }
-
-    @Test
-    void cellValuesArePreserved_ssml_multipleRecords() throws Exception {
-        // _arrayScopeDepth must cycle 0 → 1 → 0 across records. Verify that
-        // a list of records, each with a nested list and merge=TRUE outer
-        // fields, preserves every cell across the record boundary.
-        SpreadsheetMapper ssmlMapper = new SpreadsheetMapper();
-        File file = tempFile("merge-ssml-multi.xlsx");
-
-        List<Outer> values = Arrays.asList(
-                new Outer(1, Arrays.asList(new Inner(2, 3), new Inner(4, 5)), 10),
-                new Outer(2, Arrays.asList(new Inner(6, 7)), 20));
-
-        ssmlMapper.writeValue(file, values, Outer.class);
-
-        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
-            Sheet sheet = wb.getSheetAt(0);
-
-            // Record 1 (rows 1..2)
-            Row row1 = sheet.getRow(1);
-            assertThat((int) row1.getCell(0).getNumericCellValue()).isEqualTo(1);
-            assertThat((int) row1.getCell(1).getNumericCellValue()).isEqualTo(2);
-            assertThat((int) row1.getCell(2).getNumericCellValue()).isEqualTo(3);
-            assertThat((int) row1.getCell(3).getNumericCellValue()).isEqualTo(10);
-            Row row2 = sheet.getRow(2);
-            assertThat((int) row2.getCell(1).getNumericCellValue()).isEqualTo(4);
-            assertThat((int) row2.getCell(2).getNumericCellValue()).isEqualTo(5);
-
-            // Record 2 (row 3) — single inner, all cells on the same row
-            Row row3 = sheet.getRow(3);
-            assertThat((int) row3.getCell(0).getNumericCellValue()).isEqualTo(2);
-            assertThat((int) row3.getCell(1).getNumericCellValue()).isEqualTo(6);
-            assertThat((int) row3.getCell(2).getNumericCellValue()).isEqualTo(7);
-            assertThat((int) row3.getCell(3).getNumericCellValue()).isEqualTo(20);
-
-            // Record 1's outer fields merged across rows 1..2
-            assertThat(sheet.getMergedRegions()).anySatisfy(r -> {
-                assertThat(r.getFirstRow()).isEqualTo(1);
-                assertThat(r.getLastRow()).isEqualTo(2);
-                assertThat(r.getFirstColumn()).isEqualTo(0);
-                assertThat(r.getLastColumn()).isEqualTo(0);
-            });
-            assertThat(sheet.getMergedRegions()).anySatisfy(r -> {
-                assertThat(r.getFirstRow()).isEqualTo(1);
-                assertThat(r.getLastRow()).isEqualTo(2);
-                assertThat(r.getFirstColumn()).isEqualTo(3);
-                assertThat(r.getLastColumn()).isEqualTo(3);
-            });
-        }
-    }
-
-    @Test
-    void cellValuesArePreserved_ssml_largeList() throws Exception {
-        // List XML accumulation must not push _sb past its flush boundary
-        // before the outer merge=TRUE field is back-written. Use a list
-        // large enough that the cell xml exceeds the SSML buffer.
-        SpreadsheetMapper ssmlMapper = new SpreadsheetMapper();
-        File file = tempFile("merge-ssml-large.xlsx");
-
-        int innerCount = 10000;
-        Inner[] inners = new Inner[innerCount];
-        for (int i = 0; i < innerCount; i++) {
-            inners[i] = new Inner(i, i * 10);
-        }
-
-        Outer value = new Outer(1, Arrays.asList(inners), 99);
-        ssmlMapper.writeValue(file, value);
-
-        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
-            Sheet sheet = wb.getSheetAt(0);
-            // Outer fields anchored at the first inner row (row 1)
-            assertThat((int) sheet.getRow(1).getCell(0).getNumericCellValue()).isEqualTo(1);
-            assertThat((int) sheet.getRow(1).getCell(3).getNumericCellValue()).isEqualTo(99);
-            // First inner row content
-            assertThat((int) sheet.getRow(1).getCell(1).getNumericCellValue()).isEqualTo(0);
-            assertThat((int) sheet.getRow(1).getCell(2).getNumericCellValue()).isEqualTo(0);
-            // Last inner row content
-            assertThat((int) sheet.getRow(innerCount).getCell(1).getNumericCellValue()).isEqualTo(innerCount - 1);
-            assertThat((int) sheet.getRow(innerCount).getCell(2).getNumericCellValue()).isEqualTo((innerCount - 1) * 10);
-        }
-    }
-
-    @Test
-    void cellValuesArePreserved_ssml() throws Exception {
-        // The SSML default streaming write path must preserve all cell values
-        // when an outer field with merge=TRUE is declared after a List<NestedType> field.
-        SpreadsheetMapper ssmlMapper = new SpreadsheetMapper();
-        File file = tempFile("merge-ssml-cell-values.xlsx");
-
-        Outer value = new Outer(1, Arrays.asList(
-                new Inner(2, 3),
-                new Inner(4, 5)),
-                10);
-
-        ssmlMapper.writeValue(file, value);
-
-        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
-            Sheet sheet = wb.getSheetAt(0);
-
-            // Header row 0: A | B | C | E
-            assertThat(sheet.getRow(0).getCell(0).getStringCellValue()).isEqualTo("A");
-            assertThat(sheet.getRow(0).getCell(1).getStringCellValue()).isEqualTo("B");
-            assertThat(sheet.getRow(0).getCell(2).getStringCellValue()).isEqualTo("C");
-            assertThat(sheet.getRow(0).getCell(3).getStringCellValue()).isEqualTo("E");
-
-            // Data row 1: outer A=1, inner B=2/C=3, outer E=10 (all on first inner row)
-            Row row1 = sheet.getRow(1);
-            assertThat((int) row1.getCell(0).getNumericCellValue()).isEqualTo(1);
-            assertThat((int) row1.getCell(1).getNumericCellValue()).isEqualTo(2);
-            assertThat((int) row1.getCell(2).getNumericCellValue()).isEqualTo(3);
-            assertThat((int) row1.getCell(3).getNumericCellValue()).isEqualTo(10);
-
-            // Data row 2: inner B=4/C=5 (outer cells empty — covered by vertical merge)
-            Row row2 = sheet.getRow(2);
-            assertThat((int) row2.getCell(1).getNumericCellValue()).isEqualTo(4);
-            assertThat((int) row2.getCell(2).getNumericCellValue()).isEqualTo(5);
-        }
     }
 
     @Test

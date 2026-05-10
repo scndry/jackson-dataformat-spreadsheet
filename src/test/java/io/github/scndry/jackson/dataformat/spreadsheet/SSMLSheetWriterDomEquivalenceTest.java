@@ -67,36 +67,88 @@ class SSMLSheetWriterDomEquivalenceTest {
         _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
-    // -- Nested list + merge=TRUE on outer fields ------------------------
+    // -- Nested list with outer field declared after the list ------------
+    // Trigger for SSML back-reference: Jackson serializes the outer field
+    // after the list, but the cell anchors at the list's first element row.
+    // merge=TRUE here only affects mergeCells; the back-write is independent.
 
     @Data @NoArgsConstructor @AllArgsConstructor
-    static class MergedListItem {
+    static class NestedItem {
         String product;
         int qty;
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
-    static class MergedListOrder {
+    static class NestedListEntry {
         @DataColumn(value = "id", merge = OptBoolean.TRUE) int id;
-        List<MergedListItem> items;
+        List<NestedItem> items;
         @DataColumn(value = "total", merge = OptBoolean.TRUE) double total;
     }
 
-    private static final List<MergedListOrder> MERGED_LIST_DATA = Arrays.asList(
-            new MergedListOrder(1,
-                    Arrays.asList(new MergedListItem("Apple", 3), new MergedListItem("Banana", 5)),
-                    10.0));
-
     @Test
-    void sheetXmlDomEquivalent_listWithMerge() throws Exception {
+    void sheetXmlDomEquivalent_nestedList() throws Exception {
         Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
                 "DOM equivalence asserted only on POI 5.2.3+ — see #96");
 
-        File ssmlFile = _debugFile("dom-list-merge-ssml.xlsx");
-        File poiFile = _debugFile("dom-list-merge-poi.xlsx");
+        List<NestedListEntry> data = Arrays.asList(
+                new NestedListEntry(1,
+                        Arrays.asList(new NestedItem("Apple", 3), new NestedItem("Banana", 5)),
+                        10.0));
 
-        new SpreadsheetMapper().writeValue(ssmlFile, MERGED_LIST_DATA, MergedListOrder.class);
-        _poiMapper().writeValue(poiFile, MERGED_LIST_DATA, MergedListOrder.class);
+        File ssmlFile = _debugFile("dom-nested-list-ssml.xlsx");
+        File poiFile = _debugFile("dom-nested-list-poi.xlsx");
+
+        new SpreadsheetMapper().writeValue(ssmlFile, data, NestedListEntry.class);
+        _poiMapper().writeValue(poiFile, data, NestedListEntry.class);
+
+        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+    }
+
+    @Test
+    void sheetXmlDomEquivalent_nestedList_largeArray() throws Exception {
+        // List XML accumulation crosses the SSML buffer threshold (~512 KB).
+        // Tests that flush suspension during nested array scope keeps the
+        // first element row tag present for back-write of the outer field.
+        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
+                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
+
+        int innerCount = 10000;
+        NestedItem[] items = new NestedItem[innerCount];
+        for (int i = 0; i < innerCount; i++) {
+            items[i] = new NestedItem("p" + i, i);
+        }
+        List<NestedListEntry> data = Arrays.asList(
+                new NestedListEntry(1, Arrays.asList(items), 99.0));
+
+        File ssmlFile = _debugFile("dom-nested-list-large-ssml.xlsx");
+        File poiFile = _debugFile("dom-nested-list-large-poi.xlsx");
+
+        new SpreadsheetMapper().writeValue(ssmlFile, data, NestedListEntry.class);
+        _poiMapper().writeValue(poiFile, data, NestedListEntry.class);
+
+        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+    }
+
+    @Test
+    void sheetXmlDomEquivalent_nestedList_multiRecord() throws Exception {
+        // _arrayScopeDepth must cycle 0 → 1 → 0 across records when the
+        // root is an array of records (mapper.writeValue(list, T.class)).
+        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
+                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
+
+        List<NestedListEntry> data = Arrays.asList(
+                new NestedListEntry(1,
+                        Arrays.asList(new NestedItem("Apple", 3), new NestedItem("Banana", 5)),
+                        10.0),
+                new NestedListEntry(2,
+                        Arrays.asList(new NestedItem("Cherry", 2)),
+                        20.0));
+
+        File ssmlFile = _debugFile("dom-nested-list-multi-ssml.xlsx");
+        File poiFile = _debugFile("dom-nested-list-multi-poi.xlsx");
+
+        new SpreadsheetMapper().writeValue(ssmlFile, data, NestedListEntry.class);
+        _poiMapper().writeValue(poiFile, data, NestedListEntry.class);
 
         _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
