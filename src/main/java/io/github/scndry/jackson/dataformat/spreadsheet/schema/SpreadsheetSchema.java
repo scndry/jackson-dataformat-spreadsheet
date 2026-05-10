@@ -19,7 +19,6 @@ import com.fasterxml.jackson.databind.JavaType;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.GridConfigurer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * {@link FormatSchema} implementation that defines the column
@@ -31,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
  * @see Column
  * @see io.github.scndry.jackson.dataformat.spreadsheet.SchemaGenerator
  */
-@Slf4j
 public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
 
     public static final String SCHEMA_TYPE = "spreadsheet";
@@ -152,20 +150,13 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     }
 
     // ----------------------------------------------------------------
-    // Back-write safety projection — derived from "shared string ⇒ cell XML
-    // upper bound is fixed by type" (BigDecimal/BigInteger excepted).
-    //
-    // Per-column max cell bytes:
-    //   <c r="XFD1048576" s="32767" t="X"><v>VALUE</v></c>
-    //   fixed tags = 27 bytes; cell ref ≤ 10; style index ≤ 5; type ≤ 3;
-    //   value depends on JavaType (see _cellMaxBytes).
-    //
-    // Row tag overhead: <row r="N">...</row> = ~22 bytes.
-    //
-    // These projections let writeStartArray() fail-fast before _sb grows.
+    // Back-write safety — public utilities for cell-XML upper-bound
+    // computation and the runtime limit. Per-row / per-list projection
+    // and the back-write trigger detector live in
+    // io.github.scndry.jackson.dataformat.spreadsheet.schema.internal
+    // .BackWriteProjection (internal API).
     // ----------------------------------------------------------------
 
-    private static final int ROW_TAG_BYTES = 22;
     private static final int CELL_FIXED_TAGS_BYTES = 27;
     private static final int CELL_REF_MAX = 10;
     private static final int CELL_STYLE_MAX = 5;
@@ -242,62 +233,6 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         return CELL_FIXED_TAGS_BYTES + CELL_REF_MAX + CELL_STYLE_MAX + CELL_TYPE_MAX + valueMax;
     }
 
-    /** Upper-bound bytes for one inner row (all columns inside the given
-     *  array pointer + the <row> tag). All Java types bound by
-     *  {@link #cellMaxBytes} are themselves bounded, so the result is
-     *  always a finite value. */
-    public long innerRowMaxBytes(final ColumnPointer arrayPointer) {
-        final List<Column> inners = getColumns(arrayPointer);
-        long bytes = ROW_TAG_BYTES;
-        for (final Column c : inners) {
-            bytes += cellMaxBytes(c);
-        }
-        return bytes;
-    }
-
-    /** Projected back-write buffer max for a nested list of {@code listSize}
-     *  elements rooted at {@code arrayPointer}. */
-    public long projectBackWriteBuffer(final ColumnPointer arrayPointer, final int listSize) {
-        if (listSize <= 0) return 0;
-        return (long) listSize * innerRowMaxBytes(arrayPointer);
-    }
-
-    /** Returns true when the column order has any outer (non-array-scope)
-     *  column appearing after at least one inner (array-scope) column —
-     *  the trigger for SSML back-write. Build-time detection used for an
-     *  early warning to the user. */
-    public boolean hasOuterFieldAfterList() {
-        boolean seenInner = false;
-        for (final Column c : _columns) {
-            if (c == null) continue;
-            final boolean inner = c.getPointer().contains(ColumnPointer.array());
-            if (inner) {
-                seenInner = true;
-            } else if (seenInner) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** Logs a warn once at schema build if an outer field is declared after
-     *  a List<T> field — flags the back-write code path. Call once after
-     *  schema construction. Every Java type in {@link #cellMaxBytes} has a
-     *  bounded cell XML size (String / Enum / BigDecimal / BigInteger all
-     *  route through SharedStringsStore), so projected check at
-     *  writeStartArray is always applicable. */
-    public void warnIfBackWriteScenario() {
-        if (!hasOuterFieldAfterList()) return;
-        log.warn(
-                "Schema has an outer field declared after a List<T> field —"
-                + " nested list contents are buffered in memory until the"
-                + " outer field can be back-written. Large nested lists may"
-                + " cause OOM in streaming mode."
-                + " Consider USE_POI_USER_MODEL, splitting data, or"
-                + " reordering fields so the outer field comes before the list."
-                + " Columns: {}",
-                _columns);
-    }
 
     public Styles buildStyles(final Workbook workbook) {
         return _stylesBuilder.build(workbook);

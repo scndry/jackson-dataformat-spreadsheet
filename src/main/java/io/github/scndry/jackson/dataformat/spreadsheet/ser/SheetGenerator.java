@@ -15,6 +15,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamContext;
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamWriteException;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
 
 /**
  * {@link com.fasterxml.jackson.core.JsonGenerator} implementation
@@ -99,14 +100,14 @@ public final class SheetGenerator extends GeneratorBase {
         // nested arrays (List<NestedType> fields) need flush suspension so
         // an outer merge=TRUE field can back-write into the first element row.
         final boolean nested = !_outputContext.inRoot();
-        if (nested && size > 0 && _schema.hasOuterFieldAfterList()) {
+        if (nested && size > 0 && BackWriteProjection.hasOuterFieldAfterList(_schema)) {
             // Back-write safety: cell XML max is fixed per type (shared
             // string makes string content out-of-line), so the buffer
             // accumulation during this nested array scope is bounded by
             // (size × inner row max bytes). Fail-fast if that bound
             // exceeds the configured limit.
-            final long projected = _schema.projectBackWriteBuffer(
-                    _outputContext.currentPointer(), size);
+            final long projected = BackWriteProjection.project(
+                    _schema, _outputContext.currentPointer(), size);
             final long limit = SpreadsheetSchema.backWriteBufferLimit();
             if (projected > limit) {
                 throw new SheetStreamWriteException(
