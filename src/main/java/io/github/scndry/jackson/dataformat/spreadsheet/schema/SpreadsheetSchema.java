@@ -18,6 +18,7 @@ import com.fasterxml.jackson.core.FormatSchema;
 import com.fasterxml.jackson.databind.JavaType;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.GridConfigurer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
 
 /**
@@ -47,6 +48,7 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     private final int _features;
     private final StylesBuilder _stylesBuilder;
     private final GridConfigurer _gridConfigurer;
+    private volatile Boolean _backWriteRequired;   // lazy-memoized
 
     public SpreadsheetSchema(
             final List<Column> columns,
@@ -156,6 +158,20 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     // io.github.scndry.jackson.dataformat.spreadsheet.schema.internal
     // .BackWriteProjection (internal API).
     // ----------------------------------------------------------------
+
+    /** True when this schema can trigger the SSML back-write code path
+     *  (outer field declared after a {@code List<T>} in column order).
+     *  Computed once and memoized — callers use this to gate the
+     *  array-scope flush suspension so schemas where no back-write can
+     *  happen avoid the buffer-accumulation overhead. */
+    public boolean requiresBackWriteScope() {
+        Boolean v = _backWriteRequired;
+        if (v == null) {
+            v = BackWriteProjection.hasOuterFieldAfterList(this);
+            _backWriteRequired = v;
+        }
+        return v;
+    }
 
     private static final int CELL_FIXED_TAGS_BYTES = 27;
     private static final int CELL_REF_MAX = 10;

@@ -96,11 +96,13 @@ public final class SheetGenerator extends GeneratorBase {
     @Override
     public void writeStartArray(final Object forValue, final int size) throws IOException {
         _verifyValueWrite(START_ARRAY);
-        // Skip the root-level array (mapper.writeValue(list, T.class)) — only
-        // nested arrays (List<NestedType> fields) need flush suspension so
-        // an outer merge=TRUE field can back-write into the first element row.
+        // Skip the root-level array (mapper.writeValue(list, T.class)). Only
+        // schemas that can back-write (outer field after List<T>) need
+        // flush suspension — otherwise the array scope can flush normally
+        // and there is no OOM risk to gate.
         final boolean nested = !_outputContext.inRoot();
-        if (nested && size > 0 && BackWriteProjection.hasOuterFieldAfterList(_schema)) {
+        final boolean backWriteRisk = nested && _schema.requiresBackWriteScope();
+        if (backWriteRisk && size > 0) {
             // Back-write safety: cell XML max is fixed per type (shared
             // string makes string content out-of-line), so the buffer
             // accumulation during this nested array scope is bounded by
@@ -126,7 +128,7 @@ public final class SheetGenerator extends GeneratorBase {
             _writer.ensureRowWindow(size);
         }
         _outputContext = _outputContext.createChildArrayContext(size);
-        if (nested) {
+        if (backWriteRisk) {
             _writer.enterArrayScope();
         }
     }
@@ -135,9 +137,10 @@ public final class SheetGenerator extends GeneratorBase {
     @Override
     public void writeEndArray() throws IOException {
         final boolean nested = !_outputContext.getParent().inRoot();
+        final boolean backWriteRisk = nested && _schema.requiresBackWriteScope();
         _outputContext = _closeStruct(END_ARRAY);
         _writer.restoreRowWindow();
-        if (nested) {
+        if (backWriteRisk) {
             _writer.exitArrayScope();
         }
     }
