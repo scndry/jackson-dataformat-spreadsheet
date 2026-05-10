@@ -108,7 +108,7 @@ public final class SheetGenerator extends GeneratorBase {
             final long projected = _schema.projectBackWriteBuffer(
                     _outputContext.currentPointer(), size);
             final long limit = _backWriteBufferLimit();
-            if (projected > 0 && projected > limit) {
+            if (projected > limit) {
                 throw new SheetStreamWriteException(
                         "Nested list size " + size + " projected back-write"
                         + " buffer " + _humanBytes(projected) + " exceeds limit "

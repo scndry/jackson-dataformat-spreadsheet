@@ -391,17 +391,15 @@ public final class SSMLSheetWriter implements SheetWriter {
         if (_arrayScopeDepth > 0) {
             // Runtime back-write buffer monitor — covers the case where the
             // list size was unknown (-1) at writeStartArray so the build-time
-            // projection could not pre-check, or schemas with unbounded
-            // inner types (BigDecimal/BigInteger). Fail-fast with a clear
-            // error before OutOfMemoryError.
+            // projection could not pre-check (Iterator / Stream sources).
+            // Fail-fast with a clear error before OutOfMemoryError.
             final long limit = _backWriteRuntimeLimit();
             if (_sb.length() > limit) {
                 throw new IOException(
                         "Nested list scope buffer reached "
                         + _humanBytes(_sb.length()) + ", exceeds limit "
                         + _humanBytes(limit) + ". Runtime monitor triggered"
-                        + " before OOM (list size was not known up-front, or"
-                        + " inner column is unbounded type BigDecimal/BigInteger)."
+                        + " before OOM (list size was not known up-front)."
                         + " Either reduce the list size, switch to"
                         + " USE_POI_USER_MODEL, declare the outer field before"
                         + " the list, or raise the limit via"

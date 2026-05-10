@@ -172,9 +172,15 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     private static final int CELL_TYPE_MAX = 3;
 
     /** Upper-bound bytes for one cell XML of the given column.
-     *  Returns -1 if the column's type is unbounded (BigDecimal/BigInteger).
-     *  Caller can then decide between rejecting outright or using a worst-case
-     *  estimate. */
+     *
+     *  All numeric primitive types serialize their value inline into <v>...</v>.
+     *  String, Enum, BigDecimal, and BigInteger all route through
+     *  SheetGenerator → _writer.writeString → SharedStringsStore, leaving
+     *  only a shared-string index in the cell — so the cell XML max is
+     *  bounded by Integer.MAX_VALUE digit count regardless of the underlying
+     *  string/BigDecimal length. The actual content lives in
+     *  sharedStrings.xml, a separate stream not gated by back-write buffer
+     *  limits. */
     public static int cellMaxBytes(final Column column) {
         final JavaType type = column.getType();
         final Class<?> raw = type.getRawClass();
@@ -191,13 +197,13 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
             valueMax = 25;                                    // -1.7976931348623157E308
         } else if (raw == boolean.class || raw == Boolean.class) {
             valueMax = 1;
-        } else if (raw == String.class || raw.isEnum()) {
-            valueMax = 10;                                    // shared string index (Integer.MAX = 2147483647)
+        } else if (raw == String.class || raw.isEnum()
+                || raw == java.math.BigDecimal.class
+                || raw == java.math.BigInteger.class) {
+            valueMax = 10;                                    // shared string index (Integer.MAX_VALUE = 2147483647)
         } else if (java.util.Date.class.isAssignableFrom(raw)
                 || raw.getName().startsWith("java.time.")) {
             valueMax = 25;                                    // Excel serial date double
-        } else if (raw == java.math.BigDecimal.class || raw == java.math.BigInteger.class) {
-            return -1;                                        // unbounded
         } else {
             valueMax = 25;                                    // unknown — assume double-like
         }
@@ -205,26 +211,23 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     }
 
     /** Upper-bound bytes for one inner row (all columns inside the given
-     *  array pointer + the <row> tag). Returns -1 if any inner column type
-     *  is unbounded. */
+     *  array pointer + the <row> tag). All Java types bound by
+     *  {@link #cellMaxBytes} are themselves bounded, so the result is
+     *  always a finite value. */
     public long innerRowMaxBytes(final ColumnPointer arrayPointer) {
         final List<Column> inners = getColumns(arrayPointer);
         long bytes = ROW_TAG_BYTES;
         for (final Column c : inners) {
-            final int cellMax = cellMaxBytes(c);
-            if (cellMax < 0) return -1;
-            bytes += cellMax;
+            bytes += cellMaxBytes(c);
         }
         return bytes;
     }
 
     /** Projected back-write buffer max for a nested list of {@code listSize}
-     *  elements rooted at {@code arrayPointer}. Returns -1 when unbounded. */
+     *  elements rooted at {@code arrayPointer}. */
     public long projectBackWriteBuffer(final ColumnPointer arrayPointer, final int listSize) {
         if (listSize <= 0) return 0;
-        final long perRow = innerRowMaxBytes(arrayPointer);
-        if (perRow < 0) return -1;
-        return (long) listSize * perRow;
+        return (long) listSize * innerRowMaxBytes(arrayPointer);
     }
 
     /** Returns true when the column order has any outer (non-array-scope)
@@ -245,25 +248,12 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         return false;
     }
 
-    /** Returns true when any inner column (inside a nested array scope) has
-     *  an unbounded type (BigDecimal/BigInteger). Such schemas cannot have
-     *  their back-write buffer projected at writeStartArray — the safety
-     *  layer falls back to the runtime _sb monitor. */
-    public boolean hasUnboundedInnerType() {
-        for (final Column c : _columns) {
-            if (c == null) continue;
-            if (!c.getPointer().contains(ColumnPointer.array())) continue;
-            if (cellMaxBytes(c) < 0) return true;
-        }
-        return false;
-    }
-
     /** Logs a warn once at schema build if an outer field is declared after
-     *  a List<T> field — flags the back-write code path. Adds a second warn
-     *  when any inner column has an unbounded type (BigDecimal/BigInteger)
-     *  so the user knows the projected check cannot pre-detect, and only
-     *  the runtime monitor will catch limit breaches. Call once after
-     *  schema construction. */
+     *  a List<T> field — flags the back-write code path. Call once after
+     *  schema construction. Every Java type in {@link #cellMaxBytes} has a
+     *  bounded cell XML size (String / Enum / BigDecimal / BigInteger all
+     *  route through SharedStringsStore), so projected check at
+     *  writeStartArray is always applicable. */
     public void warnIfBackWriteScenario() {
         if (!hasOuterFieldAfterList()) return;
         log.warn(
@@ -275,13 +265,6 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
                 + " reordering fields so the outer field comes before the list."
                 + " Columns: {}",
                 _columns);
-        if (hasUnboundedInnerType()) {
-            log.warn(
-                    "Schema has inner column(s) with unbounded type"
-                    + " (BigDecimal/BigInteger). writeStartArray cannot"
-                    + " pre-project buffer size; only the runtime _sb monitor"
-                    + " will catch limit breaches.");
-        }
     }
 
     public Styles buildStyles(final Workbook workbook) {
