@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -50,6 +51,43 @@ class MergeTest {
     static class Inner {
         @DataColumn("B") int b;
         @DataColumn("C") int c;
+    }
+
+    @Test
+    void cellValuesArePreserved_ssml() throws Exception {
+        // The SSML default streaming write path must preserve all cell values
+        // when an outer field with merge=TRUE is declared after a List<NestedType> field.
+        SpreadsheetMapper ssmlMapper = new SpreadsheetMapper();
+        File file = tempFile("merge-ssml-cell-values.xlsx");
+
+        Outer value = new Outer(1, Arrays.asList(
+                new Inner(2, 3),
+                new Inner(4, 5)),
+                10);
+
+        ssmlMapper.writeValue(file, value);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+
+            // Header row 0: A | B | C | E
+            assertThat(sheet.getRow(0).getCell(0).getStringCellValue()).isEqualTo("A");
+            assertThat(sheet.getRow(0).getCell(1).getStringCellValue()).isEqualTo("B");
+            assertThat(sheet.getRow(0).getCell(2).getStringCellValue()).isEqualTo("C");
+            assertThat(sheet.getRow(0).getCell(3).getStringCellValue()).isEqualTo("E");
+
+            // Data row 1: outer A=1, inner B=2/C=3, outer E=10 (all on first inner row)
+            Row row1 = sheet.getRow(1);
+            assertThat((int) row1.getCell(0).getNumericCellValue()).isEqualTo(1);
+            assertThat((int) row1.getCell(1).getNumericCellValue()).isEqualTo(2);
+            assertThat((int) row1.getCell(2).getNumericCellValue()).isEqualTo(3);
+            assertThat((int) row1.getCell(3).getNumericCellValue()).isEqualTo(10);
+
+            // Data row 2: inner B=4/C=5 (outer cells empty — covered by vertical merge)
+            Row row2 = sheet.getRow(2);
+            assertThat((int) row2.getCell(1).getNumericCellValue()).isEqualTo(4);
+            assertThat((int) row2.getCell(2).getNumericCellValue()).isEqualTo(5);
+        }
     }
 
     @Test

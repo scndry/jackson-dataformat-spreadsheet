@@ -137,11 +137,16 @@ public final class SSMLSheetWriter implements SheetWriter {
         _reference = reference;
         try {
             final int row = reference.getRow();
-            if (row != _currentRow) {
+            if (row > _currentRow) {
                 _closeCurrentRowIfOpen();
                 _currentRow = row;
                 _currentRowOpen = false;
             }
+            // Backward reference: keep the streaming row tag intact and let the
+            // write* methods insert the cell into the already-emitted <row r="..."> tag
+            // in _sb. Required because Jackson's declaration order can call an
+            // outer (merge=TRUE) field after a List<NestedType>, whose anchor row is
+            // the list's first element row.
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
@@ -167,6 +172,12 @@ public final class SSMLSheetWriter implements SheetWriter {
     @Override
     public void writeNumeric(final double value) {
         try {
+            if (_isBackReference()) {
+                _insertCellIntoEmittedRow("<c r=\"" + _cellRef()
+                        + "\" s=\"" + _resolveStyleIndex()
+                        + "\" t=\"n\"><v>" + value + "</v></c>");
+                return;
+            }
             _appendCellStart("n").append(value);
             _appendCellEnd();
         } catch (IOException e) {
@@ -178,6 +189,12 @@ public final class SSMLSheetWriter implements SheetWriter {
     public void writeString(final String value) {
         try {
             final int index = _cacheString(value);
+            if (_isBackReference()) {
+                _insertCellIntoEmittedRow("<c r=\"" + _cellRef()
+                        + "\" s=\"" + _resolveStyleIndex()
+                        + "\" t=\"s\"><v>" + index + "</v></c>");
+                return;
+            }
             _appendCellStart("s").append(index);
             _appendCellEnd();
         } catch (IOException e) {
@@ -188,6 +205,12 @@ public final class SSMLSheetWriter implements SheetWriter {
     @Override
     public void writeBoolean(final boolean value) {
         try {
+            if (_isBackReference()) {
+                _insertCellIntoEmittedRow("<c r=\"" + _cellRef()
+                        + "\" s=\"" + _resolveStyleIndex()
+                        + "\" t=\"b\"><v>" + (value ? '1' : '0') + "</v></c>");
+                return;
+            }
             _appendCellStart("b").append(value ? '1' : '0');
             _appendCellEnd();
         } catch (IOException e) {
@@ -198,6 +221,11 @@ public final class SSMLSheetWriter implements SheetWriter {
     @Override
     public void writeBlank() {
         try {
+            if (_isBackReference()) {
+                _insertCellIntoEmittedRow("<c r=\"" + _cellRef()
+                        + "\" s=\"" + _resolveStyleIndex() + "\"/>");
+                return;
+            }
             _ensureRowOpen();
             _append("<c r=\"").append(_cellRef())
                     .append("\" s=\"").append(_resolveStyleIndex())
@@ -205,6 +233,30 @@ public final class SSMLSheetWriter implements SheetWriter {
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    private boolean _isBackReference() {
+        return _reference.getRow() < _currentRow;
+    }
+
+    private void _insertCellIntoEmittedRow(final String cellXml) {
+        final String rowOpen = "<row r=\"" + (_reference.getRow() + 1) + "\">";
+        final int openIdx = _sb.indexOf(rowOpen);
+        if (openIdx < 0) {
+            throw new IllegalStateException(
+                    "Cannot back-write cell at " + _reference
+                    + ": <row r=\"" + (_reference.getRow() + 1)
+                    + "\"> already streamed to output. The list scope before"
+                    + " the merge=TRUE outer field exceeded the buffer (~"
+                    + (BUFFER_SIZE / 1024) + " KB).");
+        }
+        final int closeIdx = _sb.indexOf("</row>", openIdx);
+        if (closeIdx < 0) {
+            throw new IllegalStateException(
+                    "Open <row r=\"" + (_reference.getRow() + 1)
+                    + "\"> has no closing tag in buffer.");
+        }
+        _sb.insert(closeIdx, cellXml);
     }
 
     @Override

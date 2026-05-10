@@ -19,6 +19,9 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import com.fasterxml.jackson.annotation.OptBoolean;
+
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -60,6 +63,40 @@ class SSMLSheetWriterDomEquivalenceTest {
 
         new SpreadsheetMapper().writeValue(ssmlFile, DATA, Entry.class);
         _poiMapper().writeValue(poiFile, DATA, Entry.class);
+
+        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+    }
+
+    // -- Nested list + merge=TRUE on outer fields ------------------------
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class MergedListItem {
+        String product;
+        int qty;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class MergedListOrder {
+        @DataColumn(value = "id", merge = OptBoolean.TRUE) int id;
+        List<MergedListItem> items;
+        @DataColumn(value = "total", merge = OptBoolean.TRUE) double total;
+    }
+
+    private static final List<MergedListOrder> MERGED_LIST_DATA = Arrays.asList(
+            new MergedListOrder(1,
+                    Arrays.asList(new MergedListItem("Apple", 3), new MergedListItem("Banana", 5)),
+                    10.0));
+
+    @Test
+    void sheetXmlDomEquivalent_listWithMerge() throws Exception {
+        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
+                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
+
+        File ssmlFile = _debugFile("dom-list-merge-ssml.xlsx");
+        File poiFile = _debugFile("dom-list-merge-poi.xlsx");
+
+        new SpreadsheetMapper().writeValue(ssmlFile, MERGED_LIST_DATA, MergedListOrder.class);
+        _poiMapper().writeValue(poiFile, MERGED_LIST_DATA, MergedListOrder.class);
 
         _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
