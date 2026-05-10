@@ -54,6 +54,56 @@ class MergeTest {
     }
 
     @Test
+    void cellValuesArePreserved_ssml_multipleRecords() throws Exception {
+        // _arrayScopeDepth must cycle 0 → 1 → 0 across records. Verify that
+        // a list of records, each with a nested list and merge=TRUE outer
+        // fields, preserves every cell across the record boundary.
+        SpreadsheetMapper ssmlMapper = new SpreadsheetMapper();
+        File file = tempFile("merge-ssml-multi.xlsx");
+
+        List<Outer> values = Arrays.asList(
+                new Outer(1, Arrays.asList(new Inner(2, 3), new Inner(4, 5)), 10),
+                new Outer(2, Arrays.asList(new Inner(6, 7)), 20));
+
+        ssmlMapper.writeValue(file, values, Outer.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+
+            // Record 1 (rows 1..2)
+            Row row1 = sheet.getRow(1);
+            assertThat((int) row1.getCell(0).getNumericCellValue()).isEqualTo(1);
+            assertThat((int) row1.getCell(1).getNumericCellValue()).isEqualTo(2);
+            assertThat((int) row1.getCell(2).getNumericCellValue()).isEqualTo(3);
+            assertThat((int) row1.getCell(3).getNumericCellValue()).isEqualTo(10);
+            Row row2 = sheet.getRow(2);
+            assertThat((int) row2.getCell(1).getNumericCellValue()).isEqualTo(4);
+            assertThat((int) row2.getCell(2).getNumericCellValue()).isEqualTo(5);
+
+            // Record 2 (row 3) — single inner, all cells on the same row
+            Row row3 = sheet.getRow(3);
+            assertThat((int) row3.getCell(0).getNumericCellValue()).isEqualTo(2);
+            assertThat((int) row3.getCell(1).getNumericCellValue()).isEqualTo(6);
+            assertThat((int) row3.getCell(2).getNumericCellValue()).isEqualTo(7);
+            assertThat((int) row3.getCell(3).getNumericCellValue()).isEqualTo(20);
+
+            // Record 1's outer fields merged across rows 1..2
+            assertThat(sheet.getMergedRegions()).anySatisfy(r -> {
+                assertThat(r.getFirstRow()).isEqualTo(1);
+                assertThat(r.getLastRow()).isEqualTo(2);
+                assertThat(r.getFirstColumn()).isEqualTo(0);
+                assertThat(r.getLastColumn()).isEqualTo(0);
+            });
+            assertThat(sheet.getMergedRegions()).anySatisfy(r -> {
+                assertThat(r.getFirstRow()).isEqualTo(1);
+                assertThat(r.getLastRow()).isEqualTo(2);
+                assertThat(r.getFirstColumn()).isEqualTo(3);
+                assertThat(r.getLastColumn()).isEqualTo(3);
+            });
+        }
+    }
+
+    @Test
     void cellValuesArePreserved_ssml_largeList() throws Exception {
         // List XML accumulation must not push _sb past its flush boundary
         // before the outer merge=TRUE field is back-written. Use a list
