@@ -26,6 +26,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGrou
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.HeaderLayoutVisitor;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
@@ -86,76 +87,28 @@ public final class POISheetWriter implements SheetWriter {
 
     @Override
     public void writeHeaders() {
-        final int originRow = _schema.getOriginRow();
-        final int headerRowCount = _schema.getHeaderRowCount();
-        final int leafRow = _schema.getLeafHeaderRow();
-
-        // Column header text — each column at row = originRow + hierarchy depth
-        // so flat / shallow columns land at the top of their vertical-merge region
-        // (the cell actually rendered by the spreadsheet viewer).
-        for (final Column column : _schema) {
-            final int colIdx = _schema.columnIndexOf(column);
-            final int textRow = originRow + column.getGroupHierarchy().depth();
-            setReference(new CellAddress(textRow, colIdx));
-            writeString(column.getName());
-        }
-
-        if (headerRowCount == 1) return;
-
-        // Group header rows — adjacent columns sharing parent path + group name
-        // at this depth merge horizontally.
-        final List<Column> columns = _schema.getColumns(ColumnPointer.empty());
-        for (int depth = 0; depth < headerRowCount - 1; depth++) {
-            _writeGroupRow(originRow + depth, depth, columns);
-        }
-
-        // Vertical span for shallow-hierarchy (incl. flat) columns down to leaf row.
-        for (final Column column : _schema) {
-            final int h = column.getGroupHierarchy().depth();
-            if (h >= headerRowCount - 1) continue;
-            final int colIdx = _schema.columnIndexOf(column);
-            final int rowspanStart = originRow + h;
-            if (leafRow > rowspanStart) {
-                _sheet.addMergedRegion(new CellRangeAddress(
-                        rowspanStart, leafRow, colIdx, colIdx));
-            }
-        }
-    }
-
-    private void _writeGroupRow(final int row, final int depth, final List<Column> columns) {
-        int i = 0;
-        while (i < columns.size()) {
-            final Column col = columns.get(i);
-            if (col == null) { i++; continue; }
-            final DataColumnGroup.Hierarchy hierarchy = col.getGroupHierarchy();
-            if (depth >= hierarchy.depth()) { i++; continue; }
-            final DataColumnGroup.Hierarchy parentPath = hierarchy.parentPath(depth);
-            final String groupName = hierarchy.at(depth).getName();
-
-            int j = i + 1;
-            while (j < columns.size()) {
-                final Column col2 = columns.get(j);
-                if (col2 == null) break;
-                final DataColumnGroup.Hierarchy h2 = col2.getGroupHierarchy();
-                if (depth >= h2.depth()) break;
-                if (!h2.parentPath(depth).equals(parentPath)) break;
-                if (!h2.at(depth).getName().equals(groupName)) break;
-                j++;
+        _schema.forEachHeaderCell(new HeaderLayoutVisitor() {
+            @Override
+            public void visitColumnHeader(final int row, final int col, final Column column) {
+                setReference(new CellAddress(row, col));
+                writeString(column.getName());
             }
 
-            final int firstColIdx = _schema.columnIndexOf(col);
-            final int lastColIdx = _schema.columnIndexOf(columns.get(j - 1));
-
-            setReference(new CellAddress(row, firstColIdx));
-            writeString(groupName);
-
-            if (firstColIdx < lastColIdx) {
-                _sheet.addMergedRegion(new CellRangeAddress(
-                        row, row, firstColIdx, lastColIdx));
+            @Override
+            public void visitGroupCell(final int row, final int firstCol, final int lastCol,
+                                       final DataColumnGroup.Value group) {
+                setReference(new CellAddress(row, firstCol));
+                writeString(group.getName());
+                if (firstCol < lastCol) {
+                    _sheet.addMergedRegion(new CellRangeAddress(row, row, firstCol, lastCol));
+                }
             }
 
-            i = j;
-        }
+            @Override
+            public void visitVerticalMerge(final int firstRow, final int lastRow, final int col) {
+                _sheet.addMergedRegion(new CellRangeAddress(firstRow, lastRow, col, col));
+            }
+        });
     }
 
     @Override

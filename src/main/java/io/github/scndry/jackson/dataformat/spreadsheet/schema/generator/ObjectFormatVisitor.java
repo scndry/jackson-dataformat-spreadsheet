@@ -59,15 +59,16 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
         final DataColumn.Value columnValue = _columnValue(prop, gridValue);
         final DataColumnGroup.Value groupValue = _columnGroupValue(prop);
 
+        final DataColumnGroup.Hierarchy childHierarchy = _wrapper.getGroupHierarchy().append(groupValue);
+
         final JsonTypeInfo typeInfo = type.getRawClass().getAnnotation(JsonTypeInfo.class);
         final JsonSubTypes subTypes = type.getRawClass().getAnnotation(JsonSubTypes.class);
         if (typeInfo != null && subTypes != null
                 && typeInfo.include() == JsonTypeInfo.As.PROPERTY) {
-            _polymorphicProperty(pointer, gridValue, columnValue, typeInfo, subTypes);
+            _polymorphicProperty(pointer, gridValue, columnValue, childHierarchy, typeInfo, subTypes);
             return;
         }
 
-        final DataColumnGroup.Hierarchy childHierarchy = _wrapper.getGroupHierarchy().append(groupValue);
         final FormatVisitorWrapper visitor = new FormatVisitorWrapper(
                 pointer,
                 gridValue,
@@ -95,9 +96,9 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
             final ColumnPointer pointer,
             final DataGrid.Value gridValue,
             final DataColumn.Value columnValue,
+            final DataColumnGroup.Hierarchy hierarchy,
             final JsonTypeInfo typeInfo,
             final JsonSubTypes subTypes) throws JsonMappingException {
-        final DataColumnGroup.Hierarchy hierarchy = _wrapper.getGroupHierarchy();
         // Type discriminator column
         final String discriminator = typeInfo.property();
         final ColumnPointer discPointer = pointer.resolve(discriminator);
@@ -158,7 +159,9 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
 
     private DataColumnGroup.Value _columnGroupValue(BeanProperty prop) {
         final DataColumnGroup ann = prop.getAnnotation(DataColumnGroup.class);
-        return DataColumnGroup.Value.from(ann);
+        if (ann == null) return DataColumnGroup.Value.empty();
+        final String name = ann.value().isEmpty() ? prop.getName() : ann.value();
+        return new DataColumnGroup.Value(name, ann.comment());
     }
 
     private void _checkTypeSupported(

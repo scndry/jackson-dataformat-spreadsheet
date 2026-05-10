@@ -28,6 +28,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGrou
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.HeaderLayoutVisitor;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
@@ -159,83 +160,28 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     @Override
     public void writeHeaders() {
-        final int originRow = _schema.getOriginRow();
-        final int headerRowCount = _schema.getHeaderRowCount();
-        final int leafRow = _schema.getLeafHeaderRow();
-        final List<Column> columns = _schema.getColumns(ColumnPointer.empty());
-
-        // SSML is forward-only: write rows top-to-bottom. Each row mixes
-        // leaf column names (where hierarchy ends) and group cells (where
-        // hierarchy still extends below). Empty positions are handled by
-        // the vertical-merge step below.
-        for (int depth = 0; depth < headerRowCount; depth++) {
-            _writeMixedHeaderRow(originRow + depth, depth, columns);
-        }
-
-        // Vertical span for shallow-hierarchy (incl. flat) columns down to leaf row.
-        for (final Column column : columns) {
-            if (column == null) continue;
-            final int h = column.getGroupHierarchy().depth();
-            if (h >= headerRowCount - 1) continue;
-            final int colIdx = _schema.columnIndexOf(column);
-            final int rowspanStart = originRow + h;
-            if (leafRow > rowspanStart) {
-                _mergeRanges.add(new MergeRange(rowspanStart, leafRow, colIdx, colIdx));
-            }
-        }
-    }
-
-    private void _writeMixedHeaderRow(final int row, final int depth, final List<Column> columns) {
-        int i = 0;
-        while (i < columns.size()) {
-            final Column col = columns.get(i);
-            if (col == null) { i++; continue; }
-            final DataColumnGroup.Hierarchy hierarchy = col.getGroupHierarchy();
-            final int h = hierarchy.depth();
-
-            if (h == depth) {
-                // Column hierarchy ends at this depth — write leaf column name.
-                final int colIdx = _schema.columnIndexOf(col);
-                setReference(new CellAddress(row, colIdx));
-                writeString(col.getName());
-                i++;
-                continue;
+        _schema.forEachHeaderCell(new HeaderLayoutVisitor() {
+            @Override
+            public void visitColumnHeader(final int row, final int col, final Column column) {
+                setReference(new CellAddress(row, col));
+                writeString(column.getName());
             }
 
-            if (h < depth) {
-                // Hierarchy ended above this row — vertical merge covers, skip.
-                i++;
-                continue;
+            @Override
+            public void visitGroupCell(final int row, final int firstCol, final int lastCol,
+                                       final DataColumnGroup.Value group) {
+                setReference(new CellAddress(row, firstCol));
+                writeString(group.getName());
+                if (firstCol < lastCol) {
+                    _mergeRanges.add(new MergeRange(row, row, firstCol, lastCol));
+                }
             }
 
-            // h > depth: group cell at this depth, possibly merged across adjacent
-            // columns sharing the same parent path + group name.
-            final DataColumnGroup.Hierarchy parentPath = hierarchy.parentPath(depth);
-            final String groupName = hierarchy.at(depth).getName();
-
-            int j = i + 1;
-            while (j < columns.size()) {
-                final Column col2 = columns.get(j);
-                if (col2 == null) break;
-                final DataColumnGroup.Hierarchy h2 = col2.getGroupHierarchy();
-                if (h2.depth() <= depth) break;
-                if (!h2.parentPath(depth).equals(parentPath)) break;
-                if (!h2.at(depth).getName().equals(groupName)) break;
-                j++;
+            @Override
+            public void visitVerticalMerge(final int firstRow, final int lastRow, final int col) {
+                _mergeRanges.add(new MergeRange(firstRow, lastRow, col, col));
             }
-
-            final int firstColIdx = _schema.columnIndexOf(col);
-            final int lastColIdx = _schema.columnIndexOf(columns.get(j - 1));
-
-            setReference(new CellAddress(row, firstColIdx));
-            writeString(groupName);
-
-            if (firstColIdx < lastColIdx) {
-                _mergeRanges.add(new MergeRange(row, row, firstColIdx, lastColIdx));
-            }
-
-            i = j;
-        }
+        });
     }
 
     @Override

@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.DataColumnGroupTest.Address;
 import io.github.scndry.jackson.dataformat.spreadsheet.DataColumnGroupTest.Company;
@@ -25,11 +26,14 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.GridConfigurer;
 
 /**
- * Visual demo — writes 1-depth and 2-depth group output files to a stable
- * directory under the user home so LibreOffice / Excel can open them
- * directly. Re-runs each invocation overwrite the files.
+ * Visual demo — writes group output files to {@code build/data-column-group-demo/}
+ * so LibreOffice / Excel can open them directly. Disabled by default;
+ * enable with {@code ./gradlew test -Pdemo=true}.
  */
+@EnabledIfSystemProperty(named = "demo", matches = "true")
 class DataColumnGroupDemo {
+
+    private static final Path OUTPUT_DIR = Paths.get("build", "data-column-group-demo");
 
     @Test
     void writeDemoFiles() throws Exception {
@@ -39,7 +43,7 @@ class DataColumnGroupDemo {
                         .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL));
         SpreadsheetMapper ssmlMapper = new SpreadsheetMapper();
 
-        Path outDir = Paths.get(System.getProperty("user.home"), "jackson-spreadsheet-poc");
+        Path outDir = OUTPUT_DIR;
         Files.createDirectories(outDir);
 
         Employee employee = new Employee(1, "Alice", new Address("Seoul", "12345"));
@@ -90,7 +94,7 @@ class DataColumnGroupDemo {
                 .setOrigin("B2")
                 .setGridConfigurer(grid);
 
-        Path outDir = Paths.get(System.getProperty("user.home"), "jackson-spreadsheet-poc");
+        Path outDir = OUTPUT_DIR;
         Files.createDirectories(outDir);
 
         List<Employee> values = Arrays.asList(
@@ -144,7 +148,7 @@ class DataColumnGroupDemo {
                 .setOrigin("B2")
                 .setGridConfigurer(grid);
 
-        Path outDir = Paths.get(System.getProperty("user.home"), "jackson-spreadsheet-poc");
+        Path outDir = OUTPUT_DIR;
         Files.createDirectories(outDir);
 
         List<FlatEmployee> values = Arrays.asList(

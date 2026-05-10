@@ -15,6 +15,7 @@ import org.apache.poi.ss.util.CellAddress;
 
 import com.fasterxml.jackson.core.FormatSchema;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGroup;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.GridConfigurer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
 
@@ -113,6 +114,79 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         return _origin.getRow() + (usesHeader() ? _headerRowCount - 1 : 0);
     }
 
+    /**
+     * Walk every cell in the header region (column headers, group cells,
+     * vertical-merge regions) and invoke the visitor. Used by writers and
+     * comment application to share the run-identification algorithm.
+     *
+     * <p>Cell visit order: row-by-row top to bottom, then vertical merges
+     * after the last header row. Within a row, columns are visited in
+     * declaration order. Group cells emit the firstCol..lastCol range so
+     * callers can register horizontal merges.
+     */
+    public void forEachHeaderCell(final HeaderLayoutVisitor visitor) {
+        if (!usesHeader()) return;
+        final int originRow = _origin.getRow();
+        for (int depth = 0; depth < _headerRowCount; depth++) {
+            _visitHeaderRow(originRow + depth, depth, visitor);
+        }
+        // Vertical merges for shallow-hierarchy (incl. flat) columns.
+        final int leafRow = originRow + _headerRowCount - 1;
+        for (final Column column : _columns) {
+            if (column == null) continue;
+            final int h = column.getGroupHierarchy().depth();
+            if (h >= _headerRowCount - 1) continue;
+            final int colIdx = columnIndexOf(column);
+            final int rowspanStart = originRow + h;
+            if (leafRow > rowspanStart) {
+                visitor.visitVerticalMerge(rowspanStart, leafRow, colIdx);
+            }
+        }
+    }
+
+    private void _visitHeaderRow(final int row, final int depth, final HeaderLayoutVisitor visitor) {
+        int i = 0;
+        while (i < _columns.size()) {
+            final Column col = _columns.get(i);
+            if (col == null) { i++; continue; }
+            final DataColumnGroup.Hierarchy hierarchy = col.getGroupHierarchy();
+            final int h = hierarchy.depth();
+
+            if (h == depth) {
+                // Column hierarchy ends at this depth — leaf header text.
+                visitor.visitColumnHeader(row, columnIndexOf(col), col);
+                i++;
+                continue;
+            }
+            if (h < depth) {
+                // Hierarchy ended above this row — vertical merge covers, skip.
+                i++;
+                continue;
+            }
+
+            // h > depth: group cell at this depth, possibly merged horizontally
+            // across adjacent columns sharing parent path + group name.
+            final DataColumnGroup.Hierarchy parentPath = hierarchy.parentPath(depth);
+            final String groupName = hierarchy.at(depth).getName();
+
+            int j = i + 1;
+            while (j < _columns.size()) {
+                final Column col2 = _columns.get(j);
+                if (col2 == null) break;
+                final DataColumnGroup.Hierarchy h2 = col2.getGroupHierarchy();
+                if (h2.depth() <= depth) break;
+                if (!h2.parentPath(depth).equals(parentPath)) break;
+                if (!h2.at(depth).getName().equals(groupName)) break;
+                j++;
+            }
+
+            final int firstColIdx = columnIndexOf(col);
+            final int lastColIdx = columnIndexOf(_columns.get(j - 1));
+            visitor.visitGroupCell(row, firstColIdx, lastColIdx, hierarchy.at(depth));
+            i = j;
+        }
+    }
+
     public boolean usesHeader() {
         return (_features & FEATURE_USE_HEADER) != 0;
     }
@@ -178,26 +252,34 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
 
     public void applyHeaderComments(final Sheet sheet) {
         if (!usesHeader()) return;
-        final int row = getDataRow() - 1;
         final CreationHelper factory = sheet.getWorkbook().getCreationHelper();
-        Drawing<?> drawing = null;
-        for (final Column column : _columns) {
-            if (column == null) continue;
-            final String text = column.getValue().getComment();
-            if (text.isEmpty()) continue;
-            if (drawing == null) {
-                drawing = sheet.createDrawingPatriarch();
+        forEachHeaderCell(new HeaderLayoutVisitor() {
+            private Drawing<?> drawing;
+
+            @Override
+            public void visitColumnHeader(final int row, final int col, final Column column) {
+                _addCommentIfPresent(row, col, column.getValue().getComment());
             }
-            final int col = columnIndexOf(column);
-            final ClientAnchor anchor = factory.createClientAnchor();
-            anchor.setCol1(col);
-            anchor.setRow1(row);
-            anchor.setCol2(col + COMMENT_BOX_WIDTH_COLS);
-            anchor.setRow2(row + COMMENT_BOX_HEIGHT_ROWS);
-            final Comment comment = drawing.createCellComment(anchor);
-            comment.setString(factory.createRichTextString(text));
-            comment.setAddress(row, col);
-        }
+
+            @Override
+            public void visitGroupCell(final int row, final int firstCol, final int lastCol,
+                                       final DataColumnGroup.Value group) {
+                _addCommentIfPresent(row, firstCol, group.getComment());
+            }
+
+            private void _addCommentIfPresent(final int row, final int col, final String text) {
+                if (text.isEmpty()) return;
+                if (drawing == null) drawing = sheet.createDrawingPatriarch();
+                final ClientAnchor anchor = factory.createClientAnchor();
+                anchor.setCol1(col);
+                anchor.setRow1(row);
+                anchor.setCol2(col + COMMENT_BOX_WIDTH_COLS);
+                anchor.setRow2(row + COMMENT_BOX_HEIGHT_ROWS);
+                final Comment c = drawing.createCellComment(anchor);
+                c.setString(factory.createRichTextString(text));
+                c.setAddress(row, col);
+            }
+        });
     }
 
     public void configureSheet(final Sheet sheet, final Styles styles, final int lastRow) {

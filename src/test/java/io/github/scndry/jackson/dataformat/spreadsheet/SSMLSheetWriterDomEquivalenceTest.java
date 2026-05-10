@@ -16,12 +16,14 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import com.fasterxml.jackson.annotation.OptBoolean;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGroup;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,12 +54,6 @@ class SSMLSheetWriterDomEquivalenceTest {
 
     @Test
     void sheetXmlDomEquivalent() throws Exception {
-        // SSML writer always emits <c s="0">, matching POI 5.2.3+ (bug-51037 fix).
-        // POI 4.x ~ 5.2.2 omit default s, so DOM equality only holds on POI 5.2.3+.
-        // Library policy: follow latest POI behavior; older-version drift is ignored. (#96)
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         File ssmlFile = _debugFile("dom-sheet-ssml.xlsx");
         File poiFile = _debugFile("dom-sheet-poi.xlsx");
 
@@ -248,6 +244,36 @@ class SSMLSheetWriterDomEquivalenceTest {
         _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
+    // -- Multi-row header (@DataColumnGroup) -----------------------------
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class GroupedAddress {
+        String city;
+        String zip;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class GroupedEntry {
+        int id;
+        String name;
+        @DataColumnGroup("Address") GroupedAddress address;
+    }
+
+    private static final List<GroupedEntry> GROUPED_DATA = Arrays.asList(
+            new GroupedEntry(1, "Alice", new GroupedAddress("Seoul", "12345")),
+            new GroupedEntry(2, "Bob", new GroupedAddress("Busan", "23456")));
+
+    @Test
+    void sheetXmlDomEquivalent_multiRowHeader() throws Exception {
+        File ssmlFile = _debugFile("dom-multirow-ssml.xlsx");
+        File poiFile = _debugFile("dom-multirow-poi.xlsx");
+
+        new SpreadsheetMapper().writeValue(ssmlFile, GROUPED_DATA, GroupedEntry.class);
+        _poiMapper().writeValue(poiFile, GROUPED_DATA, GroupedEntry.class);
+
+        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+    }
+
     @Test
     void sharedStringsXmlDomEquivalent() throws Exception {
         File ssmlFile = _debugFile("dom-sst-ssml.xlsx");
@@ -280,6 +306,13 @@ class SSMLSheetWriterDomEquivalenceTest {
             _removeDimensionElements(expectedDoc);
             _removeDimensionElements(actualDoc);
 
+            // POI 4.x ~ 5.2.2 omit default s="0" on cells; SSML writer always emits.
+            // Strip on the SSML side so byte-equal comparison holds across versions.
+            // On POI 5.2.3+ both sides emit, and the strict check is preserved.
+            if (!PoiVersionProbe.isPoi523OrLater()) {
+                _stripDefaultStyleAttribute(actualDoc);
+            }
+
             assertThat(actualDoc.getDocumentElement().isEqualNode(
                     expectedDoc.getDocumentElement()))
                     .as("%s DOM equality (ignoring dimension)", partName)
@@ -308,6 +341,17 @@ class SSMLSheetWriterDomEquivalenceTest {
         for (int i = dimensions.getLength() - 1; i >= 0; i--) {
             final Node node = dimensions.item(i);
             node.getParentNode().removeChild(node);
+        }
+    }
+
+    private static void _stripDefaultStyleAttribute(final Document doc) {
+        final NodeList cells = doc.getElementsByTagNameNS(
+                "http://schemas.openxmlformats.org/spreadsheetml/2006/main", "c");
+        for (int i = 0; i < cells.getLength(); i++) {
+            final Element cell = (Element) cells.item(i);
+            if ("0".equals(cell.getAttribute("s"))) {
+                cell.removeAttribute("s");
+            }
         }
     }
 
