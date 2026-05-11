@@ -214,7 +214,6 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
                 final long v = Long.parseLong(configured);
                 if (v > 0) return v;
             } catch (NumberFormatException ignored) {
-                // fall through to default
             }
         }
         return Math.max(16L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 8);
@@ -261,8 +260,6 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
                 || raw == java.math.BigInteger.class) {
             valueMax = 10;                                    // shared string index
         } else {
-            // All numeric primitives + Date/java.time.* emit
-            // Double.toString-formatted values. Use the double worst case.
             valueMax = 25;
         }
         return CELL_FIXED_TAGS_BYTES + CELL_REF_MAX + CELL_STYLE_MAX + CELL_TYPE_MAX + valueMax;

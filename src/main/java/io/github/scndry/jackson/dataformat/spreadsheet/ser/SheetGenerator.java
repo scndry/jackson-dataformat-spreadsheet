@@ -96,10 +96,8 @@ public final class SheetGenerator extends GeneratorBase {
     @Override
     public void writeStartArray(final Object forValue, final int size) throws IOException {
         _verifyValueWrite(START_ARRAY);
-        // Skip the root-level array (mapper.writeValue(list, T.class)). Only
-        // schemas that can back-write (outer field after List<T>) need
-        // flush suspension — otherwise the array scope can flush normally
-        // and there is no OOM risk to gate.
+        // Gate flush suspension on schemas that can actually back-write —
+        // otherwise the nested array scope flushes normally, no OOM gate needed.
         final boolean nested = !_outputContext.inRoot();
         final boolean backWriteRisk = nested && _schema.requiresBackWriteScope();
         if (backWriteRisk && size > 0) {

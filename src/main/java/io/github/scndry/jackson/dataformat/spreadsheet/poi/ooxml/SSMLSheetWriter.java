@@ -143,11 +143,6 @@ public final class SSMLSheetWriter implements SheetWriter {
                 _currentRow = row;
                 _currentRowOpen = false;
             }
-            // Backward reference: keep the streaming row tag intact and let the
-            // write* methods insert the cell into the already-emitted <row r="..."> tag
-            // in _sb. Required because Jackson's declaration order can call an
-            // outer (merge=TRUE) field after a List<NestedType>, whose anchor row is
-            // the list's first element row.
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
@@ -385,9 +380,6 @@ public final class SSMLSheetWriter implements SheetWriter {
     }
 
     private void _checkFlush() throws IOException {
-        // SheetGenerator only invokes enterArrayScope for nested arrays;
-        // any depth > 0 here is a List<NestedType> field where the outer
-        // merge=TRUE field can back-write into the first element row.
         if (_arrayScopeDepth > 0) {
             // Runtime back-write buffer monitor — covers the case where the
             // list size was unknown (-1) at writeStartArray so the build-time

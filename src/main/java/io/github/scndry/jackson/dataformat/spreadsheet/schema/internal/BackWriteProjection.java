@@ -31,7 +31,6 @@ public final class BackWriteProjection {
     private static final int ROW_TAG_BYTES = 23;
 
     private BackWriteProjection() {
-        // utility class — no instances
     }
 
     /** Upper-bound bytes for one inner row (all columns inside the given

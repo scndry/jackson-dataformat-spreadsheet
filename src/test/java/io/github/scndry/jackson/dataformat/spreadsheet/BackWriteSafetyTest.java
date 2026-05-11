@@ -74,13 +74,7 @@ class BackWriteSafetyTest {
 
     @Test
     void writeTime_failFast_whenProjectedExceedsLimit() throws Exception {
-        // Set a tiny limit so a modest list trips the projected check.
-        // 1 cell ≈ 50 bytes + row tag 22 ≈ 72 bytes per inner row.
-        // 1000 inners × 72 ≈ 72 KB. Limit at 16 KB → must throw.
-        // (Static cache is set once per JVM; rely on the floor calc.)
         System.setProperty(LIMIT_PROP, String.valueOf(16 * 1024));
-        // Static cache invalidate — limit cached on first call. Use a fresh
-        // mapper to ensure first call sees the new property if not yet cached.
 
         List<Item> items = new ArrayList<>(1000);
         for (int i = 0; i < 1000; i++) items.add(new Item(i));
@@ -88,8 +82,6 @@ class BackWriteSafetyTest {
 
         File file = _debugFile("safety-projected-exceeds.xlsx");
 
-        // Build-time: should at least log the back-write warning (visual)
-        // Write-time: projected check throws
         assertThatThrownBy(() ->
                 new SpreadsheetMapper().writeValue(file,
                         Collections.singletonList(record), Record.class))
@@ -100,7 +92,6 @@ class BackWriteSafetyTest {
 
     @Test
     void writeTime_passes_whenProjectedFitsLimit() throws Exception {
-        // Generous limit; small list. Must complete normally.
         System.setProperty(LIMIT_PROP, String.valueOf(64L * 1024 * 1024));
 
         List<Item> items = Arrays.asList(new Item(1), new Item(2), new Item(3));
