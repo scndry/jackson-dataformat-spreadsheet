@@ -173,10 +173,16 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         return v;
     }
 
+    // <c r="REF" s="STYLE" t="TYPE"><v>VALUE</v></c>
+    //   fixed = "<c r=\"" (6) + "\" s=\"" (4) + "\" t=\"" (4) + "\"><v>" (5)
+    //         + "</v></c>" (8) = 27 bytes
+    //   ref   max = "XFD1048576" = 10 chars
+    //   style max = 32767 digits = 5 chars
+    //   type      = "n" | "s" | "b" = 1 char (writeBlank emits no t attribute)
     private static final int CELL_FIXED_TAGS_BYTES = 27;
     private static final int CELL_REF_MAX = 10;
     private static final int CELL_STYLE_MAX = 5;
-    private static final int CELL_TYPE_MAX = 3;
+    private static final int CELL_TYPE_MAX = 1;
 
     /** System property name for the back-write buffer limit (bytes).
      *  Resolved per call by {@link #backWriteBufferLimit()} so test code
@@ -186,8 +192,21 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
 
     /** Back-write buffer limit (bytes). System property override:
      *  {@code -Dspreadsheet.backWriteBufferBytes=<n>}. Default =
-     *  max(16 MB, heap/8) — heap/8 accounts for StringBuilder grow's
-     *  2× peak plus headroom for other allocations. */
+     *  max(16 MB, heap/8).
+     *
+     *  <p>The heap/8 fraction is a design choice, not an empirically
+     *  measured threshold. Rationale:
+     *  <ul>
+     *    <li>{@code StringBuilder.ensureCapacity} grows by doubling
+     *        ({@code Arrays.copyOf(value, newCapacity)}), so during grow
+     *        the old and new arrays coexist — peak heap during a single
+     *        grow ≈ 2 × current buffer size.</li>
+     *    <li>heap/8 limit + 2× grow peak = heap/4 transient peak, leaving
+     *        the remaining heap (≈ 3/4) for other allocations and GC
+     *        headroom.</li>
+     *  </ul>
+     *  This is a conservative starting point; users with empirical evidence
+     *  for a different fit can override via the system property. */
     public static long backWriteBufferLimit() {
         final String configured = System.getProperty(BACK_WRITE_BUFFER_BYTES_PROPERTY);
         if (configured != null) {

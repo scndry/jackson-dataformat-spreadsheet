@@ -24,7 +24,11 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 @Slf4j
 public final class BackWriteProjection {
 
-    private static final int ROW_TAG_BYTES = 22;
+    // <row r="N">..</row>
+    //   open  = "<row r=\"" (8) + N digits + "\">" (2) = 10 + N
+    //   close = "</row>"                                    = 6
+    // Excel row max = 1048576 (7 digits) → worst total = 23 bytes.
+    private static final int ROW_TAG_BYTES = 23;
 
     private BackWriteProjection() {
         // utility class — no instances

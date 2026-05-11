@@ -393,6 +393,19 @@ public final class SSMLSheetWriter implements SheetWriter {
             // list size was unknown (-1) at writeStartArray so the build-time
             // projection could not pre-check (Iterator / Stream sources).
             // Fail-fast with a clear error before OutOfMemoryError.
+            //
+            // Unit invariant: _sb.length() (chars) vs limit (bytes).
+            // The comparison is unit-safe because every fragment appended to
+            // _sb inside an array scope is pure ASCII:
+            //   - row tag:        "<row r=\"N\">" / "</row>"
+            //   - cell tag:       "<c r=\"...\" s=\"...\" t=\"...\"><v>...</v></c>"
+            //   - numeric value:  StringBuilder.append(double) → Double.toString
+            //   - shared-string:  StringBuilder.append(int)    → Integer.toString
+            //   - boolean value:  '1' | '0'
+            // Header column names (non-ASCII possible) are emitted only outside
+            // array scope, and string content always routes through
+            // SharedStringsStore — only the int index appears in _sb. So
+            // _sb.length() == UTF-8 byte length here.
             final long limit = SpreadsheetSchema.backWriteBufferLimit();
             if (_sb.length() > limit) {
                 throw new IOException(

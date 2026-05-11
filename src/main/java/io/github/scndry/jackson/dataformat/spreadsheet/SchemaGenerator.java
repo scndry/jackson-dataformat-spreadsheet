@@ -20,12 +20,22 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.util.CellAddress;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 public final class SchemaGenerator {
 
     private final GeneratorSettings _generatorSettings;
+
+    // Tracks JavaTypes that have already produced the back-write warning so
+    // SchemaGenerator.generate() — invoked from every SpreadsheetMapper
+    // writeValue call (no schema cache exists in the mapper) — does not
+    // emit the same warn line repeatedly for the same type.
+    private final Set<JavaType> _warnedBackWriteTypes =
+            Collections.synchronizedSet(new HashSet<>());
 
     public SchemaGenerator() {
         _generatorSettings = new GeneratorSettings(
@@ -96,7 +106,9 @@ public final class SchemaGenerator {
                 _generatorSettings._features,
                 _generatorSettings._stylesBuilder,
                 _generatorSettings._gridConfigurer);
-        BackWriteProjection.warnIfScenario(schema);
+        if (_warnedBackWriteTypes.add(type)) {
+            BackWriteProjection.warnIfScenario(schema);
+        }
         return schema;
     }
 
