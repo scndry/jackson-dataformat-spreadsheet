@@ -13,6 +13,8 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.OptBoolean;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,6 +22,7 @@ import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -337,23 +340,34 @@ class RealisticAccuracyTest {
         Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
                 "DOM equivalence asserted only on POI 5.2.3+ — see #96");
 
-        int innerCount = 20000;
-        NestedItem[] items = new NestedItem[innerCount];
-        for (int i = 0; i < innerCount; i++) {
-            items[i] = new NestedItem("p" + i + "_" + (i * 13 % 997), i);
+        // SheetGenerator emits a TRACE log per write/closeStruct — 20K inners
+        // × 3 cells + struct events floods the IDE console buffer at the
+        // suite-default TRACE level. Bound to DEBUG just for this case.
+        final Logger sheetGen = (Logger) LoggerFactory.getLogger(
+                "io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetGenerator");
+        final Level prevLevel = sheetGen.getLevel();
+        sheetGen.setLevel(Level.DEBUG);
+        try {
+            int innerCount = 20000;
+            NestedItem[] items = new NestedItem[innerCount];
+            for (int i = 0; i < innerCount; i++) {
+                items[i] = new NestedItem("p" + i + "_" + (i * 13 % 997), i);
+            }
+            NestedListEntry record = new NestedListEntry(1,
+                    Arrays.asList(items), 99.0);
+
+            File ssmlFile = _debugFile("rat-large-single-ssml.xlsx");
+            File poiFile = _debugFile("rat-large-single-poi.xlsx");
+
+            new SpreadsheetMapper().writeValue(ssmlFile,
+                    Collections.singletonList(record), NestedListEntry.class);
+            _poiMapper().writeValue(poiFile,
+                    Collections.singletonList(record), NestedListEntry.class);
+
+            _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        } finally {
+            sheetGen.setLevel(prevLevel);
         }
-        NestedListEntry record = new NestedListEntry(1,
-                Arrays.asList(items), 99.0);
-
-        File ssmlFile = _debugFile("rat-large-single-ssml.xlsx");
-        File poiFile = _debugFile("rat-large-single-poi.xlsx");
-
-        new SpreadsheetMapper().writeValue(ssmlFile,
-                Collections.singletonList(record), NestedListEntry.class);
-        _poiMapper().writeValue(poiFile,
-                Collections.singletonList(record), NestedListEntry.class);
-
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor
