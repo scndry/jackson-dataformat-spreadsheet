@@ -46,23 +46,23 @@ class RealisticAccuracyTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor
     static class Item {
-        @DataColumn("상품") String name;
-        @DataColumn("수량") int qty;
+        @DataColumn("product") String name;
+        @DataColumn("qty") int qty;
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor
     static class Payment {
-        @DataColumn("결제수단") String method;
-        @DataColumn("결제액") BigDecimal amount;
+        @DataColumn("method") String method;
+        @DataColumn("amount") BigDecimal amount;
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class OrderTwoLists {
-        @DataColumn(value = "주문번호", merge = OptBoolean.TRUE) String orderNumber;
+        @DataColumn(value = "orderNumber", merge = OptBoolean.TRUE) String orderNumber;
         List<Item> items;
-        @DataColumn(value = "소계", merge = OptBoolean.TRUE) BigDecimal subtotal;
+        @DataColumn(value = "subtotal", merge = OptBoolean.TRUE) BigDecimal subtotal;
         List<Payment> payments;
-        @DataColumn(value = "총결제", merge = OptBoolean.TRUE) BigDecimal totalPaid;
+        @DataColumn(value = "totalPaid", merge = OptBoolean.TRUE) BigDecimal totalPaid;
     }
 
     @Test
@@ -96,22 +96,22 @@ class RealisticAccuracyTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor
     static class GroupItem {
-        @DataColumn("품목") String label;
-        @DataColumn("수량") int qty;
+        @DataColumn("label") String label;
+        @DataColumn("qty") int qty;
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor
     static class Group {
-        @DataColumn(value = "그룹명", merge = OptBoolean.TRUE) String groupName;
+        @DataColumn(value = "groupName", merge = OptBoolean.TRUE) String groupName;
         List<GroupItem> items;
-        @DataColumn(value = "그룹소계", merge = OptBoolean.TRUE) int groupSubtotal;
+        @DataColumn(value = "groupSubtotal", merge = OptBoolean.TRUE) int groupSubtotal;
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class GroupedOrder {
-        @DataColumn(value = "주문ID", merge = OptBoolean.TRUE) int id;
+        @DataColumn(value = "id", merge = OptBoolean.TRUE) int id;
         List<Group> groups;
-        @DataColumn(value = "총합", merge = OptBoolean.TRUE) int total;
+        @DataColumn(value = "total", merge = OptBoolean.TRUE) int total;
     }
 
     @Test
@@ -226,12 +226,12 @@ class RealisticAccuracyTest {
                 "DOM equivalence asserted only on POI 5.2.3+ — see #96");
 
         StringBuilder bigMemo = new StringBuilder(1024);
-        for (int i = 0; i < 100; i++) bigMemo.append("긴 메모 텍스트 — Korean and English mix... ");
+        for (int i = 0; i < 100; i++) bigMemo.append("long memo text segment ").append(i).append(" -- ");
         StringBuilder bigDesc = new StringBuilder(2048);
         for (int i = 0; i < 200; i++) bigDesc.append("description chunk ").append(i).append(" / ");
 
         LargeStringRecord record = new LargeStringRecord(
-                "주문 / Order — long title with mixed content abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij",
+                "Order -- long title with repeated content abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij",
                 Arrays.asList(
                         new LargeStringInner("Apple", bigDesc.toString()),
                         new LargeStringInner("Banana", bigDesc.toString())),
@@ -401,9 +401,9 @@ class RealisticAccuracyTest {
                 "DOM equivalence asserted only on POI 5.2.3+ — see #96");
 
         StringBuilder bigDesc = new StringBuilder(2048);
-        for (int i = 0; i < 100; i++) bigDesc.append("긴 설명 chunk ").append(i).append(" / ");
+        for (int i = 0; i < 100; i++) bigDesc.append("description chunk ").append(i).append(" / ");
         StringBuilder bigNote = new StringBuilder(1024);
-        for (int i = 0; i < 50; i++) bigNote.append("group note ").append(i).append(" — ");
+        for (int i = 0; i < 50; i++) bigNote.append("group note ").append(i).append(" -- ");
         StringBuilder summary = new StringBuilder(2048);
         for (int i = 0; i < 100; i++) summary.append("summary line ").append(i).append(". ");
 
