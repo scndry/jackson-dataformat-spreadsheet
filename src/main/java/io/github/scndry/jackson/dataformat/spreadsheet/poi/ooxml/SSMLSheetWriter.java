@@ -29,6 +29,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
 
 /**
@@ -398,18 +399,16 @@ public final class SSMLSheetWriter implements SheetWriter {
             // array scope, and string content always routes through
             // SharedStringsStore — only the int index appears in _sb. So
             // _sb.length() == UTF-8 byte length here.
-            final long limit = SpreadsheetSchema.backWriteBufferLimit();
+            final long limit = BackWriteProjection.backWriteBufferLimit();
             if (_sb.length() > limit) {
                 throw new IOException(
                         "Nested list scope buffer reached "
-                        + SpreadsheetSchema.formatBytes(_sb.length())
-                        + ", exceeds limit " + SpreadsheetSchema.formatBytes(limit)
+                        + BackWriteProjection.formatBytes(_sb.length())
+                        + ", exceeds limit " + BackWriteProjection.formatBytes(limit)
                         + ". Runtime monitor triggered before OOM (list size"
                         + " was not known up-front). Either reduce the list"
-                        + " size, switch to USE_POI_USER_MODEL, declare the"
-                        + " outer field before the list, or raise the limit"
-                        + " via -D" + SpreadsheetSchema.BACK_WRITE_BUFFER_BYTES_PROPERTY
-                        + "=" + (_sb.length() * 2) + " (or larger).");
+                        + " size, switch to USE_POI_USER_MODEL, or declare the"
+                        + " outer field before the list.");
             }
             return;
         }

@@ -1,6 +1,11 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema.internal;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
+
+import com.fasterxml.jackson.databind.JavaType;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -9,20 +14,27 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 
 /**
- * Internal helpers for projecting the SSML back-write buffer size from
- * a schema + a runtime nested-list size, and for detecting whether a
- * given schema can trigger the back-write code path.
+ * Internal helpers for the SSML back-write buffer — cell-XML upper bound,
+ * runtime limit, schema-level scope detection, and projected size.
  *
  * <p>Not part of the public API. Classes under
  * {@code io.github.scndry.jackson.dataformat.spreadsheet.schema.internal}
  * may change without notice between releases — do not invoke directly
  * from application code.
- *
- * @see SpreadsheetSchema#cellMaxBytes(Column)
- * @see SpreadsheetSchema#backWriteBufferLimit()
  */
 @Slf4j
 public final class BackWriteProjection {
+
+    // <c r="REF" s="STYLE" t="TYPE"><v>VALUE</v></c>
+    //   fixed = "<c r=\"" (6) + "\" s=\"" (4) + "\" t=\"" (4) + "\"><v>" (5)
+    //         + "</v></c>" (8) = 27 bytes
+    //   ref   max = "XFD1048576" = 10 chars
+    //   style max = 32767 digits = 5 chars
+    //   type      = "n" | "s" | "b" = 1 char (writeBlank emits no t attribute)
+    private static final int CELL_FIXED_TAGS_BYTES = 27;
+    private static final int CELL_REF_MAX = 10;
+    private static final int CELL_STYLE_MAX = 5;
+    private static final int CELL_TYPE_MAX = 1;
 
     // <row r="N">..</row>
     //   open  = "<row r=\"" (8) + N digits + "\">" (2) = 10 + N
@@ -30,19 +42,63 @@ public final class BackWriteProjection {
     // Excel row max = 1048576 (7 digits) → worst total = 23 bytes.
     private static final int ROW_TAG_BYTES = 23;
 
+    /** Cache for {@link #requiresBackWriteScope(SpreadsheetSchema)} keyed on
+     *  schema identity. WeakHashMap so schemas reclaimed by GC drop their
+     *  entry — typical applications hold a single schema for their lifetime,
+     *  edge-case ClassLoader reload / dynamically generated schemas do not
+     *  leak. */
+    private static final Map<SpreadsheetSchema, Boolean> SCOPE_CACHE =
+            Collections.synchronizedMap(new WeakHashMap<>());
+
     private BackWriteProjection() {
+    }
+
+    /** Upper-bound bytes for one cell XML of the given column.
+     *
+     *  <p>Cell-XML output paths in this library:
+     *  <ul>
+     *    <li>All numeric overloads ({@code writeNumber(int|long|float|double)})
+     *        route through {@code SheetGenerator → _writer.writeNumeric(double)},
+     *        which calls {@code StringBuilder.append(double)} — every numeric
+     *        primitive emits a {@code Double.toString}-formatted value
+     *        (worst case ~25 chars), regardless of the source type.</li>
+     *    <li>{@code boolean} emits "0" or "1" (1 char).</li>
+     *    <li>{@code String} / {@code Enum} / {@code BigDecimal} /
+     *        {@code BigInteger} route through {@code SheetGenerator →
+     *        _writer.writeString → SharedStringsStore}, leaving only a
+     *        shared-string index in the cell (max 10 digits for
+     *        {@code Integer.MAX_VALUE}). Their content lives in
+     *        {@code sharedStrings.xml}, a separate stream not gated by
+     *        back-write buffer limits.</li>
+     *    <li>{@code Date} / {@code java.time.*} route through
+     *        {@code writeNumber(double serial)}, same 25-char bound.</li>
+     *  </ul>
+     *  Every supported Java type has a bounded cell XML size. */
+    public static int cellMaxBytes(final Column column) {
+        final JavaType type = column.getType();
+        final Class<?> raw = type.getRawClass();
+        final int valueMax;
+        if (raw == boolean.class || raw == Boolean.class) {
+            valueMax = 1;
+        } else if (raw == String.class || raw.isEnum()
+                || raw == java.math.BigDecimal.class
+                || raw == java.math.BigInteger.class) {
+            valueMax = 10;                                    // shared string index
+        } else {
+            valueMax = 25;
+        }
+        return CELL_FIXED_TAGS_BYTES + CELL_REF_MAX + CELL_STYLE_MAX + CELL_TYPE_MAX + valueMax;
     }
 
     /** Upper-bound bytes for one inner row (all columns inside the given
      *  array pointer + the {@code <row>} tag overhead). Every supported
-     *  Java type has a bounded per-cell size — see
-     *  {@link SpreadsheetSchema#cellMaxBytes(Column)} for the breakdown. */
+     *  Java type has a bounded per-cell size — see {@link #cellMaxBytes}. */
     public static long innerRowMaxBytes(
             final SpreadsheetSchema schema, final ColumnPointer arrayPointer) {
         final List<Column> inners = schema.getColumns(arrayPointer);
         long bytes = ROW_TAG_BYTES;
         for (final Column c : inners) {
-            bytes += SpreadsheetSchema.cellMaxBytes(c);
+            bytes += cellMaxBytes(c);
         }
         return bytes;
     }
@@ -53,6 +109,34 @@ public final class BackWriteProjection {
             final SpreadsheetSchema schema, final ColumnPointer arrayPointer, final int listSize) {
         if (listSize <= 0) return 0;
         return (long) listSize * innerRowMaxBytes(schema, arrayPointer);
+    }
+
+    /** Back-write buffer limit (bytes). Default {@code max(4 MB, heap/32)}.
+     *
+     *  <p>{@code StringBuilder.ensureCapacity} grows by doubling
+     *  ({@code Arrays.copyOf(value, newCapacity)}), so during a grow the old
+     *  and new arrays coexist — peak heap during a single grow ≈ 2 × current
+     *  buffer size. heap/32 limit + 2× grow peak = heap/16 transient peak,
+     *  leaving the remaining heap (≈ 15/16) for other allocations and GC
+     *  headroom. The 4 MB floor keeps the limit meaningful on small heaps
+     *  (Lambda / container).
+     *
+     *  <p>Conservative starting point modeled after Apache POI's SXSSF
+     *  default of 100 random-access rows. No external override knob is
+     *  exposed; a future need can introduce one on {@code SpreadsheetFactory}
+     *  without breaking callers. */
+    public static long backWriteBufferLimit() {
+        return Math.max(4L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 32);
+    }
+
+    /** Human-readable byte size formatting for diagnostics. */
+    public static String formatBytes(final long bytes) {
+        if (bytes < 1024L) return bytes + " B";
+        if (bytes < 1024L * 1024) return (bytes / 1024) + " KB";
+        if (bytes < 1024L * 1024 * 1024) {
+            return String.format("%.1f MB", bytes / (1024.0 * 1024));
+        }
+        return String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024));
     }
 
     /** Returns true when the schema's column order has any outer
@@ -70,6 +154,17 @@ public final class BackWriteProjection {
             }
         }
         return false;
+    }
+
+    /** Cached form of {@link #hasOuterFieldAfterList(SpreadsheetSchema)}.
+     *  Writers call this once per nested array to gate flush suspension —
+     *  the cache avoids recomputing the result across every record. */
+    public static boolean requiresBackWriteScope(final SpreadsheetSchema schema) {
+        final Boolean cached = SCOPE_CACHE.get(schema);
+        if (cached != null) return cached;
+        final boolean v = hasOuterFieldAfterList(schema);
+        SCOPE_CACHE.put(schema, v);
+        return v;
     }
 
     /** Logs a warn at schema build time when {@link #hasOuterFieldAfterList}

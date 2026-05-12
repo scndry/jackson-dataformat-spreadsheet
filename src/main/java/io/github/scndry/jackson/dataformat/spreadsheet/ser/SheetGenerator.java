@@ -99,7 +99,7 @@ public final class SheetGenerator extends GeneratorBase {
         // Gate flush suspension on schemas that can actually back-write —
         // otherwise the nested array scope flushes normally, no OOM gate needed.
         final boolean nested = !_outputContext.inRoot();
-        final boolean backWriteRisk = nested && _schema.requiresBackWriteScope();
+        final boolean backWriteRisk = nested && BackWriteProjection.requiresBackWriteScope(_schema);
         if (backWriteRisk && size > 0) {
             // Back-write safety: cell XML max is fixed per type (shared
             // string makes string content out-of-line), so the buffer
@@ -108,17 +108,15 @@ public final class SheetGenerator extends GeneratorBase {
             // exceeds the configured limit.
             final long projected = BackWriteProjection.project(
                     _schema, _outputContext.currentPointer(), size);
-            final long limit = SpreadsheetSchema.backWriteBufferLimit();
+            final long limit = BackWriteProjection.backWriteBufferLimit();
             if (projected > limit) {
                 throw new SheetStreamWriteException(
                         "Nested list size " + size + " projected back-write"
-                        + " buffer " + SpreadsheetSchema.formatBytes(projected)
-                        + " exceeds limit " + SpreadsheetSchema.formatBytes(limit)
+                        + " buffer " + BackWriteProjection.formatBytes(projected)
+                        + " exceeds limit " + BackWriteProjection.formatBytes(limit)
                         + ". Either reduce the list size, switch to"
-                        + " USE_POI_USER_MODEL, declare the outer field before"
-                        + " the list, or raise the limit via -D"
-                        + SpreadsheetSchema.BACK_WRITE_BUFFER_BYTES_PROPERTY
-                        + "=" + projected + " (or larger).",
+                        + " USE_POI_USER_MODEL, or declare the outer field"
+                        + " before the list.",
                         this);
             }
         }
@@ -135,7 +133,7 @@ public final class SheetGenerator extends GeneratorBase {
     @Override
     public void writeEndArray() throws IOException {
         final boolean nested = !_outputContext.getParent().inRoot();
-        final boolean backWriteRisk = nested && _schema.requiresBackWriteScope();
+        final boolean backWriteRisk = nested && BackWriteProjection.requiresBackWriteScope(_schema);
         _outputContext = _closeStruct(END_ARRAY);
         _writer.restoreRowWindow();
         if (backWriteRisk) {

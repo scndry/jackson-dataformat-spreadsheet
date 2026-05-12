@@ -15,10 +15,7 @@ import org.apache.poi.ss.util.CellAddress;
 
 import com.fasterxml.jackson.core.FormatSchema;
 
-import com.fasterxml.jackson.databind.JavaType;
-
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.GridConfigurer;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
 
 /**
@@ -48,7 +45,6 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     private final int _features;
     private final StylesBuilder _stylesBuilder;
     private final GridConfigurer _gridConfigurer;
-    private volatile Boolean _backWriteRequired;   // lazy-memoized
 
     public SpreadsheetSchema(
             final List<Column> columns,
@@ -150,121 +146,6 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
                 .startsWith(filter)).collect(Collectors
                 .toList());
     }
-
-    // ----------------------------------------------------------------
-    // Back-write safety — public utilities for cell-XML upper-bound
-    // computation and the runtime limit. Per-row / per-list projection
-    // and the back-write trigger detector live in
-    // io.github.scndry.jackson.dataformat.spreadsheet.schema.internal
-    // .BackWriteProjection (internal API).
-    // ----------------------------------------------------------------
-
-    /** True when this schema can trigger the SSML back-write code path
-     *  (outer field declared after a {@code List<T>} in column order).
-     *  Computed once and memoized — callers use this to gate the
-     *  array-scope flush suspension so schemas where no back-write can
-     *  happen avoid the buffer-accumulation overhead. */
-    public boolean requiresBackWriteScope() {
-        Boolean v = _backWriteRequired;
-        if (v == null) {
-            v = BackWriteProjection.hasOuterFieldAfterList(this);
-            _backWriteRequired = v;
-        }
-        return v;
-    }
-
-    // <c r="REF" s="STYLE" t="TYPE"><v>VALUE</v></c>
-    //   fixed = "<c r=\"" (6) + "\" s=\"" (4) + "\" t=\"" (4) + "\"><v>" (5)
-    //         + "</v></c>" (8) = 27 bytes
-    //   ref   max = "XFD1048576" = 10 chars
-    //   style max = 32767 digits = 5 chars
-    //   type      = "n" | "s" | "b" = 1 char (writeBlank emits no t attribute)
-    private static final int CELL_FIXED_TAGS_BYTES = 27;
-    private static final int CELL_REF_MAX = 10;
-    private static final int CELL_STYLE_MAX = 5;
-    private static final int CELL_TYPE_MAX = 1;
-
-    /** System property name for the back-write buffer limit (bytes).
-     *  Resolved per call by {@link #backWriteBufferLimit()} so test code
-     *  can vary it without JVM restart. */
-    public static final String BACK_WRITE_BUFFER_BYTES_PROPERTY =
-            "spreadsheet.backWriteBufferBytes";
-
-    /** Back-write buffer limit (bytes). System property override:
-     *  {@code -Dspreadsheet.backWriteBufferBytes=<n>}. Default =
-     *  max(16 MB, heap/8).
-     *
-     *  <p>The heap/8 fraction is a design choice, not an empirically
-     *  measured threshold. Rationale:
-     *  <ul>
-     *    <li>{@code StringBuilder.ensureCapacity} grows by doubling
-     *        ({@code Arrays.copyOf(value, newCapacity)}), so during grow
-     *        the old and new arrays coexist — peak heap during a single
-     *        grow ≈ 2 × current buffer size.</li>
-     *    <li>heap/8 limit + 2× grow peak = heap/4 transient peak, leaving
-     *        the remaining heap (≈ 3/4) for other allocations and GC
-     *        headroom.</li>
-     *  </ul>
-     *  This is a conservative starting point; users with empirical evidence
-     *  for a different fit can override via the system property. */
-    public static long backWriteBufferLimit() {
-        final String configured = System.getProperty(BACK_WRITE_BUFFER_BYTES_PROPERTY);
-        if (configured != null) {
-            try {
-                final long v = Long.parseLong(configured);
-                if (v > 0) return v;
-            } catch (NumberFormatException ignored) {
-            }
-        }
-        return Math.max(16L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 8);
-    }
-
-    /** Human-readable byte size formatting for diagnostics. */
-    public static String formatBytes(final long bytes) {
-        if (bytes < 1024L) return bytes + " B";
-        if (bytes < 1024L * 1024) return (bytes / 1024) + " KB";
-        if (bytes < 1024L * 1024 * 1024) {
-            return String.format("%.1f MB", bytes / (1024.0 * 1024));
-        }
-        return String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024));
-    }
-
-    /** Upper-bound bytes for one cell XML of the given column.
-     *
-     *  Cell-XML output paths in this library:
-     *    - All numeric overloads (writeNumber(int|long|float|double))
-     *      route through SheetGenerator → _writer.writeNumeric(double),
-     *      which calls StringBuilder.append(double) — so every numeric
-     *      primitive emits a Double.toString-formatted value (e.g.
-     *      "1.0", "-1.7976931348623157E308"), regardless of the source
-     *      type. Worst-case value length = ~25 chars.
-     *    - boolean emits "0" or "1" (1 char).
-     *    - String / Enum / BigDecimal / BigInteger route through
-     *      SheetGenerator → _writer.writeString → SharedStringsStore,
-     *      leaving only a shared-string index (max 10 digits for
-     *      Integer.MAX_VALUE) in the cell. Their content lives in
-     *      sharedStrings.xml, a separate stream not gated by
-     *      back-write buffer limits.
-     *    - Date / java.time.* route through writeNumber(double serial),
-     *      same 25-char bound.
-     *
-     *  Every supported Java type therefore has a bounded cell XML size. */
-    public static int cellMaxBytes(final Column column) {
-        final JavaType type = column.getType();
-        final Class<?> raw = type.getRawClass();
-        final int valueMax;
-        if (raw == boolean.class || raw == Boolean.class) {
-            valueMax = 1;
-        } else if (raw == String.class || raw.isEnum()
-                || raw == java.math.BigDecimal.class
-                || raw == java.math.BigInteger.class) {
-            valueMax = 10;                                    // shared string index
-        } else {
-            valueMax = 25;
-        }
-        return CELL_FIXED_TAGS_BYTES + CELL_REF_MAX + CELL_STYLE_MAX + CELL_TYPE_MAX + valueMax;
-    }
-
 
     public Styles buildStyles(final Workbook workbook) {
         return _stylesBuilder.build(workbook);
