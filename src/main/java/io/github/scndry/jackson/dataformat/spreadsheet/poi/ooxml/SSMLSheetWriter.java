@@ -244,22 +244,21 @@ public final class SSMLSheetWriter implements SheetWriter {
         // Back-write invariant: while _arrayScopeDepth > 0 the runtime
         // monitor (_checkFlush) holds the limit so the target <row r="N">
         // is always present in _sb when this is called. The guards below
-        // catch a library-side invariant breach (refactor regression),
-        // not a user-recoverable condition.
+        // catch a refactor regression — not a user-recoverable condition.
         final String rowOpen = "<row r=\"" + (_reference.getRow() + 1) + "\">";
         final int openIdx = _sb.indexOf(rowOpen);
         if (openIdx < 0) {
             throw new IllegalStateException(
-                    "Back-write invariant breach: <row r=\""
+                    "Back-write target <row r=\""
                     + (_reference.getRow() + 1) + "\"> missing from _sb at "
-                    + _reference + ". Library bug.");
+                    + _reference + " — should never happen.");
         }
         final int closeIdx = _sb.indexOf("</row>", openIdx);
         if (closeIdx < 0) {
             throw new IllegalStateException(
-                    "Back-write invariant breach: <row r=\""
-                    + (_reference.getRow() + 1) + "\"> has no closing tag."
-                    + " Library bug.");
+                    "Back-write target <row r=\""
+                    + (_reference.getRow() + 1) + "\"> has no closing tag"
+                    + " — should never happen.");
         }
         _sb.insert(closeIdx, cellXml);
     }
