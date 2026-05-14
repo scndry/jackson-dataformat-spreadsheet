@@ -450,6 +450,8 @@ mapper.writeValue(output, order);
 +----------+---------+-----+-------+
 ```
 
+In the default streaming write path, outer fields declared after a nested list are buffered and back-written into earlier rows. The buffer is heap-aware — `max(4 MB, heap/32)`. The library logs a warning at schema build time if the projected inner-row XML would exceed this bound; raise the JVM heap (`-Xmx`) for larger lists.
+
 The [SXSSFWorkbook row access window](https://poi.apache.org/apidocs/4.1/org/apache/poi/xssf/streaming/SXSSFWorkbook.html#SXSSFWorkbook-int-) is adjusted automatically to fit the list size. If you see `"Cannot write to row N (already flushed)"`, the nested list expanded beyond the window. Increase it:
 
 ```java
@@ -519,9 +521,13 @@ class Address { String city; String zip; }
 renders as:
 
 ```
-| ID | Name | ====== Address ====== |
-|    |      | City      |   Zip     |
-| 1  | Alice| Seoul     |   12345   |
++----+-------+---------------+
+| ID | Name  |    Address    |
+|    |       +-------+-------+
+|    |       | City  | Zip   |
++----+-------+-------+-------+
+|  1 | Alice | Seoul | 12345 |
++----+-------+-------+-------+
 ```
 
 The header row count is `max(group depth) + 1`, derived automatically. Flat or shallow columns vertically merge from their hierarchy depth down to the leaf header row. Adjacent columns sharing parent path and group name merge horizontally; a different parent yields separate cells (e.g. `Q1` under `2024` vs `Q1` under `2025`). On read the parser auto-skips header rows and column reordering only matches the leaf row.
@@ -542,9 +548,13 @@ class QuarterMetrics { int sales; int profit; }
 ```
 
 ```
-|       | ============== 2024 ============ | ============= 2025 ============ |
-|       | ===== Q1 ===== | ==== Q2 ======= | ===== Q1 ===== | ==== Q2 ====== |
-| Name  | Sales | Profit | Sales | Profit  | Sales | Profit | Sales | Profit |
++------+---------------------------------+---------------------------------+
+| Name |              2024               |              2025               |
+|      +----------------+----------------+----------------+----------------+
+|      |       Q1       |       Q2       |       Q1       |       Q2       |
+|      +-------+--------+-------+--------+-------+--------+-------+--------+
+|      | Sales | Profit | Sales | Profit | Sales | Profit | Sales | Profit |
++------+-------+--------+-------+--------+-------+--------+-------+--------+
 ```
 
 Depth 3 is the practical limit; readability degrades beyond that. `setColumnReordering(true)` combined with `@DataColumnGroup` fails fast with `IllegalStateException` — disable reordering or remove the annotations.

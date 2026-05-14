@@ -102,25 +102,37 @@ SheetOutput<File> output = SheetOutput.target(file, "Products");
 mapper.writeValue(output, products, Product.class);
 ```
 
-### Nested Objects
+### Complex Objects
 
-Flat spreadsheets map to nested POJOs automatically:
-
-| id | name | zipcode | city | title | salary |
-|----|------|---------|------|-------|--------|
-| 1 | Alice | 12345 | Seoul | SRE | 80000 |
+Nested objects flatten into columns. Lists of nested objects expand into multiple rows.
 
 ```java
-@DataGrid
-class Employee {
-    int id;
-    String name;
-    Address address;    // flattened: zipcode, city
-    Employment employment; // flattened: title, salary
+@DataGrid(mergeColumn = OptBoolean.TRUE)
+class Order {
+    @DataColumn("ID") int id;
+    @DataColumn("Customer") String customer;
+    @DataColumnGroup("Items") List<LineItem> items;
+    @DataColumn("Total") BigDecimal total;
+}
+
+class LineItem {
+    @DataColumn("SKU")    String sku;
+    @DataColumn("Qty")    int qty;
+    @DataColumn("Amount") BigDecimal amount;
 }
 ```
 
-No configuration needed. Read and write — both directions work.
+```
++----+----------+----------------------+-------+
+| ID | Customer |        Items         | Total |
+|    |          +------+-----+---------+       |
+|    |          | SKU  | Qty | Amount  |       |
++----+----------+------+-----+---------+-------+
+|    |          | A-01 |  3  | 30.00   |       |
+|  1 | Alice    +------+-----+---------+ 95.00 |
+|    |          | B-02 |  5  | 65.00   |       |
++----+----------+------+-----+---------+-------+
+```
 
 ## How It Compares
 
@@ -164,22 +176,6 @@ Fastest read and write throughput at 100K rows. See [BENCHMARK.md](BENCHMARK.md)
 ¹ XLSX read streams via StAX, write via StringBuilder over a POI scaffold; XLS uses in-memory POI workbook (HSSF has no streaming API).
 
 ## Key Features
-
-### Annotations
-
-```java
-@DataGrid
-class Product {
-    @DataColumn("Product Name")
-    String name;
-
-    @DataColumn(value = "Price", style = "currency")
-    double price;
-
-    @DataColumn(merge = OptBoolean.TRUE)
-    String category;
-}
-```
 
 ### Streaming for Large Files
 
