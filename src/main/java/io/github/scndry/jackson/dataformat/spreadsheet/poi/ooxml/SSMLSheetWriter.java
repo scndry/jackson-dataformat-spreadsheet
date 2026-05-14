@@ -39,6 +39,10 @@ import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
  * Builds a temporary {@link XSSFWorkbook} scaffold for package compatibility, then rewrites worksheet and
  * sharedStrings parts directly while copying the remaining package entries from the scaffold.
  *
+ * <p>Cell writes accumulate in a {@link SheetDataBuffer} (SoA), which preserves row ordering even
+ * across back-write into past rows. Buffered cells are emitted in row order on every forward row
+ * jump (outside an array scope) and once more on {@code write()} for the trailing record.
+ *
  * @see io.github.scndry.jackson.dataformat.spreadsheet.poi.ss.POISheetWriter
  */
 @Slf4j
@@ -58,8 +62,7 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     private SpreadsheetSchema _schema;
     private CellAddress _reference;
-    private int _currentRow = -1;
-    private boolean _currentRowOpen;
+    private SheetDataBuffer _data;
     private int _arrayScopeDepth;
 
     // SharedStrings
@@ -105,6 +108,7 @@ public final class SSMLSheetWriter implements SheetWriter {
     @Override
     public void setSchema(final SpreadsheetSchema schema) {
         _schema = schema;
+        _data = new SheetDataBuffer(schema.getOriginColumn() + schema.columnCount());
         try {
             _wb = _sheet.getWorkbook();
             final Styles styles = _schema.buildStyles(_wb);
@@ -139,23 +143,6 @@ public final class SSMLSheetWriter implements SheetWriter {
     @Override
     public void setReference(final CellAddress reference) {
         _reference = reference;
-        try {
-            final int row = reference.getRow();
-            if (row > _currentRow) {
-                _closeCurrentRowIfOpen();
-                _currentRow = row;
-                _currentRowOpen = false;
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    private void _ensureRowOpen() throws IOException {
-        if (!_currentRowOpen) {
-            _append("<row r=\"").append(_currentRow + 1).append("\">");
-            _currentRowOpen = true;
-        }
     }
 
     @Override
@@ -186,99 +173,66 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     @Override
     public void writeNumeric(final double value) {
-        try {
-            if (_isBackReference()) {
-                _insertCellIntoEmittedRow(_buildCellXml("n", String.valueOf(value)));
-                return;
-            }
-            _appendCellStart("n").append(value);
-            _appendCellEnd();
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
+        _flushIfForwardJump();
+        _data.appendNumeric(_reference.getRow(), _reference.getColumn(), _resolveStyleIndex(), value);
+        _checkBufferLimitInArrayScope();
     }
 
     @Override
     public void writeString(final String value) {
-        try {
-            final int index = _cacheString(value);
-            if (_isBackReference()) {
-                _insertCellIntoEmittedRow(_buildCellXml("s", String.valueOf(index)));
-                return;
-            }
-            _appendCellStart("s").append(index);
-            _appendCellEnd();
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
+        final int index = _cacheString(value);
+        _flushIfForwardJump();
+        _data.appendString(_reference.getRow(), _reference.getColumn(), _resolveStyleIndex(), index);
+        _checkBufferLimitInArrayScope();
     }
 
     @Override
     public void writeBoolean(final boolean value) {
-        try {
-            if (_isBackReference()) {
-                _insertCellIntoEmittedRow(_buildCellXml("b", value ? "1" : "0"));
-                return;
-            }
-            _appendCellStart("b").append(value ? '1' : '0');
-            _appendCellEnd();
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
+        _flushIfForwardJump();
+        _data.appendBoolean(_reference.getRow(), _reference.getColumn(), _resolveStyleIndex(), value);
+        _checkBufferLimitInArrayScope();
     }
 
     @Override
     public void writeBlank() {
+        _flushIfForwardJump();
+        _data.appendBlank(_reference.getRow(), _reference.getColumn(), _resolveStyleIndex());
+        _checkBufferLimitInArrayScope();
+    }
+
+    /** Drains buffered rows to the zip stream when the new cell's row is
+     *  past every row the buffer is currently holding, AND we are not
+     *  inside an array scope (where the outer field may yet need to
+     *  back-write into a past row). */
+    private void _flushIfForwardJump() {
+        if (_arrayScopeDepth > 0) return;
+        if (_data.isEmpty()) return;
+        if (_reference.getRow() <= _data.maxRowSeen()) return;
         try {
-            if (_isBackReference()) {
-                _insertCellIntoEmittedRow(_buildBlankCellXml());
-                return;
-            }
-            _ensureRowOpen();
-            _append("<c r=\"").append(_cellRef())
-                    .append("\" s=\"").append(_resolveStyleIndex())
-                    .append("\"/>");
+            _data.flushTo(_sb);
+            _checkSbFlush();
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
     }
 
-    private boolean _isBackReference() {
-        return _reference.getRow() < _currentRow;
-    }
-
-    private String _buildCellXml(final String type, final String value) {
-        return "<c r=\"" + _cellRef()
-                + "\" s=\"" + _resolveStyleIndex()
-                + "\" t=\"" + type + "\"><v>" + value + "</v></c>";
-    }
-
-    private String _buildBlankCellXml() {
-        return "<c r=\"" + _cellRef()
-                + "\" s=\"" + _resolveStyleIndex() + "\"/>";
-    }
-
-    private void _insertCellIntoEmittedRow(final String cellXml) {
-        // Back-write invariant: while _arrayScopeDepth > 0 the runtime
-        // monitor (_checkFlush) holds the limit so the target <row r="N">
-        // is always present in _sb when this is called. The guards below
-        // catch a refactor regression — not a user-recoverable condition.
-        final String rowOpen = "<row r=\"" + (_reference.getRow() + 1) + "\">";
-        final int openIdx = _sb.indexOf(rowOpen);
-        if (openIdx < 0) {
+    /** Runtime back-write buffer monitor — fails fast before OOM when the
+     *  list size was unknown (-1) at writeStartArray so the build-time
+     *  projection could not pre-check (Iterator / Stream sources). */
+    private void _checkBufferLimitInArrayScope() {
+        if (_arrayScopeDepth == 0) return;
+        final long size = _data.byteSize();
+        final long limit = BackWriteProjection.backWriteBufferLimit();
+        if (size > limit) {
             throw new IllegalStateException(
-                    "Back-write target <row r=\""
-                    + (_reference.getRow() + 1) + "\"> missing from _sb at "
-                    + _reference + " — should never happen.");
+                    "Nested list scope buffer reached "
+                            + BackWriteProjection.formatBytes(size)
+                            + ", exceeds limit " + BackWriteProjection.formatBytes(limit)
+                            + ". Runtime monitor triggered before OOM (list size"
+                            + " was not known up-front). Either reduce the list"
+                            + " size, switch to USE_POI_USER_MODEL, or declare the"
+                            + " outer field before the list.");
         }
-        final int closeIdx = _sb.indexOf("</row>", openIdx);
-        if (closeIdx < 0) {
-            throw new IllegalStateException(
-                    "Back-write target <row r=\""
-                    + (_reference.getRow() + 1) + "\"> has no closing tag"
-                    + " — should never happen.");
-        }
-        _sb.insert(closeIdx, cellXml);
     }
 
     @Override
@@ -386,67 +340,19 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     private StringBuilder _append(final String s) throws IOException {
         _sb.append(s);
-        _checkFlush();
+        _checkSbFlush();
         return _sb;
     }
 
-    private StringBuilder _appendCellStart(final String type) throws IOException {
-        _ensureRowOpen();
-        return _append("<c r=\"").append(_cellRef())
-                .append("\" s=\"").append(_resolveStyleIndex())
-                .append("\" t=\"").append(type).append("\"><v>");
-    }
-
-    private void _appendCellEnd() throws IOException {
-        _append("</v></c>");
-    }
-
-    private void _checkFlush() throws IOException {
-        if (_arrayScopeDepth > 0) {
-            // Runtime back-write buffer monitor — covers the case where the
-            // list size was unknown (-1) at writeStartArray so the build-time
-            // projection could not pre-check (Iterator / Stream sources).
-            // Fail-fast with a clear error before OutOfMemoryError.
-            //
-            // Unit invariant: _sb.length() (chars) vs limit (bytes).
-            // The comparison is unit-safe because every fragment appended to
-            // _sb inside an array scope is pure ASCII:
-            //   - row tag:        "<row r=\"N\">" / "</row>"
-            //   - cell tag:       "<c r=\"...\" s=\"...\" t=\"...\"><v>...</v></c>"
-            //   - numeric value:  StringBuilder.append(double) → Double.toString
-            //   - shared-string:  StringBuilder.append(int)    → Integer.toString
-            //   - boolean value:  '1' | '0'
-            // Header column names (non-ASCII possible) are emitted only outside
-            // array scope, and string content always routes through
-            // SharedStringsStore — only the int index appears in _sb. So
-            // _sb.length() == UTF-8 byte length here.
-            final long limit = BackWriteProjection.backWriteBufferLimit();
-            if (_sb.length() > limit) {
-                throw new IOException(
-                        "Nested list scope buffer reached "
-                        + BackWriteProjection.formatBytes(_sb.length())
-                        + ", exceeds limit " + BackWriteProjection.formatBytes(limit)
-                        + ". Runtime monitor triggered before OOM (list size"
-                        + " was not known up-front). Either reduce the list"
-                        + " size, switch to USE_POI_USER_MODEL, or declare the"
-                        + " outer field before the list.");
-            }
-            return;
-        }
+    private void _checkSbFlush() throws IOException {
         if (_sb.capacity() - _sb.length() < FLUSH_THRESHOLD) {
             _flush();
         }
     }
 
-
     private void _flush() throws IOException {
         _zip.write(_sb.toString().getBytes(StandardCharsets.UTF_8));
         _sb.setLength(0);
-    }
-
-    private String _cellRef() {
-        return CellReference.convertNumToColString(_reference.getColumn())
-            + (_reference.getRow() + 1);
     }
 
     private static String _cellRef(final int row, final int col) {
@@ -501,18 +407,14 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     private void _finishSheetXmlEntry() throws IOException {
         _startSheetData();
-        _closeCurrentRowIfOpen();
+        if (_data != null && !_data.isEmpty()) {
+            _data.flushTo(_sb);
+            _checkSbFlush();
+        }
         _append("</sheetData>");
         _appendMergeCellsIntoSuffix();
         _flush();
         _zip.closeEntry();
-    }
-
-    private void _closeCurrentRowIfOpen() throws IOException {
-        if (_currentRowOpen) {
-            _append("</row>");
-            _currentRowOpen = false;
-        }
     }
 
     private void _writeSharedStringsEntry() throws IOException {
@@ -659,7 +561,7 @@ public final class SSMLSheetWriter implements SheetWriter {
             .append("\" uniqueCount=\"").append(_sst.size()).append("\">");
         for (int i = 0; i < _sst.size(); i++) {
             _appendSharedStringItem(i);
-            _checkFlush();
+            _checkSbFlush();
         }
         _append("</sst>");
         _flush();

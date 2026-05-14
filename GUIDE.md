@@ -450,7 +450,7 @@ mapper.writeValue(output, order);
 +----------+---------+-----+-------+
 ```
 
-In the default streaming write path, outer fields declared after a nested list are buffered and back-written into earlier rows. The buffer is heap-aware — `max(4 MB, heap/32)`. The library logs a warning at schema build time if the projected inner-row XML would exceed this bound; raise the JVM heap (`-Xmx`) for larger lists.
+In the default streaming write path, outer fields declared after a nested list are buffered and back-written into earlier rows. The buffer is heap-aware — `max(1 MB, heap/128)`. The library logs a warning at schema build time if the projected inner-row XML would exceed this bound; raise the JVM heap (`-Xmx`) for larger lists.
 
 The [SXSSFWorkbook row access window](https://poi.apache.org/apidocs/4.1/org/apache/poi/xssf/streaming/SXSSFWorkbook.html#SXSSFWorkbook-int-) is adjusted automatically to fit the list size. If you see `"Cannot write to row N (already flushed)"`, the nested list expanded beyond the window. Increase it:
 

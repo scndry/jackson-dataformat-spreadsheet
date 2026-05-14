@@ -14,8 +14,10 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 
 /**
- * Internal helpers for the SSML back-write buffer — cell-XML upper bound,
- * runtime limit, schema-level scope detection, and projected size.
+ * Internal helpers for the SSML back-write scenario — cell-XML upper bound,
+ * runtime limit, schema-level scope detection, and projected size. Used by
+ * {@code SheetDataBuffer} (byte upper bound for buffered cells) and
+ * {@code SheetGenerator} (pre-list fail-fast check on {@code writeStartArray}).
  *
  * <p>Not part of the public API. Classes under
  * {@code io.github.scndry.jackson.dataformat.spreadsheet.schema.internal}
@@ -111,22 +113,20 @@ public final class BackWriteProjection {
         return (long) listSize * innerRowMaxBytes(schema, arrayPointer);
     }
 
-    /** Back-write buffer limit (bytes). Default {@code max(4 MB, heap/32)}.
+    /** Back-write buffer limit (bytes). Default {@code max(1 MB, heap/128)}.
      *
-     *  <p>{@code StringBuilder.ensureCapacity} grows by doubling
-     *  ({@code Arrays.copyOf(value, newCapacity)}), so during a grow the old
-     *  and new arrays coexist — peak heap during a single grow ≈ 2 × current
-     *  buffer size. heap/32 limit + 2× grow peak = heap/16 transient peak,
-     *  leaving the remaining heap (≈ 15/16) for other allocations and GC
-     *  headroom. The 4 MB floor keeps the limit meaningful on small heaps
-     *  (Lambda / container).
+     *  <p>{@code SheetDataBuffer} grows its SoA arrays by 1.5×
+     *  ({@code Arrays.copyOf}), so during a grow the old (≈ ⅔ × limit) and
+     *  new (limit) arrays coexist — peak heap during a single grow
+     *  ≈ 1.667 × current buffer size. heap/128 limit + 1.667× grow peak
+     *  ≈ heap/77 transient peak, leaving the remaining heap (≈ 76/77) for
+     *  other allocations and GC headroom. The 1 MB floor keeps the limit
+     *  meaningful on small heaps (Lambda / container).
      *
-     *  <p>Conservative starting point modeled after Apache POI's SXSSF
-     *  default of 100 random-access rows. No external override knob is
-     *  exposed; a future need can introduce one on {@code SpreadsheetFactory}
-     *  without breaking callers. */
+     *  <p>No external override knob is exposed; a future need can introduce
+     *  one on {@code SpreadsheetFactory} without breaking callers. */
     public static long backWriteBufferLimit() {
-        return Math.max(4L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 32);
+        return Math.max(1L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 128);
     }
 
     /** Human-readable byte size formatting for diagnostics. */
