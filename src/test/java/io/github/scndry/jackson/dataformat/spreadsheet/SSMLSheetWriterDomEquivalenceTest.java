@@ -153,6 +153,101 @@ class SSMLSheetWriterDomEquivalenceTest {
         _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
+    // -- Two nested lists in one record, outer fields between/after ------
+    // Each outer-after-list field back-writes into the first row of the
+    // immediately-preceding list. The two back-write targets are the same
+    // first record row, but reached via different array scopes — verifies
+    // _isBackReference() resolves the target row from _reference and
+    // _insertCellIntoEmittedRow finds the row tag in _sb each time.
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class Payment {
+        @DataColumn("method") String method;
+        @DataColumn("amount") int amount;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class OrderWithTwoLists {
+        @DataColumn(value = "id", merge = OptBoolean.TRUE) int id;
+        List<NestedItem> items;
+        @DataColumn(value = "subtotal", merge = OptBoolean.TRUE) int subtotal;
+        List<Payment> payments;
+        @DataColumn(value = "totalPaid", merge = OptBoolean.TRUE) int totalPaid;
+    }
+
+    @Test
+    void sheetXmlDomEquivalent_twoNestedListsPerRecord() throws Exception {
+        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
+                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
+
+        List<OrderWithTwoLists> data = Arrays.asList(
+                new OrderWithTwoLists(1,
+                        Arrays.asList(new NestedItem("Apple", 3), new NestedItem("Banana", 5)),
+                        8,
+                        Arrays.asList(new Payment("CARD", 5), new Payment("CASH", 3)),
+                        8));
+
+        File ssmlFile = _debugFile("dom-two-lists-ssml.xlsx");
+        File poiFile = _debugFile("dom-two-lists-poi.xlsx");
+
+        new SpreadsheetMapper().writeValue(ssmlFile, data, OrderWithTwoLists.class);
+        _poiMapper().writeValue(poiFile, data, OrderWithTwoLists.class);
+
+        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+    }
+
+    // -- List-of-list with an outer field after the inner list -----------
+    // Inner list's outer field anchors at the inner list's first item row
+    // (the enclosing Group object's parent ArrayContext + index). The
+    // outer list's outer field anchors at the outermost record row.
+    // Validates that nested array-scope depth cycles 0 → 1 → 2 → 1 → 2 →
+    // 1 → 0 across the structure without losing back-write targets.
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class GroupItem {
+        @DataColumn("label") String label;
+        @DataColumn("qty") int qty;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class Group {
+        @DataColumn(value = "groupName", merge = OptBoolean.TRUE) String groupName;
+        List<GroupItem> items;
+        @DataColumn(value = "groupSubtotal", merge = OptBoolean.TRUE) int groupSubtotal;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class GroupedOrder {
+        @DataColumn(value = "orderId", merge = OptBoolean.TRUE) int orderId;
+        List<Group> groups;
+        @DataColumn(value = "total", merge = OptBoolean.TRUE) int total;
+    }
+
+    @Test
+    void sheetXmlDomEquivalent_listOfList_outerAfterInnerList() throws Exception {
+        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
+                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
+
+        List<GroupedOrder> data = Arrays.asList(
+                new GroupedOrder(1,
+                        Arrays.asList(
+                                new Group("X",
+                                        Arrays.asList(new GroupItem("a", 1), new GroupItem("b", 2)),
+                                        3),
+                                new Group("Y",
+                                        Arrays.asList(new GroupItem("c", 4)),
+                                        4)),
+                        7));
+
+        File ssmlFile = _debugFile("dom-list-of-list-ssml.xlsx");
+        File poiFile = _debugFile("dom-list-of-list-poi.xlsx");
+
+        new SpreadsheetMapper().writeValue(ssmlFile, data, GroupedOrder.class);
+        _poiMapper().writeValue(poiFile, data, GroupedOrder.class);
+
+        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+    }
+
     @Test
     void sharedStringsXmlDomEquivalent() throws Exception {
         File ssmlFile = _debugFile("dom-sst-ssml.xlsx");
