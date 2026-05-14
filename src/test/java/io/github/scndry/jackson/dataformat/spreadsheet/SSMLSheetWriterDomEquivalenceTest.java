@@ -2,6 +2,7 @@ package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -270,6 +271,75 @@ class SSMLSheetWriterDomEquivalenceTest {
 
         new SpreadsheetMapper().writeValue(ssmlFile, GROUPED_DATA, GroupedEntry.class);
         _poiMapper().writeValue(poiFile, GROUPED_DATA, GroupedEntry.class);
+
+        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+    }
+
+    // -- 2-level @DataColumnGroup (3 header rows) + nested List + outer
+    //    fields with merge=TRUE after the list. Tests that back-write
+    //    into the first record row resolves against schema.getDataRow()
+    //    (origin + headerRowCount = 3, not origin + 1), so the totals
+    //    block lands on the first data row — not on a header row.
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class ProductDetail {
+        @DataColumn("sku") String sku;
+        @DataColumn("name") String name;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class LineItemGrouped {
+        @DataColumnGroup("Product") ProductDetail product;
+        @DataColumn("qty") int qty;
+        @DataColumn("amount") BigDecimal amount;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class TotalsBlock {
+        @DataColumn(value = "subtotal", merge = OptBoolean.TRUE) BigDecimal subtotal;
+        @DataColumn(value = "tax",      merge = OptBoolean.TRUE) BigDecimal tax;
+        @DataColumn(value = "total",    merge = OptBoolean.TRUE) BigDecimal total;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class OrderWith2LevelGroupAndList {
+        @DataColumn(value = "id",       merge = OptBoolean.TRUE) int id;
+        @DataColumn(value = "customer", merge = OptBoolean.TRUE) String customer;
+        @DataColumnGroup("Items") List<LineItemGrouped> items;
+        @DataColumnGroup("Totals") TotalsBlock totals;
+        @DataColumn(value = "memo",     merge = OptBoolean.TRUE) String memo;
+    }
+
+    @Test
+    void sheetXmlDomEquivalent_twoLevelGroup_nestedList_mergeTrue() throws Exception {
+        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
+                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
+
+        List<OrderWith2LevelGroupAndList> data = Arrays.asList(
+                new OrderWith2LevelGroupAndList(1, "Alice",
+                        Arrays.asList(
+                                new LineItemGrouped(new ProductDetail("A1", "Apple"),
+                                        3, BigDecimal.valueOf(3000)),
+                                new LineItemGrouped(new ProductDetail("A2", "Banana"),
+                                        5, BigDecimal.valueOf(5000))),
+                        new TotalsBlock(BigDecimal.valueOf(8000),
+                                BigDecimal.valueOf(800),
+                                BigDecimal.valueOf(8800)),
+                        "Paid in full"),
+                new OrderWith2LevelGroupAndList(2, "Bob",
+                        Arrays.asList(
+                                new LineItemGrouped(new ProductDetail("B1", "Cherry"),
+                                        2, BigDecimal.valueOf(3000))),
+                        new TotalsBlock(BigDecimal.valueOf(3000),
+                                BigDecimal.valueOf(300),
+                                BigDecimal.valueOf(3300)),
+                        "Net 30"));
+
+        File ssmlFile = _debugFile("dom-2level-group-nested-list-ssml.xlsx");
+        File poiFile = _debugFile("dom-2level-group-nested-list-poi.xlsx");
+
+        new SpreadsheetMapper().writeValue(ssmlFile, data, OrderWith2LevelGroupAndList.class);
+        _poiMapper().writeValue(poiFile, data, OrderWith2LevelGroupAndList.class);
 
         _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
