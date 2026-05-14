@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ser.SerializerFactory;
 import com.fasterxml.jackson.databind.util.ClassUtil;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.GridConfigurer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.ColumnNameResolver;
@@ -89,12 +90,14 @@ public final class SchemaGenerator {
             throw _invalidSchemaDefinition(type,
                     "has no visible properties — check field visibility or add getters");
         }
-        return new SpreadsheetSchema(
+        final SpreadsheetSchema schema = new SpreadsheetSchema(
                 columns,
                 _generatorSettings._origin,
                 _generatorSettings._features,
                 _generatorSettings._stylesBuilder,
                 _generatorSettings._gridConfigurer);
+        BackWriteProjection.warnIfScenario(schema);
+        return schema;
     }
 
     private void _verifyType(

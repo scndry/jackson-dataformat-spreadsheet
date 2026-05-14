@@ -29,6 +29,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
 
 /**
@@ -57,6 +58,7 @@ public final class SSMLSheetWriter implements SheetWriter {
     private CellAddress _reference;
     private int _currentRow = -1;
     private boolean _currentRowOpen;
+    private int _arrayScopeDepth;
 
     // SharedStrings
     private final SharedStringsStore _sst;
@@ -137,7 +139,7 @@ public final class SSMLSheetWriter implements SheetWriter {
         _reference = reference;
         try {
             final int row = reference.getRow();
-            if (row != _currentRow) {
+            if (row > _currentRow) {
                 _closeCurrentRowIfOpen();
                 _currentRow = row;
                 _currentRowOpen = false;
@@ -167,6 +169,10 @@ public final class SSMLSheetWriter implements SheetWriter {
     @Override
     public void writeNumeric(final double value) {
         try {
+            if (_isBackReference()) {
+                _insertCellIntoEmittedRow(_buildCellXml("n", String.valueOf(value)));
+                return;
+            }
             _appendCellStart("n").append(value);
             _appendCellEnd();
         } catch (IOException e) {
@@ -178,6 +184,10 @@ public final class SSMLSheetWriter implements SheetWriter {
     public void writeString(final String value) {
         try {
             final int index = _cacheString(value);
+            if (_isBackReference()) {
+                _insertCellIntoEmittedRow(_buildCellXml("s", String.valueOf(index)));
+                return;
+            }
             _appendCellStart("s").append(index);
             _appendCellEnd();
         } catch (IOException e) {
@@ -188,6 +198,10 @@ public final class SSMLSheetWriter implements SheetWriter {
     @Override
     public void writeBoolean(final boolean value) {
         try {
+            if (_isBackReference()) {
+                _insertCellIntoEmittedRow(_buildCellXml("b", value ? "1" : "0"));
+                return;
+            }
             _appendCellStart("b").append(value ? '1' : '0');
             _appendCellEnd();
         } catch (IOException e) {
@@ -198,6 +212,10 @@ public final class SSMLSheetWriter implements SheetWriter {
     @Override
     public void writeBlank() {
         try {
+            if (_isBackReference()) {
+                _insertCellIntoEmittedRow(_buildBlankCellXml());
+                return;
+            }
             _ensureRowOpen();
             _append("<c r=\"").append(_cellRef())
                     .append("\" s=\"").append(_resolveStyleIndex())
@@ -207,9 +225,57 @@ public final class SSMLSheetWriter implements SheetWriter {
         }
     }
 
+    private boolean _isBackReference() {
+        return _reference.getRow() < _currentRow;
+    }
+
+    private String _buildCellXml(final String type, final String value) {
+        return "<c r=\"" + _cellRef()
+                + "\" s=\"" + _resolveStyleIndex()
+                + "\" t=\"" + type + "\"><v>" + value + "</v></c>";
+    }
+
+    private String _buildBlankCellXml() {
+        return "<c r=\"" + _cellRef()
+                + "\" s=\"" + _resolveStyleIndex() + "\"/>";
+    }
+
+    private void _insertCellIntoEmittedRow(final String cellXml) {
+        // Back-write invariant: while _arrayScopeDepth > 0 the runtime
+        // monitor (_checkFlush) holds the limit so the target <row r="N">
+        // is always present in _sb when this is called. The guards below
+        // catch a refactor regression — not a user-recoverable condition.
+        final String rowOpen = "<row r=\"" + (_reference.getRow() + 1) + "\">";
+        final int openIdx = _sb.indexOf(rowOpen);
+        if (openIdx < 0) {
+            throw new IllegalStateException(
+                    "Back-write target <row r=\""
+                    + (_reference.getRow() + 1) + "\"> missing from _sb at "
+                    + _reference + " — should never happen.");
+        }
+        final int closeIdx = _sb.indexOf("</row>", openIdx);
+        if (closeIdx < 0) {
+            throw new IllegalStateException(
+                    "Back-write target <row r=\""
+                    + (_reference.getRow() + 1) + "\"> has no closing tag"
+                    + " — should never happen.");
+        }
+        _sb.insert(closeIdx, cellXml);
+    }
+
     @Override
     public void adjustColumnWidth() {
         // no-op
+    }
+
+    @Override
+    public void enterArrayScope() {
+        _arrayScopeDepth++;
+    }
+
+    @Override
+    public void exitArrayScope() {
+        _arrayScopeDepth--;
     }
 
     @Override
@@ -318,10 +384,42 @@ public final class SSMLSheetWriter implements SheetWriter {
     }
 
     private void _checkFlush() throws IOException {
+        if (_arrayScopeDepth > 0) {
+            // Runtime back-write buffer monitor — covers the case where the
+            // list size was unknown (-1) at writeStartArray so the build-time
+            // projection could not pre-check (Iterator / Stream sources).
+            // Fail-fast with a clear error before OutOfMemoryError.
+            //
+            // Unit invariant: _sb.length() (chars) vs limit (bytes).
+            // The comparison is unit-safe because every fragment appended to
+            // _sb inside an array scope is pure ASCII:
+            //   - row tag:        "<row r=\"N\">" / "</row>"
+            //   - cell tag:       "<c r=\"...\" s=\"...\" t=\"...\"><v>...</v></c>"
+            //   - numeric value:  StringBuilder.append(double) → Double.toString
+            //   - shared-string:  StringBuilder.append(int)    → Integer.toString
+            //   - boolean value:  '1' | '0'
+            // Header column names (non-ASCII possible) are emitted only outside
+            // array scope, and string content always routes through
+            // SharedStringsStore — only the int index appears in _sb. So
+            // _sb.length() == UTF-8 byte length here.
+            final long limit = BackWriteProjection.backWriteBufferLimit();
+            if (_sb.length() > limit) {
+                throw new IOException(
+                        "Nested list scope buffer reached "
+                        + BackWriteProjection.formatBytes(_sb.length())
+                        + ", exceeds limit " + BackWriteProjection.formatBytes(limit)
+                        + ". Runtime monitor triggered before OOM (list size"
+                        + " was not known up-front). Either reduce the list"
+                        + " size, switch to USE_POI_USER_MODEL, or declare the"
+                        + " outer field before the list.");
+            }
+            return;
+        }
         if (_sb.capacity() - _sb.length() < FLUSH_THRESHOLD) {
             _flush();
         }
     }
+
 
     private void _flush() throws IOException {
         _zip.write(_sb.toString().getBytes(StandardCharsets.UTF_8));

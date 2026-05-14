@@ -42,6 +42,17 @@ public interface SheetWriter extends AutoCloseable {
 
     default void restoreRowWindow() {}
 
+    /**
+     * Hook signaling that the generator entered a list scope. Streaming
+     * writers can suspend output flushing until {@link #exitArrayScope()}
+     * so that an outer field declared after the list can back-write into
+     * the list's first element row.
+     */
+    default void enterArrayScope() {}
+
+    /** Counterpart of {@link #enterArrayScope()}. */
+    default void exitArrayScope() {}
+
     void write() throws IOException;
 
     @Override
