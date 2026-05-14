@@ -48,9 +48,9 @@ final class SheetDataBuffer {
     private static final int ROW_TAG_BYTES = 23;
 
     // Lazy capacity inflated on first append, then grown 1.5× — same shape
-    // as java.util.ArrayList. Excel binding inner lists are typically small,
-    // so a 5-slot floor keeps idle buffers minimal.
-    private static final int DEFAULT_CAPACITY = 5;
+    // as java.util.ArrayList. Covers typical Excel schemas (≤ 16 columns)
+    // without grow, while keeping idle buffers minimal.
+    private static final int DEFAULT_CAPACITY = 16;
 
     private static final long[] EMPTY_LONG_ARRAY = new long[0];
     private static final int[] EMPTY_INT_ARRAY = new int[0];
