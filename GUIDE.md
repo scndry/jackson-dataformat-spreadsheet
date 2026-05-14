@@ -496,6 +496,59 @@ Customizes individual column properties. Unset attributes inherit from the enclo
 
 When `USE_POI_USER_MODEL` is enabled, `autoSize` measures the first 100 data rows in full, then samples every 100th data row thereafter. Sampling is anchored to the data start row, so a high `origin` does not skip the early data. This keeps overhead bounded for large workbooks (~1.5× write time at 100K rows). Outlier-long values that fall between sample rows after the first 100 may not influence the final width — pin a known column with `width` if exact fit matters more than sampling speed.
 
+### @DataColumnGroup
+
+Renders flattened columns from a nested object field under a shared group header. The annotation stacks across nesting depth to form multi-row headers — parent group on top, leaf names at the bottom.
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `value` | field name | Column group header name |
+| `comment` | `""` | Group header cell comment text |
+
+```java
+@DataGrid
+class Employee {
+    int id;
+    String name;
+    @DataColumnGroup(value = "Address", comment = "Customer billing address")
+    Address address;
+}
+class Address { String city; String zip; }
+```
+
+renders as:
+
+```
+| ID | Name | ====== Address ====== |
+|    |      | City      |   Zip     |
+| 1  | Alice| Seoul     |   12345   |
+```
+
+The header row count is `max(group depth) + 1`, derived automatically. Flat or shallow columns vertically merge from their hierarchy depth down to the leaf header row. Adjacent columns sharing parent path and group name merge horizontally; a different parent yields separate cells (e.g. `Q1` under `2024` vs `Q1` under `2025`). On read the parser auto-skips header rows and column reordering only matches the leaf row.
+
+For deeper hierarchies the annotation stacks naturally:
+
+```java
+class Company {
+    String name;
+    @DataColumnGroup("2024") YearMetrics year2024;
+    @DataColumnGroup("2025") YearMetrics year2025;
+}
+class YearMetrics {
+    @DataColumnGroup("Q1") QuarterMetrics q1;
+    @DataColumnGroup("Q2") QuarterMetrics q2;
+}
+class QuarterMetrics { int sales; int profit; }
+```
+
+```
+|       | ============== 2024 ============ | ============= 2025 ============ |
+|       | ===== Q1 ===== | ==== Q2 ======= | ===== Q1 ===== | ==== Q2 ====== |
+| Name  | Sales | Profit | Sales | Profit  | Sales | Profit | Sales | Profit |
+```
+
+Depth 3 is the practical limit; readability degrades beyond that. `setColumnReordering(true)` combined with `@DataColumnGroup` fails fast with `IllegalStateException` — disable reordering or remove the annotations.
+
 ### Attribute Resolution Order
 
 Column attributes resolve in priority order:

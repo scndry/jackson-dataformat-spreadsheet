@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.jsonFormatVisitors.JsonMapFormatVisitor;
 import com.fasterxml.jackson.databind.jsonFormatVisitors.JsonObjectFormatVisitor;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGroup;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
@@ -30,25 +31,29 @@ public final class FormatVisitorWrapper
     private final ColumnPointer _pointer;
     private final DataGrid.Value _grid;
     private final DataColumn.Value _column;
+    private final DataColumnGroup.Hierarchy _groupHierarchy;
     private final List<Column> _columns;
 
     public FormatVisitorWrapper() {
-        this(ColumnPointer.empty(), DataGrid.Value.empty(), DataColumn.Value.empty(), null);
+        this(ColumnPointer.empty(), DataGrid.Value.empty(), DataColumn.Value.empty(),
+                DataColumnGroup.Hierarchy.empty(), null);
     }
 
     FormatVisitorWrapper(final FormatVisitorWrapper base, final ColumnPointer pointer) {
-        this(pointer, base._grid, base._column, base._provider);
+        this(pointer, base._grid, base._column, base._groupHierarchy, base._provider);
     }
 
     FormatVisitorWrapper(
             final ColumnPointer pointer,
             final DataGrid.Value sheet,
             final DataColumn.Value column,
+            final DataColumnGroup.Hierarchy groupHierarchy,
             final SerializerProvider provider) {
         super(provider);
         _pointer = pointer;
         _grid = sheet;
         _column = column;
+        _groupHierarchy = groupHierarchy;
         _columns = new ArrayList<>();
     }
 
@@ -84,6 +89,10 @@ public final class FormatVisitorWrapper
 
     DataColumn.Value getColumn() {
         return _column;
+    }
+
+    DataColumnGroup.Hierarchy getGroupHierarchy() {
+        return _groupHierarchy;
     }
 
     boolean isEmpty() {

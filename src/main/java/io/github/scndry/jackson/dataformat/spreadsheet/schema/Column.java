@@ -7,12 +7,15 @@ import lombok.EqualsAndHashCode;
 import com.fasterxml.jackson.databind.JavaType;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGroup;
 
 /**
  * Metadata for a single spreadsheet column within a
  * {@link SpreadsheetSchema}. Holds a {@link ColumnPointer}
- * identifying the column's position in the JSON tree and the
- * {@link DataColumn.Value} annotation values.
+ * identifying the column's position in the JSON tree, the
+ * {@link DataColumn.Value} annotation values, and the
+ * {@link DataColumnGroup} hierarchy (parent-to-leaf order)
+ * collected from enclosing nested-object fields.
  *
  * @see SpreadsheetSchema
  * @see ColumnPointer
@@ -24,17 +27,34 @@ public final class Column {
 
     private final ColumnPointer _pointer;
     private final DataColumn.Value _value;
+    private final DataColumnGroup.Hierarchy _groupHierarchy;
     private final JavaType _type;
     private final String[] _aliases;
 
     public Column(final ColumnPointer pointer, final DataColumn.Value value, final JavaType type) {
-        this(pointer, value, type, NO_ALIASES);
+        this(pointer, value, DataColumnGroup.Hierarchy.empty(), type, NO_ALIASES);
     }
 
     public Column(final ColumnPointer pointer, final DataColumn.Value value,
                   final JavaType type, final String[] aliases) {
+        this(pointer, value, DataColumnGroup.Hierarchy.empty(), type, aliases);
+    }
+
+    public Column(final ColumnPointer pointer,
+                  final DataColumn.Value value,
+                  final DataColumnGroup.Hierarchy groupHierarchy,
+                  final JavaType type) {
+        this(pointer, value, groupHierarchy, type, NO_ALIASES);
+    }
+
+    public Column(final ColumnPointer pointer,
+                  final DataColumn.Value value,
+                  final DataColumnGroup.Hierarchy groupHierarchy,
+                  final JavaType type,
+                  final String[] aliases) {
         this._pointer = pointer;
         this._value = value;
+        this._groupHierarchy = groupHierarchy == null ? DataColumnGroup.Hierarchy.empty() : groupHierarchy;
         this._type = type;
         this._aliases = aliases;
     }
@@ -72,6 +92,10 @@ public final class Column {
         return _value;
     }
 
+    public DataColumnGroup.Hierarchy getGroupHierarchy() {
+        return _groupHierarchy;
+    }
+
     public boolean isMerge() {
         return _value.isMerge();
     }
@@ -92,6 +116,7 @@ public final class Column {
         return new StringJoiner(", ", Column.class.getSimpleName() + "[", "]")
                 .add("pointer=" + _pointer)
                 .add("value=" + _value)
+                .add("groupHierarchy=" + _groupHierarchy)
                 .add("type=" + _type)
                 .toString();
     }

@@ -91,6 +91,12 @@ public final class SheetParser extends ParserMinimalBase {
     @Override
     public void setSchema(final FormatSchema schema) {
         _schema = (SpreadsheetSchema) schema;
+        if (_schema.getHeaderRowCount() > 1 && _schema.reordersColumns()) {
+            throw new IllegalStateException(
+                    "Column reordering is not supported with multi-row headers"
+                    + " (@DataColumnGroup). Disable column reordering or remove the"
+                    + " @DataColumnGroup annotations from the target class.");
+        }
         _parsingContext = SheetStreamContext.createRootContext(_schema);
     }
 
@@ -211,13 +217,18 @@ public final class SheetParser extends ParserMinimalBase {
         }
         SheetToken token = _reader.next();
         if (token == SheetToken.ROW_START) {
-            if (!_headerProcessed && _schema.usesHeader()
-                    && _schema.reordersColumns()
-                    && _reader.getRow() == _schema.getOriginRow()) {
-                _reorderSchemaByHeader();
-                _headerProcessed = true;
-            }
-            while (!_schema.isInRowBounds(_reader.getRow())) {
+            // Skip header rows (group rows + leaf header row). The reorder
+            // hook fires only when the reader sits on the leaf header row,
+            // so the check must run inside the skip loop — otherwise multi-
+            // row headers blow past the leaf row before reorder can happen.
+            while (true) {
+                if (!_headerProcessed && _schema.usesHeader()
+                        && _schema.reordersColumns()
+                        && _reader.getRow() == _schema.getLeafHeaderRow()) {
+                    _reorderSchemaByHeader();
+                    _headerProcessed = true;
+                }
+                if (_schema.isInRowBounds(_reader.getRow())) break;
                 token = _reader.next();
                 if (token == SheetToken.SHEET_DATA_END) break;
             }

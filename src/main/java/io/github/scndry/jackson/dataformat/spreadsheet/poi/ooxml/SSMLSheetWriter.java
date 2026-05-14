@@ -24,9 +24,11 @@ import org.apache.poi.xssf.usermodel.XSSFRelation;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGroup;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.HeaderLayoutVisitor;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
@@ -158,12 +160,28 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     @Override
     public void writeHeaders() {
-        final int row = _schema.getOriginRow();
-        for (final Column column : _schema) {
-            final int col = _schema.columnIndexOf(column);
-            setReference(new CellAddress(row, col));
-            writeString(column.getName());
-        }
+        _schema.forEachHeaderCell(new HeaderLayoutVisitor() {
+            @Override
+            public void visitColumnHeader(final int row, final int col, final Column column) {
+                setReference(new CellAddress(row, col));
+                writeString(column.getName());
+            }
+
+            @Override
+            public void visitGroupCell(final int row, final int firstCol, final int lastCol,
+                                       final DataColumnGroup.Value group) {
+                setReference(new CellAddress(row, firstCol));
+                writeString(group.getName());
+                if (firstCol < lastCol) {
+                    _mergeRanges.add(new MergeRange(row, row, firstCol, lastCol));
+                }
+            }
+
+            @Override
+            public void visitVerticalMerge(final int firstRow, final int lastRow, final int col) {
+                _mergeRanges.add(new MergeRange(firstRow, lastRow, col, col));
+            }
+        });
     }
 
     @Override
@@ -287,7 +305,7 @@ public final class SSMLSheetWriter implements SheetWriter {
             if (pointer.relativize(column.getPointer()).contains(ColumnPointer.array())) continue;
             final int col = _schema.columnIndexOf(column);
             if (col < 0) continue;
-            _mergeRanges.add(new MergeRange(row, row + size - 1, col));
+            _mergeRanges.add(new MergeRange(row, row + size - 1, col, col));
         }
     }
 
@@ -584,9 +602,9 @@ public final class SSMLSheetWriter implements SheetWriter {
         sb.append("<mergeCells count=\"").append(_mergeRanges.size()).append("\">");
         for (final MergeRange range : _mergeRanges) {
             sb.append("<mergeCell ref=\"")
-                    .append(_cellRef(range._firstRow, range._column))
+                    .append(_cellRef(range._firstRow, range._firstColumn))
                     .append(":")
-                    .append(_cellRef(range._lastRow, range._column))
+                    .append(_cellRef(range._lastRow, range._lastColumn))
                     .append("\"/>");
         }
         sb.append("</mergeCells>");
@@ -718,12 +736,15 @@ public final class SSMLSheetWriter implements SheetWriter {
     private static final class MergeRange {
         final int _firstRow;
         final int _lastRow;
-        final int _column;
+        final int _firstColumn;
+        final int _lastColumn;
 
-        MergeRange(final int firstRow, final int lastRow, final int column) {
+        MergeRange(final int firstRow, final int lastRow,
+                   final int firstColumn, final int lastColumn) {
             _firstRow = firstRow;
             _lastRow = lastRow;
-            _column = column;
+            _firstColumn = firstColumn;
+            _lastColumn = lastColumn;
         }
     }
 

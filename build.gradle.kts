@@ -97,6 +97,13 @@ mavenPublishing {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // Forward selected -P properties to the test JVM as system properties so
+    // demo-style tests (gated by @EnabledIfSystemProperty) can opt in.
+    listOf("demo").forEach { name ->
+        if (project.hasProperty(name)) {
+            systemProperty(name, project.property(name)!!)
+        }
+    }
 }
 
 jmh {

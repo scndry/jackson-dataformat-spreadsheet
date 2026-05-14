@@ -108,7 +108,7 @@ public final class GridConfigurer {
         if (!_autoFilter || schema.columnCount() == 0) return;
         final int firstCol = schema.getOriginColumn();
         final int lastCol = firstCol + schema.columnCount() - 1;
-        final int firstRow = schema.getOriginRow();
+        final int firstRow = schema.getLeafHeaderRow();
         final int endRow = lastRow < 0
                 ? sheet.getWorkbook().getSpreadsheetVersion().getMaxRows() - 1
                 : lastRow;

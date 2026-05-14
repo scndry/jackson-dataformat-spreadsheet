@@ -22,9 +22,11 @@ import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGroup;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.HeaderLayoutVisitor;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
@@ -85,12 +87,28 @@ public final class POISheetWriter implements SheetWriter {
 
     @Override
     public void writeHeaders() {
-        final int row = _schema.getOriginRow();
-        for (final Column column : _schema) {
-            final int col = _schema.columnIndexOf(column);
-            setReference(new CellAddress(row, col));
-            writeString(column.getName());
-        }
+        _schema.forEachHeaderCell(new HeaderLayoutVisitor() {
+            @Override
+            public void visitColumnHeader(final int row, final int col, final Column column) {
+                setReference(new CellAddress(row, col));
+                writeString(column.getName());
+            }
+
+            @Override
+            public void visitGroupCell(final int row, final int firstCol, final int lastCol,
+                                       final DataColumnGroup.Value group) {
+                setReference(new CellAddress(row, firstCol));
+                writeString(group.getName());
+                if (firstCol < lastCol) {
+                    _sheet.addMergedRegion(new CellRangeAddress(row, row, firstCol, lastCol));
+                }
+            }
+
+            @Override
+            public void visitVerticalMerge(final int firstRow, final int lastRow, final int col) {
+                _sheet.addMergedRegion(new CellRangeAddress(firstRow, lastRow, col, col));
+            }
+        });
     }
 
     @Override

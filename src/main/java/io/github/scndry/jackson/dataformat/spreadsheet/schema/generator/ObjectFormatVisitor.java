@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.util.ClassUtil;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.ExcelDateModule;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGroup;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
@@ -56,12 +57,15 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
         final ColumnPointer pointer = _wrapper.getPointer().resolve(prop.getName());
         final DataGrid.Value gridValue = _gridValue(prop);
         final DataColumn.Value columnValue = _columnValue(prop, gridValue);
+        final DataColumnGroup.Value groupValue = _columnGroupValue(prop);
+
+        final DataColumnGroup.Hierarchy childHierarchy = _wrapper.getGroupHierarchy().append(groupValue);
 
         final JsonTypeInfo typeInfo = type.getRawClass().getAnnotation(JsonTypeInfo.class);
         final JsonSubTypes subTypes = type.getRawClass().getAnnotation(JsonSubTypes.class);
         if (typeInfo != null && subTypes != null
                 && typeInfo.include() == JsonTypeInfo.As.PROPERTY) {
-            _polymorphicProperty(pointer, gridValue, columnValue, typeInfo, subTypes);
+            _polymorphicProperty(pointer, gridValue, columnValue, childHierarchy, typeInfo, subTypes);
             return;
         }
 
@@ -69,14 +73,20 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
                 pointer,
                 gridValue,
                 columnValue,
+                childHierarchy,
                 _provider);
         final JsonSerializer<Object> serializer = _findValueSerializer(prop);
         _checkTypeSupported(serializer);
         serializer.acceptJsonFormatVisitor(visitor, type);
         if (visitor.isEmpty()) {
+            if (!groupValue.isEmpty() && log.isWarnEnabled()) {
+                log.warn("@DataColumnGroup on leaf field {} is ignored "
+                        + "(group requires a nested object).", pointer);
+            }
             final String columnName = _resolveColumnName(prop);
             final String[] aliases = _aliases(prop);
-            _wrapper.add(new Column(pointer, columnValue.withName(columnName), type, aliases));
+            _wrapper.add(new Column(pointer, columnValue.withName(columnName),
+                    _wrapper.getGroupHierarchy(), type, aliases));
         } else {
             _wrapper.addAll(visitor);
         }
@@ -86,6 +96,7 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
             final ColumnPointer pointer,
             final DataGrid.Value gridValue,
             final DataColumn.Value columnValue,
+            final DataColumnGroup.Hierarchy hierarchy,
             final JsonTypeInfo typeInfo,
             final JsonSubTypes subTypes) throws JsonMappingException {
         // Type discriminator column
@@ -93,6 +104,7 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
         final ColumnPointer discPointer = pointer.resolve(discriminator);
         _wrapper.add(new Column(discPointer,
                 columnValue.withName(discriminator),
+                hierarchy,
                 _provider.constructType(String.class)));
 
         // Union of all subtype fields (deduplicated by pointer)
@@ -101,7 +113,7 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
         for (final JsonSubTypes.Type sub : subTypes.value()) {
             final JavaType subType = _provider.constructType(sub.value());
             final FormatVisitorWrapper visitor = new FormatVisitorWrapper(
-                    pointer, gridValue, columnValue, _provider);
+                    pointer, gridValue, columnValue, hierarchy, _provider);
             final JsonSerializer<Object> ser = _provider.findValueSerializer(subType);
             ser.acceptJsonFormatVisitor(visitor, subType);
             for (final Column col : visitor) {
@@ -143,6 +155,13 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
     private DataColumn.Value _columnValue(BeanProperty prop, DataGrid.Value grid) {
         final DataColumn ann = prop.getAnnotation(DataColumn.class);
         return DataColumn.Value.from(ann).withDefaults(grid);
+    }
+
+    private DataColumnGroup.Value _columnGroupValue(BeanProperty prop) {
+        final DataColumnGroup ann = prop.getAnnotation(DataColumnGroup.class);
+        if (ann == null) return DataColumnGroup.Value.empty();
+        final String name = ann.value().isEmpty() ? prop.getName() : ann.value();
+        return new DataColumnGroup.Value(name, ann.comment());
     }
 
     private void _checkTypeSupported(
