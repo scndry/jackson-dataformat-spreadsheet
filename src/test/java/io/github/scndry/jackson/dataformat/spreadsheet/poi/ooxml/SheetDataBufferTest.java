@@ -180,8 +180,8 @@ class SheetDataBufferTest {
 
     @Test
     void growth_handles10000Cells() {
-        // Beyond INITIAL_CELL_CAPACITY (64) and INITIAL_ROW_CAPACITY (16) —
-        // exercises 1.5× growth on both cell arrays and row directory.
+        // Far beyond the DEFAULT_CAPACITY (5) lazy alloc — exercises
+        // repeated 1.5× growth on both cell arrays and row directory.
         SheetDataBuffer buf = new SheetDataBuffer(8);
         for (int row = 0; row < 1_000; row++) {
             for (int col = 0; col < 10; col++) {

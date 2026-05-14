@@ -47,8 +47,13 @@ final class SheetDataBuffer {
     private static final int MAX_CELL_BYTES = 68;
     private static final int ROW_TAG_BYTES = 23;
 
-    private static final int INITIAL_CELL_CAPACITY = 64;
-    private static final int INITIAL_ROW_CAPACITY = 16;
+    // Lazy capacity inflated on first append, then grown 1.5× — same shape
+    // as java.util.ArrayList. Excel binding inner lists are typically small,
+    // so a 5-slot floor keeps idle buffers minimal.
+    private static final int DEFAULT_CAPACITY = 5;
+
+    private static final long[] EMPTY_LONG_ARRAY = new long[0];
+    private static final int[] EMPTY_INT_ARRAY = new int[0];
 
     private static final int TYPE_BITS = 3;
     private static final int STYLE_BITS = 15;
@@ -65,15 +70,15 @@ final class SheetDataBuffer {
     private static final long COL_MASK = (1L << COL_BITS) - 1;
     private static final long ROW_MASK = (1L << ROW_BITS) - 1;
 
-    private long[] _packed;
-    private long[] _values;
-    private int[] _next;
+    private long[] _packed = EMPTY_LONG_ARRAY;
+    private long[] _values = EMPTY_LONG_ARRAY;
+    private int[] _next = EMPTY_INT_ARRAY;
     private int _size;
 
     private int _rowBase;
     private int _rowSpan;
-    private int[] _rowHead;
-    private int[] _rowTail;
+    private int[] _rowHead = EMPTY_INT_ARRAY;
+    private int[] _rowTail = EMPTY_INT_ARRAY;
 
     private final String[] _colLetters;
 
@@ -82,11 +87,6 @@ final class SheetDataBuffer {
             throw new IllegalArgumentException(
                     "colLetterCacheSize must be >= 1, got " + colLetterCacheSize);
         }
-        _packed = new long[INITIAL_CELL_CAPACITY];
-        _values = new long[INITIAL_CELL_CAPACITY];
-        _next = new int[INITIAL_CELL_CAPACITY];
-        _rowHead = new int[INITIAL_ROW_CAPACITY];
-        _rowTail = new int[INITIAL_ROW_CAPACITY];
         _colLetters = new String[colLetterCacheSize];
     }
 
@@ -242,22 +242,23 @@ final class SheetDataBuffer {
 
     private void _ensureCellCapacity(final int required) {
         if (required <= _packed.length) return;
-        int next = _packed.length;
-        while (next < required) {
-            next = next + (next >> 1) + 1;
-        }
-        _packed = Arrays.copyOf(_packed, next);
-        _values = Arrays.copyOf(_values, next);
-        _next = Arrays.copyOf(_next, next);
+        final int newCap = _grow(_packed.length, required);
+        _packed = Arrays.copyOf(_packed, newCap);
+        _values = Arrays.copyOf(_values, newCap);
+        _next = Arrays.copyOf(_next, newCap);
     }
 
     private void _ensureRowCapacity(final int required) {
         if (required <= _rowHead.length) return;
-        int next = _rowHead.length;
-        while (next < required) {
-            next = next + (next >> 1) + 1;
+        final int newCap = _grow(_rowHead.length, required);
+        _rowHead = Arrays.copyOf(_rowHead, newCap);
+        _rowTail = Arrays.copyOf(_rowTail, newCap);
+    }
+
+    private static int _grow(final int oldCap, final int required) {
+        if (oldCap == 0) {
+            return Math.max(DEFAULT_CAPACITY, required);
         }
-        _rowHead = Arrays.copyOf(_rowHead, next);
-        _rowTail = Arrays.copyOf(_rowTail, next);
+        return Math.max(oldCap + (oldCap >> 1), required);
     }
 }
