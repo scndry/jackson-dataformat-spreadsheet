@@ -137,23 +137,22 @@ class BackWriteProjectionTest {
     }
 
     // ----------------------------------------------------------------
-    // backWriteBufferLimit — max(4 MB, heap/32)
+    // backWriteBufferLimit — max(1 MB, heap/128)
     // ----------------------------------------------------------------
 
     @Test
-    void backWriteBufferLimit_isAtLeastFourMegaFloor() {
+    void backWriteBufferLimit_isAtLeastOneMegaFloor() {
         assertThat(BackWriteProjection.backWriteBufferLimit())
-                .isGreaterThanOrEqualTo(4L * 1024 * 1024);
+                .isGreaterThanOrEqualTo(1L * 1024 * 1024);
     }
 
     @Test
-    void backWriteBufferLimit_doesNotExceedHeapOverThirtyTwo() {
-        // Limit is max(4 MB, heap/32). The cap matches max — so the limit
-        // is never above heap/32 except when heap/32 < 4 MB (small heap),
-        // in which case the floor takes over. Verify the formula's upper
-        // half: limit ≤ max(floor, heap/32).
+    void backWriteBufferLimit_matchesHeapOver128Formula() {
+        // Limit is max(1 MB, heap/128). The cap matches max — so the limit
+        // is never above heap/128 except when heap/128 < 1 MB (small heap),
+        // in which case the floor takes over.
         final long heap = Runtime.getRuntime().maxMemory();
-        final long expected = Math.max(4L * 1024 * 1024, heap / 32);
+        final long expected = Math.max(1L * 1024 * 1024, heap / 128);
         assertThat(BackWriteProjection.backWriteBufferLimit()).isEqualTo(expected);
     }
 
