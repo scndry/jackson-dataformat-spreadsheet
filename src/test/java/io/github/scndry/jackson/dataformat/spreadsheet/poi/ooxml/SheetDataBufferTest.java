@@ -142,19 +142,15 @@ class SheetDataBufferTest {
     }
 
     @Test
-    void byteSize_isUpperBoundOfFlushOutput() {
+    void byteSize_reflectsCellAndRowMemory() {
         SheetDataBuffer buf = new SheetDataBuffer(4);
         buf.appendNumeric(0, 0, 0, 1);
         buf.appendNumeric(0, 1, 0, 2);
         buf.appendNumeric(1, 0, 0, 3);
 
-        // 3 cells × 68 + 2 row tags × 23 = 250 — upper bound
-        final long predicted = buf.byteSize();
-        assertThat(predicted).isEqualTo(3L * 68 + 2L * 23);
-
-        StringBuilder sb = new StringBuilder();
-        buf.flushTo(sb);
-        assertThat((long) sb.length()).isLessThanOrEqualTo(predicted);
+        // 3 cells × 20 (long _packed + long _values + int _next)
+        //   + 2 rows × 8 (int _rowHead + int _rowTail) = 76 bytes
+        assertThat(buf.byteSize()).isEqualTo(3L * 20 + 2L * 8);
     }
 
     @Test

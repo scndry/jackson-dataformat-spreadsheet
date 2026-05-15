@@ -34,50 +34,29 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class BackWriteProjectionTest {
 
-    // Constants mirror BackWriteProjection — duplicated here as a test
-    // contract: if the writer-side numbers change, this test must change.
-    private static final int CELL_FIXED_OVERHEAD = 27 + 10 + 5 + 1;   // tags + ref + style + type
-    private static final int ROW_TAG_BYTES = 23;
+    // SoA internal memory units — must stay in sync with
+    // BackWriteProjection.{CELL_MEMORY_BYTES, ROW_MEMORY_BYTES}.
+    private static final int CELL_MEMORY_BYTES = 20;
+    private static final int ROW_MEMORY_BYTES = 8;
 
     // ----------------------------------------------------------------
-    // cellMaxBytes — every supported Java type has a bounded cell XML
+    // cellMaxBytes — SoA cell record is a fixed 20 bytes regardless of
+    // Java type (long _packed + long _values + int _next).
     // ----------------------------------------------------------------
 
     @Test
-    void cellMaxBytes_booleanIsOneCharValue() {
-        assertThat(BackWriteProjection.cellMaxBytes(_column(boolean.class)))
-                .isEqualTo(CELL_FIXED_OVERHEAD + 1);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(Boolean.class)))
-                .isEqualTo(CELL_FIXED_OVERHEAD + 1);
-    }
-
-    @Test
-    void cellMaxBytes_sharedStringTypesAreTenCharIndex() {
-        // String / Enum / BigDecimal / BigInteger all route through
-        // SharedStringsStore, so only the int index (max 10 digits) lands
-        // in the cell XML.
-        final int expected = CELL_FIXED_OVERHEAD + 10;
-        assertThat(BackWriteProjection.cellMaxBytes(_column(String.class)))
-                .isEqualTo(expected);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(SampleEnum.class)))
-                .isEqualTo(expected);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(BigDecimal.class)))
-                .isEqualTo(expected);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(BigInteger.class)))
-                .isEqualTo(expected);
-    }
-
-    @Test
-    void cellMaxBytes_numericAndDateUseDoubleWorstCase() {
-        // All numeric overloads route through writeNumeric(double) →
-        // StringBuilder.append(double) — Double.toString worst case 25 chars.
-        // Date / java.time.* route through writeNumber(double serial), same bound.
-        final int expected = CELL_FIXED_OVERHEAD + 25;
-        assertThat(BackWriteProjection.cellMaxBytes(_column(int.class))).isEqualTo(expected);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(long.class))).isEqualTo(expected);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(float.class))).isEqualTo(expected);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(double.class))).isEqualTo(expected);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(Date.class))).isEqualTo(expected);
+    void cellMaxBytes_isConstantAcrossAllSupportedTypes() {
+        assertThat(BackWriteProjection.cellMaxBytes(_column(boolean.class))).isEqualTo(CELL_MEMORY_BYTES);
+        assertThat(BackWriteProjection.cellMaxBytes(_column(Boolean.class))).isEqualTo(CELL_MEMORY_BYTES);
+        assertThat(BackWriteProjection.cellMaxBytes(_column(String.class))).isEqualTo(CELL_MEMORY_BYTES);
+        assertThat(BackWriteProjection.cellMaxBytes(_column(SampleEnum.class))).isEqualTo(CELL_MEMORY_BYTES);
+        assertThat(BackWriteProjection.cellMaxBytes(_column(BigDecimal.class))).isEqualTo(CELL_MEMORY_BYTES);
+        assertThat(BackWriteProjection.cellMaxBytes(_column(BigInteger.class))).isEqualTo(CELL_MEMORY_BYTES);
+        assertThat(BackWriteProjection.cellMaxBytes(_column(int.class))).isEqualTo(CELL_MEMORY_BYTES);
+        assertThat(BackWriteProjection.cellMaxBytes(_column(long.class))).isEqualTo(CELL_MEMORY_BYTES);
+        assertThat(BackWriteProjection.cellMaxBytes(_column(float.class))).isEqualTo(CELL_MEMORY_BYTES);
+        assertThat(BackWriteProjection.cellMaxBytes(_column(double.class))).isEqualTo(CELL_MEMORY_BYTES);
+        assertThat(BackWriteProjection.cellMaxBytes(_column(Date.class))).isEqualTo(CELL_MEMORY_BYTES);
     }
 
     enum SampleEnum { A }
@@ -110,9 +89,9 @@ class BackWriteProjectionTest {
         final SpreadsheetSchema schema = _schemaFor(Outer.class);
         final ColumnPointer arrayPointer = _findInnerArrayPointer(schema);
 
-        // Inner has 1 numeric column → cellMax 68 + row tag 23 = 91 bytes.
+        // Inner has 1 column → cellMemory 20 + rowMemory 8 = 28 bytes.
         final long projected = BackWriteProjection.project(schema, arrayPointer, 1);
-        assertThat(projected).isEqualTo(ROW_TAG_BYTES + (CELL_FIXED_OVERHEAD + 25));
+        assertThat(projected).isEqualTo(ROW_MEMORY_BYTES + CELL_MEMORY_BYTES);
     }
 
     @Test
