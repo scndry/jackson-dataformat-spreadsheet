@@ -271,7 +271,7 @@ mapper.writeValue(file, employee)
 | | SSMLSheetWriter (default) | POISheetWriter (`USE_POI_USER_MODEL`) |
 |---|---|---|
 | Packaging | POI scaffold + ZipOutputStream | POI `Workbook.write()` |
-| Cell writing | StringBuilder → ZipOutputStream | POI `Cell.setCellValue()` |
+| Cell writing | SoA buffer → StringBuilder → ZipOutputStream | POI `Cell.setCellValue()` |
 | Shared strings | `SharedStringsStore` (in-memory or file-backed) | POI managed |
 | Styles | POI `CellStyle.getIndex()` from scaffold | POI `CellStyle` API |
 | Performance | ~150 ms / 100K rows | ~335 ms / 100K rows |
@@ -299,7 +299,7 @@ close()
   └─ delete temp file
 ```
 
-POI owns OOXML correctness. StringBuilder owns per-cell throughput. The scaffold is the handoff between them.
+POI owns OOXML correctness. A row-linked SoA cell buffer feeds the StringBuilder per fragment, owning per-cell throughput. The scaffold is the handoff between them. Cell metadata stays in the buffer until the record completes, so outer fields declared after a nested list back-write into past rows in O(1).
 
 `GridConfigurer` attaches sheet-level features (freeze pane, auto filter, conditional formatting) to the schema. `POISheetWriter` applies them after data is written; `SSMLSheetWriter` applies them to the scaffold in `setSchema()`, so POI's generated XML carries through the `sheet1.xml` split.
 
