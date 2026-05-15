@@ -469,7 +469,8 @@ Marks the root type for schema generation. Attributes set class-level defaults f
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `columnStyle` | `""` | Default cell style for data cells |
-| `columnHeaderStyle` | `""` | Default cell style for header cells |
+| `columnHeaderStyle` | `""` | Default cell style for leaf header cells |
+| `groupHeaderStyle` | `""` | Default cell style for `@DataColumnGroup` header cells |
 | `columnWidth` | `-1` (auto) | Default column width in character units |
 | `autoSizeColumn` | `DEFAULT` | Auto-size columns to fit content |
 | `minColumnWidth` | `-1` (none) | Minimum column width |
@@ -506,6 +507,7 @@ Renders flattened columns from a nested object field under a shared group header
 |-----------|---------|-------------|
 | `value` | field name | Column group header name |
 | `comment` | `""` | Group header cell comment text |
+| `headerStyle` | `""` | Cell style for the group header cell |
 
 ```java
 @DataGrid
@@ -566,6 +568,10 @@ Column attributes resolve in priority order:
 1. `@DataColumn` on the property
 2. `@DataGrid` on the declaring class
 3. `@DataGrid` on the enclosing (parent) class
+
+`@DataColumnGroup.headerStyle` follows the same chain, falling back to
+`@DataGrid.groupHeaderStyle` from the declaring class, then from the
+enclosing class.
 
 ```java
 @DataGrid(autoSizeColumn = OptBoolean.FALSE)

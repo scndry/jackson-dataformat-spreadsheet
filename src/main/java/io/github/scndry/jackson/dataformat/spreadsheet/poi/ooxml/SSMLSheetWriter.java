@@ -71,6 +71,7 @@ public final class SSMLSheetWriter implements SheetWriter {
     // Styles — resolved from POI XSSFWorkbook
     private XSSFWorkbook _wb;
     private File _scaffold;
+    private Styles _styles;
     private int[] _columnStyleIndex;
     private int[] _headerColumnStyleIndex;
     private final List<MergeRange> _mergeRanges = new ArrayList<>();
@@ -111,13 +112,13 @@ public final class SSMLSheetWriter implements SheetWriter {
         _data = new SheetDataBuffer(schema.getOriginColumn() + schema.columnCount());
         try {
             _wb = _sheet.getWorkbook();
-            final Styles styles = _schema.buildStyles(_wb);
+            _styles = _schema.buildStyles(_wb);
             _schema.applyHeaderComments(_sheet);
-            _schema.configureSheet(_sheet, styles, -1);
+            _schema.configureSheet(_sheet, _styles, -1);
             _writeScaffoldWorkbook();
             _splitScaffoldSheetXml();
-            _columnStyleIndex = _resolveColumnStyleIndices(styles, false);
-            _headerColumnStyleIndex = _resolveColumnStyleIndices(styles, true);
+            _columnStyleIndex = _resolveColumnStyleIndices(_styles, false);
+            _headerColumnStyleIndex = _resolveColumnStyleIndices(_styles, true);
             _wb.close();
             _wb = null;
             _sheet = null;
@@ -158,7 +159,15 @@ public final class SSMLSheetWriter implements SheetWriter {
             public void visitGroupCell(final int row, final int firstCol, final int lastCol,
                                        final DataColumnGroup.Value group) {
                 setReference(new CellAddress(row, firstCol));
-                writeString(group.getName());
+                final CellStyle gs = _styles.getGroupHeaderStyle(group);
+                if (gs == null) {
+                    writeString(group.getName());
+                } else {
+                    final int sstIdx = _cacheString(group.getName());
+                    _flushIfForwardJump();
+                    _data.appendString(row, firstCol, gs.getIndex(), sstIdx);
+                    _checkBufferLimitInArrayScope();
+                }
                 if (firstCol < lastCol) {
                     _mergeRanges.add(new MergeRange(row, row, firstCol, lastCol));
                 }

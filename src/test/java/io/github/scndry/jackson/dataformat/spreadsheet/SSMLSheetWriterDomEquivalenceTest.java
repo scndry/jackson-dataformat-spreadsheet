@@ -13,6 +13,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.poi.openxml4j.opc.OPCPackage;
+import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,7 @@ import com.fasterxml.jackson.annotation.OptBoolean;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGroup;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -275,6 +277,42 @@ class SSMLSheetWriterDomEquivalenceTest {
         _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
+    // -- @DataColumnGroup styled attributes: headerStyle on the group cell,
+    //    columnStyle / columnHeaderStyle cascading into the leaf children.
+    //    Verifies SSML applies the resolved styles at the same cell positions
+    //    that POI does (same style index for the same cell).
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class StyledLeaves {
+        @DataColumn("city") String city;
+        @DataColumn("zip") String zip;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class StyledGroupedEntry {
+        @DataColumn("id") int id;
+        @DataColumnGroup(value = "address",
+                headerStyle = "groupHdr",
+                columnStyle = "childData",
+                columnHeaderStyle = "childHdr")
+        StyledLeaves address;
+    }
+
+    @Test
+    void sheetXmlDomEquivalent_groupStyledAttributes() throws Exception {
+        File ssmlFile = _debugFile("dom-group-styled-ssml.xlsx");
+        File poiFile = _debugFile("dom-group-styled-poi.xlsx");
+
+        List<StyledGroupedEntry> data = Arrays.asList(
+                new StyledGroupedEntry(1, new StyledLeaves("Seoul", "12345")),
+                new StyledGroupedEntry(2, new StyledLeaves("Busan", "67890")));
+
+        _styledMapper().writeValue(ssmlFile, data, StyledGroupedEntry.class);
+        _styledPoiMapper().writeValue(poiFile, data, StyledGroupedEntry.class);
+
+        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+    }
+
     // -- 2-level @DataColumnGroup (3 header rows) + nested List + outer
     //    fields with merge=TRUE after the list. Tests that back-write
     //    into the first record row resolves against schema.getDataRow()
@@ -363,6 +401,32 @@ class SSMLSheetWriterDomEquivalenceTest {
         return new SpreadsheetMapper(
                 new SpreadsheetFactory(XSSFWorkbook::new, SpreadsheetFactory.DEFAULT_SHEET_PARSER_FEATURE_FLAGS)
                         .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL));
+    }
+
+    private static StylesBuilder _groupStyles() {
+        return new StylesBuilder()
+                .cellStyle("groupHdr")
+                    .fillForegroundColor(IndexedColors.YELLOW)
+                    .fillPattern().solidForeground()
+                    .end()
+                .cellStyle("childHdr")
+                    .fillForegroundColor(IndexedColors.GREY_25_PERCENT)
+                    .fillPattern().solidForeground()
+                    .end()
+                .cellStyle("childData")
+                    .font().bold().end()
+                    .end();
+    }
+
+    private static SpreadsheetMapper _styledMapper() {
+        return SpreadsheetMapper.builder().stylesBuilder(_groupStyles()).build();
+    }
+
+    private static SpreadsheetMapper _styledPoiMapper() {
+        return SpreadsheetMapper.builder()
+                .stylesBuilder(_groupStyles())
+                .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+                .build();
     }
 
     private static void _assertPartEqualIgnoringDimension(

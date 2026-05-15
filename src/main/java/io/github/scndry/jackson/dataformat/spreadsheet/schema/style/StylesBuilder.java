@@ -12,6 +12,7 @@ import java.util.Map;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Workbook;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGroup;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 
@@ -107,6 +108,17 @@ public final class StylesBuilder implements Builder<Styles> {
         @Override
         public CellStyle getHeaderStyle(final Column column) {
             return _findStyle(column.getValue().getHeaderStyle(), column);
+        }
+
+        @Override
+        public CellStyle getGroupHeaderStyle(final DataColumnGroup.Value group) {
+            final String name = group.getHeaderStyle();
+            if (name.isEmpty()) return null;
+            final CellStyle style = _styles.get(name);
+            if (style == null) {
+                throw new IllegalStateException("Style '" + name + "' is not registered");
+            }
+            return style;
         }
 
         private CellStyle _findStyle(final String name, final Column column) {
