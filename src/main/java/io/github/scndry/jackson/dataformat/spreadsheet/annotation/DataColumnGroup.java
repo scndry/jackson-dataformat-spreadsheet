@@ -12,6 +12,7 @@ import java.util.List;
 import lombok.EqualsAndHashCode;
 
 import com.fasterxml.jackson.annotation.JacksonAnnotationValue;
+import com.fasterxml.jackson.annotation.OptBoolean;
 
 /**
  * Annotates a nested object field to render its flattened columns
@@ -30,6 +31,15 @@ import com.fasterxml.jackson.annotation.JacksonAnnotationValue;
  * <p>If combined with {@link com.fasterxml.jackson.annotation.JsonUnwrapped @JsonUnwrapped}
  * on the same field, the group is silently ignored.
  *
+ * <p>Unset {@link #headerStyle()} inherits {@link DataGrid#groupHeaderStyle()}
+ * from the declaring class, then the enclosing class.
+ *
+ * <p>The other attributes mirror {@link DataGrid}'s cascade slots and
+ * act as intermediate defaults for the child leaf columns of this
+ * group. Child {@link DataColumn} attributes resolve from the leaf
+ * itself, then from the innermost enclosing group, then outward, then
+ * from the {@link DataGrid} on the declaring/enclosing class.
+ *
  * @see DataGrid
  * @see DataColumn
  * @see io.github.scndry.jackson.dataformat.spreadsheet.schema.Column
@@ -45,21 +55,74 @@ public @interface DataColumnGroup {
     /** Comment text for the header cell of this column group. */
     String comment() default "";
 
+    /** Cell style name for the header cell of this column group. */
+    String headerStyle() default "";
+
+    /** Default cell style name for child data cells. */
+    String columnStyle() default "";
+
+    /** Default cell style name for child leaf header cells. */
+    String columnHeaderStyle() default "";
+
+    /** Default child column width in character units ({@code -1} = auto). */
+    int columnWidth() default DataGrid.DEFAULT_COLUMN_WIDTH;
+
+    /** Whether to auto-size child columns to fit content. */
+    OptBoolean autoSizeColumn() default OptBoolean.DEFAULT;
+
+    /** Minimum child column width ({@code -1} = no minimum). */
+    int minColumnWidth() default DataGrid.DEFAULT_MIN_COLUMN_WIDTH;
+
+    /** Maximum child column width (default 255). */
+    int maxColumnWidth() default DataGrid.DEFAULT_MAX_COLUMN_WIDTH;
+
+    /** Whether to merge child cells vertically for repeated values. */
+    OptBoolean mergeColumn() default OptBoolean.DEFAULT;
+
     @EqualsAndHashCode
     final class Value implements JacksonAnnotationValue<DataColumnGroup> {
 
-        private static final Value EMPTY = new Value("", "");
+        private static final Value EMPTY = new Value();
 
         private final String _name;
         private final String _comment;
+        private final String _headerStyle;
+        private final String _columnStyle;
+        private final String _columnHeaderStyle;
+        private final int _columnWidth;
+        private final OptBoolean _autoSizeColumn;
+        private final int _minColumnWidth;
+        private final int _maxColumnWidth;
+        private final OptBoolean _mergeColumn;
 
-        public Value(final String name, final String comment) {
+        public Value(final String name, final String comment, final String headerStyle,
+                     final String columnStyle, final String columnHeaderStyle,
+                     final int columnWidth, final OptBoolean autoSizeColumn,
+                     final int minColumnWidth, final int maxColumnWidth,
+                     final OptBoolean mergeColumn) {
             _name = name;
             _comment = comment;
+            _headerStyle = headerStyle;
+            _columnStyle = columnStyle;
+            _columnHeaderStyle = columnHeaderStyle;
+            _columnWidth = columnWidth;
+            _autoSizeColumn = autoSizeColumn;
+            _minColumnWidth = minColumnWidth;
+            _maxColumnWidth = maxColumnWidth;
+            _mergeColumn = mergeColumn;
+        }
+
+        private Value() {
+            this("", "", "", "", "", DataGrid.DEFAULT_COLUMN_WIDTH, OptBoolean.DEFAULT,
+                    DataGrid.DEFAULT_MIN_COLUMN_WIDTH, DataGrid.DEFAULT_MAX_COLUMN_WIDTH,
+                    OptBoolean.DEFAULT);
         }
 
         private Value(final DataColumnGroup ann) {
-            this(ann.value(), ann.comment());
+            this(ann.value(), ann.comment(), ann.headerStyle(),
+                    ann.columnStyle(), ann.columnHeaderStyle(),
+                    ann.columnWidth(), ann.autoSizeColumn(),
+                    ann.minColumnWidth(), ann.maxColumnWidth(), ann.mergeColumn());
         }
 
         public static Value empty() { return EMPTY; }
@@ -69,17 +132,51 @@ public @interface DataColumnGroup {
         }
 
         public String getName() { return _name; }
-
         public String getComment() { return _comment; }
+        public String getHeaderStyle() { return _headerStyle; }
+        public String getColumnStyle() { return _columnStyle; }
+        public String getColumnHeaderStyle() { return _columnHeaderStyle; }
+        public int getColumnWidth() { return _columnWidth; }
+        public OptBoolean getAutoSizeColumn() { return _autoSizeColumn; }
+        public int getMinColumnWidth() { return _minColumnWidth; }
+        public int getMaxColumnWidth() { return _maxColumnWidth; }
+        public OptBoolean getMergeColumn() { return _mergeColumn; }
 
         public boolean isEmpty() { return _name.isEmpty(); }
+
+        public Value withDefaults(final DataGrid.Value defaults) {
+            if (defaults.isEmpty()) return this;
+            return new Value(_name, _comment,
+                    _headerStyle.isEmpty() ? defaults.getGroupHeaderStyle() : _headerStyle,
+                    _columnStyle, _columnHeaderStyle,
+                    _columnWidth, _autoSizeColumn,
+                    _minColumnWidth, _maxColumnWidth, _mergeColumn);
+        }
+
+        /** Returns this group's child-column defaults as a
+         *  {@link DataGrid.Value} so the column cascade can layer them
+         *  between the leaf {@link DataColumn} and the {@link DataGrid}. */
+        public DataGrid.Value asChildDefaults() {
+            return new DataGrid.Value(_columnStyle, _columnHeaderStyle, "",
+                    _columnWidth, _autoSizeColumn,
+                    _minColumnWidth, _maxColumnWidth, _mergeColumn);
+        }
 
         @Override
         public Class<DataColumnGroup> valueFor() { return DataColumnGroup.class; }
 
         @Override
         public String toString() {
-            return "DataColumnGroup.Value(name=" + _name + ", comment=" + _comment + ")";
+            return "DataColumnGroup.Value(name=" + _name
+                    + ", comment=" + _comment
+                    + ", headerStyle=" + _headerStyle
+                    + ", columnStyle=" + _columnStyle
+                    + ", columnHeaderStyle=" + _columnHeaderStyle
+                    + ", columnWidth=" + _columnWidth
+                    + ", autoSizeColumn=" + _autoSizeColumn
+                    + ", minColumnWidth=" + _minColumnWidth
+                    + ", maxColumnWidth=" + _maxColumnWidth
+                    + ", mergeColumn=" + _mergeColumn + ")";
         }
     }
 

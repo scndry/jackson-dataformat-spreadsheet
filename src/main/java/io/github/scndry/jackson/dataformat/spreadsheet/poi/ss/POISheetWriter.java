@@ -99,6 +99,10 @@ public final class POISheetWriter implements SheetWriter {
                                        final DataColumnGroup.Value group) {
                 setReference(new CellAddress(row, firstCol));
                 writeString(group.getName());
+                final CellStyle gs = _styles.getGroupHeaderStyle(group);
+                if (gs != null) {
+                    CellUtil.getCell(CellUtil.getRow(row, _sheet), firstCol).setCellStyle(gs);
+                }
                 if (firstCol < lastCol) {
                     _sheet.addMergedRegion(new CellRangeAddress(row, row, firstCol, lastCol));
                 }

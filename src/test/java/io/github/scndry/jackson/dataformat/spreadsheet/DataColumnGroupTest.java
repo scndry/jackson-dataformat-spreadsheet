@@ -1,7 +1,10 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,12 +17,16 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Comment;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.OptBoolean;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
@@ -43,6 +51,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGroup;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
 
 /**
  * PoC smoke tests for {@link DataColumnGroup} multi-row header support.
@@ -1182,7 +1191,278 @@ class DataColumnGroupTest {
         }
     }
 
+    // -- group header style (headerStyle + DataGrid.groupHeaderStyle cascade) ----
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class CompanyExplicitGroupStyle {
+        @DataColumn("Name") String name;
+        @DataColumnGroup(value = "2024", headerStyle = "groupBg") YearMetricsSmall year2024;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class YearMetricsSmall {
+        @DataColumn("Sales") int sales;
+        @DataColumn("Profit") int profit;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    @DataGrid(groupHeaderStyle = "groupBg")
+    static class CompanyGridDefaultGroupStyle {
+        @DataColumn("Name") String name;
+        @DataColumnGroup("2024") YearMetricsSmall year2024;
+    }
+
+    @Test
+    void groupHeaderStyle_explicit_appliedToGroupCellOnly_poi() throws Exception {
+        File file = tempFile("group-headerstyle-explicit.xlsx");
+        SpreadsheetMapper styled = SpreadsheetMapper.builder()
+                .stylesBuilder(new StylesBuilder()
+                        .cellStyle("groupBg")
+                            .fillForegroundColor(IndexedColors.GREY_25_PERCENT)
+                            .fillPattern().solidForeground()
+                            .end())
+                .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+                .build();
+        styled.writeValue(file, new CompanyExplicitGroupStyle("Acme",
+                new YearMetricsSmall(100, 20)));
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            // Group cell at (0,1) carries the registered fill; leaf header
+            // cells below it (row 1) carry the default style without fill.
+            CellStyle groupStyle = sheet.getRow(0).getCell(1).getCellStyle();
+            CellStyle leafStyle = sheet.getRow(1).getCell(1).getCellStyle();
+            assertThat(groupStyle.getFillPattern())
+                    .isEqualTo(FillPatternType.SOLID_FOREGROUND);
+            assertThat(leafStyle.getFillPattern())
+                    .isNotEqualTo(FillPatternType.SOLID_FOREGROUND);
+        }
+    }
+
+    @Test
+    void groupHeaderStyle_explicit_appliedToGroupCellOnly_ssml() throws Exception {
+        SpreadsheetMapper styled = SpreadsheetMapper.builder()
+                .stylesBuilder(new StylesBuilder()
+                        .cellStyle("groupBg")
+                            .fillForegroundColor(IndexedColors.GREY_25_PERCENT)
+                            .fillPattern().solidForeground()
+                            .end())
+                .build();
+        File file = tempFile("group-headerstyle-explicit-ssml.xlsx");
+        styled.writeValue(file, new CompanyExplicitGroupStyle("Acme",
+                new YearMetricsSmall(100, 20)));
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            CellStyle groupStyle = sheet.getRow(0).getCell(1).getCellStyle();
+            CellStyle leafStyle = sheet.getRow(1).getCell(1).getCellStyle();
+            assertThat(groupStyle.getFillPattern())
+                    .isEqualTo(FillPatternType.SOLID_FOREGROUND);
+            assertThat(leafStyle.getFillPattern())
+                    .isNotEqualTo(FillPatternType.SOLID_FOREGROUND);
+        }
+    }
+
+    @Test
+    void groupHeaderStyle_cascadesFromDataGrid() throws Exception {
+        File file = tempFile("group-headerstyle-cascade.xlsx");
+        SpreadsheetMapper styled = SpreadsheetMapper.builder()
+                .stylesBuilder(new StylesBuilder()
+                        .cellStyle("groupBg")
+                            .fillForegroundColor(IndexedColors.GREY_25_PERCENT)
+                            .fillPattern().solidForeground()
+                            .end())
+                .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+                .build();
+        styled.writeValue(file, new CompanyGridDefaultGroupStyle("Acme",
+                new YearMetricsSmall(100, 20)));
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            CellStyle groupStyle = sheet.getRow(0).getCell(1).getCellStyle();
+            assertThat(groupStyle.getFillPattern())
+                    .isEqualTo(FillPatternType.SOLID_FOREGROUND);
+        }
+    }
+
+    // -- group-level child defaults (columnStyle / columnHeaderStyle / width / merge) --
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class OrderWithGroupChildDefaults {
+        @DataColumn("id") int id;
+        @DataColumnGroup(value = "items", columnHeaderStyle = "itemHeaderBg")
+        List<ItemSmall> items;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class ItemSmall {
+        @DataColumn("sku") String sku;
+        @DataColumn("qty") int qty;
+    }
+
+    @Test
+    void groupColumnHeaderStyle_appliesToChildLeafHeaders() throws Exception {
+        File file = _debugFile("group-child-headerstyle-poi.xlsx");
+        SpreadsheetMapper styled = SpreadsheetMapper.builder()
+                .stylesBuilder(new StylesBuilder()
+                        .cellStyle("itemHeaderBg")
+                            .fillForegroundColor(IndexedColors.GREY_25_PERCENT)
+                            .fillPattern().solidForeground()
+                            .end())
+                .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+                .build();
+        styled.writeValue(file, new OrderWithGroupChildDefaults(1,
+                Arrays.asList(new ItemSmall("A", 1), new ItemSmall("B", 2))));
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            // id leaf header (row 0, col 0) is outside the group — no group fill.
+            // id vertically merges across rows 0..1, so the text + style live at row 0.
+            assertThat(sheet.getRow(0).getCell(0).getCellStyle().getFillPattern())
+                    .isNotEqualTo(FillPatternType.SOLID_FOREGROUND);
+            // sku / qty leaf headers (row 1, cols 1, 2) inherit the group's
+            // columnHeaderStyle via the cascade.
+            assertThat(sheet.getRow(1).getCell(1).getCellStyle().getFillPattern())
+                    .isEqualTo(FillPatternType.SOLID_FOREGROUND);
+            assertThat(sheet.getRow(1).getCell(2).getCellStyle().getFillPattern())
+                    .isEqualTo(FillPatternType.SOLID_FOREGROUND);
+        }
+    }
+
+    @Test
+    void groupColumnHeaderStyle_appliesToChildLeafHeaders_ssml() throws Exception {
+        File file = _debugFile("group-child-headerstyle-ssml.xlsx");
+        SpreadsheetMapper styled = SpreadsheetMapper.builder()
+                .stylesBuilder(new StylesBuilder()
+                        .cellStyle("itemHeaderBg")
+                            .fillForegroundColor(IndexedColors.GREY_25_PERCENT)
+                            .fillPattern().solidForeground()
+                            .end())
+                .build();
+        styled.writeValue(file, new OrderWithGroupChildDefaults(1,
+                Arrays.asList(new ItemSmall("A", 1), new ItemSmall("B", 2))));
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            assertThat(sheet.getRow(0).getCell(0).getCellStyle().getFillPattern())
+                    .isNotEqualTo(FillPatternType.SOLID_FOREGROUND);
+            assertThat(sheet.getRow(1).getCell(1).getCellStyle().getFillPattern())
+                    .isEqualTo(FillPatternType.SOLID_FOREGROUND);
+            assertThat(sheet.getRow(1).getCell(2).getCellStyle().getFillPattern())
+                    .isEqualTo(FillPatternType.SOLID_FOREGROUND);
+        }
+    }
+
+    // -- group columnStyle / columnWidth / mergeColumn render (POI + SSML) --
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class OrderWithGroupColumnStyle {
+        @DataColumn("id") int id;
+        @DataColumnGroup(value = "items", columnStyle = "itemDataBg")
+        List<ItemSmall> items;
+    }
+
+    @Test
+    void groupColumnStyle_appliesToChildDataCells_poi() throws Exception {
+        File file = _debugFile("group-child-columnstyle-poi.xlsx");
+        SpreadsheetMapper styled = SpreadsheetMapper.builder()
+                .stylesBuilder(new StylesBuilder()
+                        .cellStyle("itemDataBg")
+                            .fillForegroundColor(IndexedColors.GREY_25_PERCENT)
+                            .fillPattern().solidForeground()
+                            .end())
+                .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+                .build();
+        styled.writeValue(file, new OrderWithGroupColumnStyle(1,
+                Arrays.asList(new ItemSmall("A", 1))));
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            // Data row at row 2: id (col 0) has no fill; sku/qty (cols 1, 2) inherit columnStyle.
+            assertThat(sheet.getRow(2).getCell(0).getCellStyle().getFillPattern())
+                    .isNotEqualTo(FillPatternType.SOLID_FOREGROUND);
+            assertThat(sheet.getRow(2).getCell(1).getCellStyle().getFillPattern())
+                    .isEqualTo(FillPatternType.SOLID_FOREGROUND);
+            assertThat(sheet.getRow(2).getCell(2).getCellStyle().getFillPattern())
+                    .isEqualTo(FillPatternType.SOLID_FOREGROUND);
+        }
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class OrderWithGroupWidth {
+        @DataColumn("id") int id;
+        @DataColumnGroup(value = "items", columnWidth = 17)
+        List<ItemSmall> items;
+    }
+
+    @Test
+    void groupColumnWidth_appliesToChildColumns() throws Exception {
+        File file = _debugFile("group-child-width-ssml.xlsx");
+        new SpreadsheetMapper().writeValue(file, new OrderWithGroupWidth(1,
+                Arrays.asList(new ItemSmall("A", 1))));
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            // POI stores width in 1/256 of a character — multiply request by 256.
+            assertThat(sheet.getColumnWidth(1)).isEqualTo(17 * 256);
+            assertThat(sheet.getColumnWidth(2)).isEqualTo(17 * 256);
+        }
+    }
+
+
+    // -- leaf @DataColumn.style beats group columnStyle in real render --
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class OrderWithLeafStyleOverride {
+        @DataColumn("id") int id;
+        @DataColumnGroup(value = "items", columnStyle = "groupBg")
+        List<ItemWithExplicit> items;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class ItemWithExplicit {
+        @DataColumn(value = "x", style = "leafBg") String x;
+        @DataColumn("y") String y;
+    }
+
+    @Test
+    void leafColumnStyle_winsOverGroupColumnStyle_inRender() throws Exception {
+        File file = _debugFile("group-leaf-override-poi.xlsx");
+        SpreadsheetMapper styled = SpreadsheetMapper.builder()
+                .stylesBuilder(new StylesBuilder()
+                        .cellStyle("groupBg")
+                            .fillForegroundColor(IndexedColors.YELLOW)
+                            .fillPattern().solidForeground()
+                            .end()
+                        .cellStyle("leafBg")
+                            .fillForegroundColor(IndexedColors.GREY_25_PERCENT)
+                            .fillPattern().solidForeground()
+                            .end())
+                .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+                .build();
+        styled.writeValue(file, new OrderWithLeafStyleOverride(1,
+                Arrays.asList(new ItemWithExplicit("a", "b"))));
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            // Data row 2: x (col 1) carries the leaf's style (GREY); y (col 2) inherits group (YELLOW).
+            String xFill = ((XSSFCellStyle) sheet.getRow(2).getCell(1).getCellStyle())
+                    .getFillForegroundXSSFColor().getARGBHex();
+            String yFill = ((XSSFCellStyle) sheet.getRow(2).getCell(2).getCellStyle())
+                    .getFillForegroundXSSFColor().getARGBHex();
+            assertThat(xFill).endsWithIgnoringCase("C0C0C0");
+            assertThat(yFill).endsWithIgnoringCase("FFFF00");
+        }
+    }
+
     private File tempFile(String name) {
         return tempDir.resolve(name).toFile();
+    }
+
+    private static final Path DEBUG_OUTPUT_DIR = Paths.get("build/debug-output");
+
+    private static File _debugFile(final String name) throws IOException {
+        Files.createDirectories(DEBUG_OUTPUT_DIR);
+        return DEBUG_OUTPUT_DIR.resolve(name).toFile();
     }
 }

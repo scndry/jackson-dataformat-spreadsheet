@@ -56,8 +56,9 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
         }
         final ColumnPointer pointer = _wrapper.getPointer().resolve(prop.getName());
         final DataGrid.Value gridValue = _gridValue(prop);
-        final DataColumn.Value columnValue = _columnValue(prop, gridValue);
-        final DataColumnGroup.Value groupValue = _columnGroupValue(prop);
+        final DataColumn.Value columnValue =
+                _columnValue(prop, gridValue, _wrapper.getGroupHierarchy());
+        final DataColumnGroup.Value groupValue = _columnGroupValue(prop, gridValue);
 
         final DataColumnGroup.Hierarchy childHierarchy = _wrapper.getGroupHierarchy().append(groupValue);
 
@@ -152,16 +153,28 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
         return DataGrid.Value.from(ann).withDefaults(_wrapper.getSheet());
     }
 
-    private DataColumn.Value _columnValue(BeanProperty prop, DataGrid.Value grid) {
+    private DataColumn.Value _columnValue(BeanProperty prop, DataGrid.Value grid,
+                                          DataColumnGroup.Hierarchy enclosing) {
         final DataColumn ann = prop.getAnnotation(DataColumn.class);
-        return DataColumn.Value.from(ann).withDefaults(grid);
+        DataColumn.Value value = DataColumn.Value.from(ann);
+        // Cascade: leaf → innermost group → outer groups → DataGrid.
+        // withDefaults uses first-non-empty-wins, so layering innermost
+        // first lets unset slots fall through to the next outer level.
+        for (int i = enclosing.depth() - 1; i >= 0; i--) {
+            value = value.withDefaults(enclosing.at(i).asChildDefaults());
+        }
+        return value.withDefaults(grid);
     }
 
-    private DataColumnGroup.Value _columnGroupValue(BeanProperty prop) {
+    private DataColumnGroup.Value _columnGroupValue(BeanProperty prop, DataGrid.Value grid) {
         final DataColumnGroup ann = prop.getAnnotation(DataColumnGroup.class);
         if (ann == null) return DataColumnGroup.Value.empty();
         final String name = ann.value().isEmpty() ? prop.getName() : ann.value();
-        return new DataColumnGroup.Value(name, ann.comment());
+        return new DataColumnGroup.Value(name, ann.comment(), ann.headerStyle(),
+                ann.columnStyle(), ann.columnHeaderStyle(),
+                ann.columnWidth(), ann.autoSizeColumn(),
+                ann.minColumnWidth(), ann.maxColumnWidth(), ann.mergeColumn())
+                .withDefaults(grid);
     }
 
     private void _checkTypeSupported(

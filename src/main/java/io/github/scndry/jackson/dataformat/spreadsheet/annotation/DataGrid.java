@@ -17,7 +17,12 @@ import com.fasterxml.jackson.annotation.OptBoolean;
  * generation. Attributes define default column styling, width
  * constraints, and merge behavior for all columns in the grid.
  *
+ * <p>{@link #columnHeaderStyle()} applies to leaf header cells (the
+ * row that carries column names). Group header cells in multi-row
+ * headers are styled by {@link #groupHeaderStyle()}.
+ *
  * @see DataColumn
+ * @see DataColumnGroup
  * @see io.github.scndry.jackson.dataformat.spreadsheet.SchemaGenerator
  */
 @Target(
@@ -36,8 +41,11 @@ public @interface DataGrid {
     /** Default cell style name for data cells. */
     String columnStyle() default "";
 
-    /** Default cell style name for header cells. */
+    /** Default cell style name for leaf header cells. */
     String columnHeaderStyle() default "";
+
+    /** Default cell style name for {@link DataColumnGroup} header cells. */
+    String groupHeaderStyle() default "";
 
     /** Default column width in character units ({@code -1} = auto). */
     int columnWidth() default DEFAULT_COLUMN_WIDTH;
@@ -61,6 +69,7 @@ public @interface DataGrid {
 
         private final String _columnStyle;
         private final String _columnHeaderStyle;
+        private final String _groupHeaderStyle;
         private final int _columnWidth;
         private final OptBoolean _autoSizeColumn;
         private final int _minColumnWidth;
@@ -68,11 +77,13 @@ public @interface DataGrid {
         private final OptBoolean _mergeColumn;
 
         public Value(final String columnStyle, final String columnHeaderStyle,
+                     final String groupHeaderStyle,
                      final int columnWidth, final OptBoolean autoSizeColumn,
                      final int minColumnWidth, final int maxColumnWidth,
                      final OptBoolean mergeColumn) {
             _columnStyle = columnStyle;
             _columnHeaderStyle = columnHeaderStyle;
+            _groupHeaderStyle = groupHeaderStyle;
             _columnWidth = columnWidth;
             _autoSizeColumn = autoSizeColumn;
             _minColumnWidth = minColumnWidth;
@@ -81,12 +92,13 @@ public @interface DataGrid {
         }
 
         private Value() {
-            this("", "", DEFAULT_COLUMN_WIDTH, OptBoolean.DEFAULT,
+            this("", "", "", DEFAULT_COLUMN_WIDTH, OptBoolean.DEFAULT,
                     DEFAULT_MIN_COLUMN_WIDTH, DEFAULT_MAX_COLUMN_WIDTH, OptBoolean.DEFAULT);
         }
 
         private Value(final DataGrid ann) {
-            this(ann.columnStyle(), ann.columnHeaderStyle(), ann.columnWidth(),
+            this(ann.columnStyle(), ann.columnHeaderStyle(), ann.groupHeaderStyle(),
+                    ann.columnWidth(),
                     ann.autoSizeColumn(), ann.minColumnWidth(), ann.maxColumnWidth(),
                     ann.mergeColumn());
         }
@@ -99,6 +111,7 @@ public @interface DataGrid {
 
         public String getColumnStyle() { return _columnStyle; }
         public String getColumnHeaderStyle() { return _columnHeaderStyle; }
+        public String getGroupHeaderStyle() { return _groupHeaderStyle; }
         public int getColumnWidth() { return _columnWidth; }
         public OptBoolean getAutoSizeColumn() { return _autoSizeColumn; }
         public int getMinColumnWidth() { return _minColumnWidth; }
@@ -114,6 +127,7 @@ public @interface DataGrid {
             return new Value(
                     _columnStyle.isEmpty() ? defaults._columnStyle : _columnStyle,
                     _columnHeaderStyle.isEmpty() ? defaults._columnHeaderStyle : _columnHeaderStyle,
+                    _groupHeaderStyle.isEmpty() ? defaults._groupHeaderStyle : _groupHeaderStyle,
                     _columnWidth == DEFAULT_COLUMN_WIDTH ? defaults._columnWidth : _columnWidth,
                     _autoSizeColumn == OptBoolean.DEFAULT
                             ? defaults._autoSizeColumn : _autoSizeColumn,
@@ -132,6 +146,7 @@ public @interface DataGrid {
         public String toString() {
             return "DataGrid.Value(columnStyle=" + _columnStyle
                     + ", columnHeaderStyle=" + _columnHeaderStyle
+                    + ", groupHeaderStyle=" + _groupHeaderStyle
                     + ", columnWidth=" + _columnWidth
                     + ", autoSizeColumn=" + _autoSizeColumn
                     + ", minColumnWidth=" + _minColumnWidth
