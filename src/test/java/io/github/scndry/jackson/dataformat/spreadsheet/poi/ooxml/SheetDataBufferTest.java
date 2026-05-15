@@ -142,19 +142,15 @@ class SheetDataBufferTest {
     }
 
     @Test
-    void byteSize_isUpperBoundOfFlushOutput() {
+    void byteSize_reflectsCellAndRowMemory() {
         SheetDataBuffer buf = new SheetDataBuffer(4);
         buf.appendNumeric(0, 0, 0, 1);
         buf.appendNumeric(0, 1, 0, 2);
         buf.appendNumeric(1, 0, 0, 3);
 
-        // 3 cells × 68 + 2 row tags × 23 = 250 — upper bound
-        final long predicted = buf.byteSize();
-        assertThat(predicted).isEqualTo(3L * 68 + 2L * 23);
-
-        StringBuilder sb = new StringBuilder();
-        buf.flushTo(sb);
-        assertThat((long) sb.length()).isLessThanOrEqualTo(predicted);
+        // 3 cells × 20 (long _packed + long _values + int _next)
+        //   + 2 rows × 8 (int _rowHead + int _rowTail) = 76 bytes
+        assertThat(buf.byteSize()).isEqualTo(3L * 20 + 2L * 8);
     }
 
     @Test
@@ -176,6 +172,33 @@ class SheetDataBufferTest {
         StringBuilder sb = new StringBuilder();
         buf.flushTo(sb);
         assertThat(sb.toString()).isEmpty();
+    }
+
+    @Test
+    void flushTo_sinkFiresAfterEveryFragment() throws java.io.IOException {
+        SheetDataBuffer buf = new SheetDataBuffer(4);
+        buf.appendNumeric(0, 0, 0, 1);
+        buf.appendNumeric(0, 1, 0, 2);
+        buf.appendNumeric(1, 0, 0, 3);
+
+        // Fragments per row: row-open + 1 sink, per cell + 1 sink, row-close + 1 sink.
+        // Row 0: 1 open + 2 cells + 1 close = 4 fragments.
+        // Row 1: 1 open + 1 cell  + 1 close = 3 fragments.
+        // Total = 7 sink invocations.
+        final int[] count = {0};
+        StringBuilder sb = new StringBuilder();
+        buf.flushTo(sb, () -> count[0]++);
+        assertThat(count[0]).isEqualTo(7);
+    }
+
+    @Test
+    void flushTo_sinkPropagatesIOException() {
+        SheetDataBuffer buf = new SheetDataBuffer(4);
+        buf.appendNumeric(0, 0, 0, 1);
+
+        final java.io.IOException expected = new java.io.IOException("sink-failure");
+        assertThatThrownBy(() -> buf.flushTo(new StringBuilder(), () -> { throw expected; }))
+                .isSameAs(expected);
     }
 
     @Test

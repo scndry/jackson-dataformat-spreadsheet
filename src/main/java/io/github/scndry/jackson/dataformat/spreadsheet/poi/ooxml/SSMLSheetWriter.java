@@ -51,7 +51,7 @@ public final class SSMLSheetWriter implements SheetWriter {
     private static final String XML_DECL =
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
 
-    private static final int BUFFER_SIZE = 512 * 1024;
+    private static final int BUFFER_SIZE = 64 * 1024;
     private static final int FLUSH_THRESHOLD = 1024;
 
     private final String _entrySheet;
@@ -209,8 +209,7 @@ public final class SSMLSheetWriter implements SheetWriter {
         if (_data.isEmpty()) return;
         if (_reference.getRow() <= _data.maxRowSeen()) return;
         try {
-            _data.flushTo(_sb);
-            _checkSbFlush();
+            _data.flushTo(_sb, this::_checkSbFlush);
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
@@ -408,8 +407,7 @@ public final class SSMLSheetWriter implements SheetWriter {
     private void _finishSheetXmlEntry() throws IOException {
         _startSheetData();
         if (_data != null && !_data.isEmpty()) {
-            _data.flushTo(_sb);
-            _checkSbFlush();
+            _data.flushTo(_sb, this::_checkSbFlush);
         }
         _append("</sheetData>");
         _appendMergeCellsIntoSuffix();

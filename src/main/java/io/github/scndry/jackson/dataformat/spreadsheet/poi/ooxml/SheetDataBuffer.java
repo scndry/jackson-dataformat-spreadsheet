@@ -1,5 +1,6 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 
+import java.io.IOException;
 import java.util.Arrays;
 
 import org.apache.poi.ss.util.CellReference;
@@ -41,11 +42,13 @@ final class SheetDataBuffer {
     static final byte TYPE_BLANK   = 3;
     static final byte TYPE_BOOLEAN = 4;
 
-    // Upper bounds aligned with BackWriteProjection — must stay in sync.
-    // <c r="REF" s="STYLE" t="TYPE"><v>VALUE</v></c>
-    //   fixed (27) + ref (10) + style (5) + type (1) + value max (25) = 68
-    private static final int MAX_CELL_BYTES = 68;
-    private static final int ROW_TAG_BYTES = 23;
+    // Internal memory footprint per cell / per row — used by byteSize()
+    // for back-write OOM monitoring. Must stay in sync with
+    // BackWriteProjection.{cellMemoryBytes, rowMemoryBytes}.
+    //   Cell SoA slots: long _packed (8) + long _values (8) + int _next (4) = 20 bytes
+    //   Row directory : int _rowHead (4) + int _rowTail (4)                 = 8 bytes
+    static final int CELL_MEMORY_BYTES = 20;
+    static final int ROW_MEMORY_BYTES = 8;
 
     // Lazy capacity inflated on first append, then grown 1.5× — same shape
     // as java.util.ArrayList. Covers typical Excel schemas (≤ 16 columns)
@@ -119,25 +122,55 @@ final class SheetDataBuffer {
         return _rowSpan == 0 ? -1 : _rowBase + _rowSpan - 1;
     }
 
-    /** Upper-bound byte length of the XML this buffer will produce on
-     *  {@link #flushTo(StringBuilder)}. Used by the back-write runtime
-     *  monitor as a fail-fast guard against unbounded accumulation. */
+    /** Upper-bound heap footprint of the cell SoA arrays and row directory.
+     *  Used by the back-write runtime monitor as a fail-fast guard against
+     *  unbounded accumulation while flush is suspended. The output XML is a
+     *  separate concern — its size is bounded by
+     *  {@link io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection}
+     *  on the same memory basis. */
     long byteSize() {
-        return (long) _size * MAX_CELL_BYTES + (long) _rowSpan * ROW_TAG_BYTES;
+        return (long) _size * CELL_MEMORY_BYTES + (long) _rowSpan * ROW_MEMORY_BYTES;
     }
 
-    /** Emit all buffered cells, row by row, into {@code sb}, then reset. */
+    /** Sink invoked after each XML fragment is appended to {@code sb} so
+     *  the writer can keep its buffer within its flush threshold. Matches
+     *  the existing fragment-level check pattern in
+     *  {@code SSMLSheetWriter._append}. */
+    @FunctionalInterface
+    interface FlushSink {
+        void afterFragment() throws IOException;
+    }
+
+    private static final FlushSink NO_OP_SINK = () -> {};
+
+    /** Convenience overload for callers that do not need per-fragment
+     *  draining (tests, in-memory accumulation). */
     void flushTo(final StringBuilder sb) {
+        try {
+            flushTo(sb, NO_OP_SINK);
+        } catch (IOException e) {
+            throw new AssertionError("NO_OP_SINK never throws", e);
+        }
+    }
+
+    /** Emit all buffered cells, row by row, into {@code sb}, invoking
+     *  {@code sink} after each cell or row-tag fragment so callers can
+     *  drain {@code sb} before it exceeds its flush threshold. Resets
+     *  the buffer on return. */
+    void flushTo(final StringBuilder sb, final FlushSink sink) throws IOException {
         for (int offset = 0; offset < _rowSpan; offset++) {
             int cellIdx = _rowHead[offset];
             if (cellIdx < 0) continue;
             final int row = _rowBase + offset;
             sb.append("<row r=\"").append(row + 1).append("\">");
+            sink.afterFragment();
             while (cellIdx >= 0) {
                 _appendCell(sb, _packed[cellIdx], _values[cellIdx]);
+                sink.afterFragment();
                 cellIdx = _next[cellIdx];
             }
             sb.append("</row>");
+            sink.afterFragment();
         }
         _reset();
     }
