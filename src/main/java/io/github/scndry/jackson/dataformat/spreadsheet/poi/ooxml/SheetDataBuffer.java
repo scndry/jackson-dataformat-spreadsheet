@@ -1,5 +1,6 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
 
+import java.io.IOException;
 import java.util.Arrays;
 
 import org.apache.poi.ss.util.CellReference;
@@ -131,18 +132,45 @@ final class SheetDataBuffer {
         return (long) _size * CELL_MEMORY_BYTES + (long) _rowSpan * ROW_MEMORY_BYTES;
     }
 
-    /** Emit all buffered cells, row by row, into {@code sb}, then reset. */
+    /** Sink invoked after each XML fragment is appended to {@code sb} so
+     *  the writer can keep its buffer within its flush threshold. Matches
+     *  the existing fragment-level check pattern in
+     *  {@code SSMLSheetWriter._append}. */
+    @FunctionalInterface
+    interface FlushSink {
+        void afterFragment() throws IOException;
+    }
+
+    private static final FlushSink NO_OP_SINK = () -> {};
+
+    /** Convenience overload for callers that do not need per-fragment
+     *  draining (tests, in-memory accumulation). */
     void flushTo(final StringBuilder sb) {
+        try {
+            flushTo(sb, NO_OP_SINK);
+        } catch (IOException e) {
+            throw new AssertionError("NO_OP_SINK never throws", e);
+        }
+    }
+
+    /** Emit all buffered cells, row by row, into {@code sb}, invoking
+     *  {@code sink} after each cell or row-tag fragment so callers can
+     *  drain {@code sb} before it exceeds its flush threshold. Resets
+     *  the buffer on return. */
+    void flushTo(final StringBuilder sb, final FlushSink sink) throws IOException {
         for (int offset = 0; offset < _rowSpan; offset++) {
             int cellIdx = _rowHead[offset];
             if (cellIdx < 0) continue;
             final int row = _rowBase + offset;
             sb.append("<row r=\"").append(row + 1).append("\">");
+            sink.afterFragment();
             while (cellIdx >= 0) {
                 _appendCell(sb, _packed[cellIdx], _values[cellIdx]);
+                sink.afterFragment();
                 cellIdx = _next[cellIdx];
             }
             sb.append("</row>");
+            sink.afterFragment();
         }
         _reset();
     }

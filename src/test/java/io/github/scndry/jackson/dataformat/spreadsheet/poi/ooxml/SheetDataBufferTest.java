@@ -175,6 +175,33 @@ class SheetDataBufferTest {
     }
 
     @Test
+    void flushTo_sinkFiresAfterEveryFragment() throws java.io.IOException {
+        SheetDataBuffer buf = new SheetDataBuffer(4);
+        buf.appendNumeric(0, 0, 0, 1);
+        buf.appendNumeric(0, 1, 0, 2);
+        buf.appendNumeric(1, 0, 0, 3);
+
+        // Fragments per row: row-open + 1 sink, per cell + 1 sink, row-close + 1 sink.
+        // Row 0: 1 open + 2 cells + 1 close = 4 fragments.
+        // Row 1: 1 open + 1 cell  + 1 close = 3 fragments.
+        // Total = 7 sink invocations.
+        final int[] count = {0};
+        StringBuilder sb = new StringBuilder();
+        buf.flushTo(sb, () -> count[0]++);
+        assertThat(count[0]).isEqualTo(7);
+    }
+
+    @Test
+    void flushTo_sinkPropagatesIOException() {
+        SheetDataBuffer buf = new SheetDataBuffer(4);
+        buf.appendNumeric(0, 0, 0, 1);
+
+        final java.io.IOException expected = new java.io.IOException("sink-failure");
+        assertThatThrownBy(() -> buf.flushTo(new StringBuilder(), () -> { throw expected; }))
+                .isSameAs(expected);
+    }
+
+    @Test
     void growth_handles10000Cells() {
         // Far beyond the DEFAULT_CAPACITY (5) lazy alloc — exercises
         // repeated 1.5× growth on both cell arrays and row directory.
