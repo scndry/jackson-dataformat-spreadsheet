@@ -169,7 +169,7 @@ public final class GridConfigurer {
 
     private static void _applyStyle(final ConditionalFormattingRule rule,
             final String styleName, final Styles styles, final Workbook wb) {
-        final CellStyle cs = styles.getStyle(styleName);
+        final CellStyle cs = styles.byName(styleName);
         if (cs == null) {
             throw new IllegalArgumentException("Style '" + styleName + "' not found");
         }

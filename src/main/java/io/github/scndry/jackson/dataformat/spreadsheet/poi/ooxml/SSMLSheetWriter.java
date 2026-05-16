@@ -159,7 +159,7 @@ public final class SSMLSheetWriter implements SheetWriter {
             public void visitGroupCell(final int row, final int firstCol, final int lastCol,
                                        final DataColumnGroup.Value group) {
                 setReference(new CellAddress(row, firstCol));
-                final CellStyle gs = _styles.getGroupHeaderStyle(group);
+                final CellStyle gs = _styles.resolve(group.getHeaderStyle(), null);
                 if (gs == null) {
                     writeString(group.getName());
                 } else {
@@ -445,9 +445,11 @@ public final class SSMLSheetWriter implements SheetWriter {
 
         final int[] columnStyleIndex = new int[columns.size()];
         for (int i = 0; i < columns.size(); i++) {
-            final CellStyle cs = header
-                    ? styles.getHeaderStyle(columns.get(i))
-                    : styles.getStyle(columns.get(i));
+            final Column column = columns.get(i);
+            final String name = header
+                    ? column.getValue().getHeaderStyle()
+                    : column.getValue().getStyle();
+            final CellStyle cs = styles.resolve(name, column.getType().getRawClass());
             if (cs != null) {
                 columnStyleIndex[i] = cs.getIndex();
             }
