@@ -137,4 +137,3 @@ Filter specific benchmarks (and route results to per-benchmark files for separat
 ```
 
 Run benchmarks separately to avoid system noise accumulation across categories. GC profiler is enabled by default.
-

@@ -14,6 +14,7 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -114,9 +115,9 @@ class StylesTest {
         File file = new File(tempDir, "bad.xlsx");
         assertThatThrownBy(() -> mapper.writeValue(file, new Bad()))
                 .satisfiesAnyOf(
-                        t -> assertThat(t).isInstanceOf(IllegalStateException.class)
+                        t -> assertThat(t).isInstanceOf(NoSuchElementException.class)
                                 .hasMessageContaining("Style 'missing' is not registered"),
-                        t -> assertThat(t).hasRootCauseInstanceOf(IllegalStateException.class)
+                        t -> assertThat(t).hasRootCauseInstanceOf(NoSuchElementException.class)
                                 .hasRootCauseMessage("Style 'missing' is not registered"));
     }
 

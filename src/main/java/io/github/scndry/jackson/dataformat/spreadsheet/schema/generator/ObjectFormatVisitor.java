@@ -58,7 +58,7 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
         final DataGrid.Value gridValue = _gridValue(prop);
         final DataColumn.Value columnValue =
                 _columnValue(prop, gridValue, _wrapper.getGroupHierarchy());
-        final DataColumnGroup.Value groupValue = _columnGroupValue(prop, gridValue);
+        final DataColumnGroup.Value groupValue = _columnGroupValue(prop, pointer, gridValue);
 
         final DataColumnGroup.Hierarchy childHierarchy = _wrapper.getGroupHierarchy().append(groupValue);
 
@@ -166,10 +166,10 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
         return value.withDefaults(grid);
     }
 
-    private DataColumnGroup.Value _columnGroupValue(BeanProperty prop, DataGrid.Value grid) {
+    private DataColumnGroup.Value _columnGroupValue(BeanProperty prop, ColumnPointer pointer, DataGrid.Value grid) {
         final DataColumnGroup ann = prop.getAnnotation(DataColumnGroup.class);
         if (ann == null) return DataColumnGroup.Value.empty();
-        final String name = ann.value().isEmpty() ? prop.getName() : ann.value();
+        final String name = ann.value().isEmpty() ? pointer.toString() : ann.value();
         return new DataColumnGroup.Value(name, ann.comment(), ann.headerStyle(),
                 ann.columnStyle(), ann.columnHeaderStyle(),
                 ann.columnWidth(), ann.autoSizeColumn(),

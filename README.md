@@ -109,10 +109,10 @@ Nested objects flatten into columns. Lists of nested objects expand into multipl
 ```java
 @DataGrid(mergeColumn = OptBoolean.TRUE)
 class Order {
-    @DataColumn("ID") int id;
-    @DataColumn("Customer") String customer;
+    @DataColumn("ID")         int id;
+    @DataColumn("Customer")   String customer;
     @DataColumnGroup("Items") List<LineItem> items;
-    @DataColumn("Total") BigDecimal total;
+    @DataColumn("Total")      BigDecimal total;
 }
 
 class LineItem {
@@ -192,6 +192,8 @@ try (SheetMappingIterator<Product> iter = reader.readValues(input)) {
 
 ### Cell Styling
 
+`StylesBuilder.simple()` for a per-type starter set; build a `StylesBuilder` from scratch for full control.
+
 ```java
 StylesBuilder styles = new StylesBuilder()
     .cellStyle("currency")
@@ -233,7 +235,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 
 ### Excel Date Handling
 
-Built-in conversion between Java date types and Excel serial numbers. Registered by default — no setup needed.
+Built-in conversion between Java date types and Excel serial numbers. Registered by default — no setup needed. Excel renders a date cell as a date only when it carries a date format; `StylesBuilder.simple()` registers per-type defaults as a starter.
 
 Supported: `Date`, `Calendar`, `LocalDate`, `LocalDateTime`
 
@@ -283,4 +285,3 @@ The mapper instance is reusable across threads once configured (same rule as Jac
 ## License
 
 [Apache License 2.0](LICENSE)
-

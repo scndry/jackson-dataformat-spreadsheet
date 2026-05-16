@@ -1,30 +1,35 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema;
 
+import java.util.NoSuchElementException;
+
 import org.apache.poi.ss.usermodel.CellStyle;
 
-import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGroup;
-
 /**
- * Resolves Apache POI {@link CellStyle} instances for data and
- * header cells. Built per-workbook by
+ * Lookup of POI {@link CellStyle} instances by registered name or by Java type.
+ * Built per-workbook by
  * {@link io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder}.
  *
- * @see Column
  * @see SpreadsheetSchema
  */
 public interface Styles {
 
-    CellStyle getStyle(Column column);
+    /** Returns the style registered for {@code name}, or {@code null} if none. */
+    CellStyle byName(String name);
 
-    default CellStyle getHeaderStyle(final Column column) {
-        return getStyle(column);
-    }
+    /** Returns the style registered for {@code type}, or {@code null} if none. */
+    CellStyle byType(Class<?> type);
 
-    CellStyle getStyle(String name);
-
-    /** Resolves the cell style for a {@code @DataColumnGroup} header cell.
-     *  Returns {@code null} when no style is registered for the group. */
-    default CellStyle getGroupHeaderStyle(final DataColumnGroup.Value group) {
-        return null;
+    /** Resolves {@code name} via {@link #byName}, falling back to {@link #byType}
+     *  with {@code typeFallback} when {@code name} is empty. Throws
+     *  {@link NoSuchElementException} when {@code name} is non-empty and unregistered. */
+    default CellStyle resolve(final String name, final Class<?> typeFallback) {
+        if (!name.isEmpty()) {
+            final CellStyle cs = byName(name);
+            if (cs == null) {
+                throw new NoSuchElementException("Style '" + name + "' is not registered");
+            }
+            return cs;
+        }
+        return typeFallback == null ? null : byType(typeFallback);
     }
 }

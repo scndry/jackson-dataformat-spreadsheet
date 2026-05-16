@@ -42,7 +42,7 @@ List<Product> products = mapper.readValues(file, Product.class);
 
 The column-to-field mapping is driven by the class structure. Add a field, the column appears. Rename a field, the column follows. Remove a field, the column disappears. No index to update.
 
-But this is not a POI replacement. POI types (`Sheet`, `Workbook`) are first-class I/O targets. Open a workbook with POI, pass a `Sheet` to the mapper for data binding, then continue using POI for charts, formulas, conditional formatting — whatever the mapper doesn't cover. Data binding on top of POI, not instead of it.
+POI types (`Sheet`, `Workbook`) are first-class I/O targets — see [POI Integration](#poi-integration).
 
 ## Requirements
 
@@ -374,8 +374,8 @@ try (SXSSFWorkbook wb = new SXSSFWorkbook()) {
 
 Flat spreadsheets map to nested POJOs automatically. This is a unique feature — no other Excel library supports bidirectional nested object mapping.
 
-| id | name | zipcode | city | title | salary |
-|----|------|---------|------|-------|--------|
+| id | name | address/zipcode | address/city | employment/title | employment/salary |
+|----|------|-----------------|--------------|------------------|-------------------|
 | 1 | Alice | 12345 | Seoul | SRE | 80000 |
 
 ```java
@@ -418,13 +418,11 @@ By default, nested field headers use the path from the parent (e.g., `address/zi
 Nested lists are serialized into multi-row output. *Deserialization is not currently supported.*
 
 ```java
-@DataGrid
+@DataGrid(mergeColumn = OptBoolean.TRUE)
 class Order {
-    @DataColumn(value = "Order ID", merge = OptBoolean.TRUE)
-    int orderId;
+    @DataColumn("Order ID") int orderId;
     List<Item> items;
-    @DataColumn(value = "Total", merge = OptBoolean.TRUE)
-    int total;
+    @DataColumn("Total") int total;
 }
 
 class Item {
@@ -512,12 +510,15 @@ Renders flattened columns from a nested object field under a shared group header
 ```java
 @DataGrid
 class Employee {
-    int id;
-    String name;
+    @DataColumn("ID") int id;
+    @DataColumn("Name") String name;
     @DataColumnGroup(value = "Address", comment = "Customer billing address")
     Address address;
 }
-class Address { String city; String zip; }
+class Address {
+    @DataColumn("City") String city;
+    @DataColumn("Zip") String zip;
+}
 ```
 
 renders as:
@@ -538,7 +539,7 @@ For deeper hierarchies the annotation stacks naturally:
 
 ```java
 class Company {
-    String name;
+    @DataColumn("Name") String name;
     @DataColumnGroup("2024") YearMetrics year2024;
     @DataColumnGroup("2025") YearMetrics year2025;
 }
@@ -546,7 +547,10 @@ class YearMetrics {
     @DataColumnGroup("Q1") QuarterMetrics q1;
     @DataColumnGroup("Q2") QuarterMetrics q2;
 }
-class QuarterMetrics { int sales; int profit; }
+class QuarterMetrics {
+    @DataColumn("Sales") int sales;
+    @DataColumn("Profit") int profit;
+}
 ```
 
 ```
@@ -588,8 +592,8 @@ class Bar {
 
 | Column | style | autoSize |
 |--------|-------|----------|
-| bar.foo.a | `"highlight"` (from @DataColumn) | `FALSE` (from Foo's @DataGrid) |
-| bar.foo.b | `"base"` (from Bar's @DataGrid) | `FALSE` (from Foo's @DataGrid) |
+| foo/a | `"highlight"` (from @DataColumn) | `FALSE` (from Foo's @DataGrid) |
+| foo/b | `"base"` (from Bar's @DataGrid) | `FALSE` (from Foo's @DataGrid) |
 
 ### Jackson Annotations
 
@@ -640,6 +644,8 @@ Note: `mapper.writerWithView()` does not work — it bypasses schema generation.
 
 Register named cell styles with `StylesBuilder` and reference them from annotations. Each named style maps to exactly one POI `CellStyle` (`workbook.createCellStyle()` invoked once per name at build time), so the [64,000 cell-style per-workbook limit](https://learn.microsoft.com/en-us/office/troubleshoot/excel/excel-specifications-and-limits) is bound by style declarations rather than row count.
 
+`StylesBuilder.simple()` returns a starter builder with per-type defaults registered (comma-grouped number formats, date/datetime formats). Drop it in early to get sensible defaults, then replace with a fully custom builder as needs grow.
+
 ```java
 StylesBuilder styles = new StylesBuilder()
     .cellStyle("currency")
@@ -686,13 +692,9 @@ Custom patterns can be passed directly via `dataFormat(String)`. See [Number for
 
 ### Excel Dates
 
-Excel stores dates as numeric serial values. `ExcelDateModule` is registered by default, automatically converting between Java date types and Excel date numbers.
+`ExcelDateModule` is registered by default — `Date`, `Calendar`, `LocalDate`, `LocalDateTime` convert to/from Excel serial values automatically. Without a date format on the cell, Excel shows the raw serial (e.g. `46157`); `StylesBuilder.simple()` registers per-type defaults as a starter (see [Styling](#styling)).
 
-Supported: `Date`, `Calendar`, `LocalDate`, `LocalDateTime`.
-
-No configuration needed. Read an Excel date cell and get a `LocalDate`. Write a `LocalDate` and get an Excel-formatted date.
-
-On read, the workbook's date system (1900 or 1904) is detected and applied automatically. Write defaults to 1900.
+On read, the workbook's date system (1900 / 1904) is detected; write defaults to 1900.
 
 ## Sheet-Level Features
 
@@ -713,7 +715,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .build();
 ```
 
-`freezePane(colSplit, rowSplit)` delegates to POI `Sheet#createFreezePane` — the leftmost `colSplit` columns and topmost `rowSplit` rows stay fixed while scrolling. `autoFilter()` enables the filter dropdown across all schema columns; the range is computed from the schema and row count. Both the streaming default and `USE_POI_USER_MODEL` write paths apply these identically.
+`freezePane(colSplit, rowSplit)` freezes the leftmost columns / topmost rows. `autoFilter()` enables the filter dropdown across all schema columns. Both work identically on streaming and `USE_POI_USER_MODEL` write paths.
 
 ### Conditional Formatting
 
@@ -723,7 +725,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.*;
 ```
 
-Column names resolve against `@DataColumn(value)`, the field name, or `@JsonAlias`. Style names resolve against `cellStyle(name)` in `StylesBuilder`. Both resolve at write time — typos throw `IllegalArgumentException` listing the available names.
+Column names resolve against `@DataColumn(value)`, the field name, or `@JsonAlias`. Style names resolve against `cellStyle(name)` in `StylesBuilder`. Both resolve at write time — typos throw `IllegalArgumentException` listing the available names. Alignment and wrap-text on a referenced style are silently dropped — DXF limitation.
 
 Comparison factories (`greaterThan`, `between`, `equalTo`, ...) accept typed values (numeric, boolean, string, date) or `Formula` for cell references and Excel expressions. String operands are auto-quoted; dates emit as `DATE(y,m,d)+TIME(h,m,s)`. The factory returns a `FormatCondition`; `.style(name)` finishes it as a `ConditionalFormatRule`.
 
@@ -787,10 +789,6 @@ Prefer `LocalDate` / `LocalDateTime` for deterministic CF rules. `Date` carries 
 #### Formula escape
 
 `formula(text)` is a power-user escape — the text is emitted verbatim into the OOXML `<formula>` element. The library does not validate Excel syntax. `columnRef(name)` resolves the schema column name to a row-relative reference (`$<col><dataStartRow>`) at write time, so Excel auto-shifts per cell in the formatting range.
-
-#### Style → DXF mapping
-
-Style names referenced by `.style(name)` resolve to a `cellStyle` in `StylesBuilder`. Fill, font, and border properties are translated into a DXF entry attached to the rule. Alignment and wrap-text are silently skipped (DXF doesn't support them).
 
 #### Color scale (3-color)
 
@@ -927,32 +925,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 List<Row> rows = mapper.readValues(inputStream, Row.class);
 ```
 
-## Performance
-
-At 100K rows (mixed types, shared string table):
-
-**Read:**
-
-| Library | Time | Memory |
-|---------|------|--------|
-| jackson-spreadsheet | 198 ms | 378 MB |
-| FastExcel | 212 ms | 428 MB |
-| Fesod | 279 ms | 400 MB |
-| Poiji | 843 ms | 2876 MB |
-| Apache POI | 1198 ms | 2333 MB |
-
-**Write:**
-
-| Library | Time | Memory |
-|---------|------|--------|
-| jackson-spreadsheet | 150 ms | 191 MB |
-| FastExcel | 166 ms | 156 MB |
-| Apache POI | 283 ms | 207 MB |
-| Fesod | 337 ms | 480 MB |
-
-Fastest read and write throughput among all libraries. See [BENCHMARK.md](BENCHMARK.md) for full results.
-
-### Low-Memory Mode for Large Files
+## Low-Memory Mode for Large Files
 
 For extremely large XLSX files that cause `OutOfMemoryError`:
 
@@ -983,7 +956,7 @@ Requires `com.h2database:h2` on the classpath:
 </dependency>
 ```
 
-Trades ~40% throughput for constant heap usage regardless of string table size. The temporary file is automatically deleted when the reader is closed.
+Trades throughput for constant heap usage regardless of string table size — see [BENCHMARK.md](BENCHMARK.md) for measured overhead. The temporary file is automatically deleted when the reader is closed.
 
 ## Logging
 
@@ -1015,4 +988,3 @@ Yes. Create a `SpreadsheetMapper` bean and inject it. It is thread-safe like `Ob
 - [BENCHMARK.md](BENCHMARK.md) — JMH benchmark results
 - [Jackson documentation](https://github.com/FasterXML/jackson-docs)
 - [Apache POI](https://poi.apache.org/components/spreadsheet/index.html)
-

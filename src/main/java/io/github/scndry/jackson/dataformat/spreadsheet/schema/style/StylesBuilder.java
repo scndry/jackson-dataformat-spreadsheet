@@ -12,8 +12,6 @@ import java.util.Map;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Workbook;
 
-import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGroup;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 
 /**
@@ -21,7 +19,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
  */
 public final class StylesBuilder implements Builder<Styles> {
 
-    // Each name maps to one POI CellStyle — bounded by Excel's cell-style cap (4K HSSF / 64K XSSF).
+    // Each name/type maps to one POI CellStyle — bounded by Excel's cell-style cap (4K HSSF / 64K XSSF).
     private final Map<Object, CellStyleBuilder> _builders;
 
     public StylesBuilder() {
@@ -52,17 +50,11 @@ public final class StylesBuilder implements Builder<Styles> {
     }
 
     public CellStyleBuilder cellStyle(final Class<?> type) {
-        return cellStyle(type, new CellStyleBuilder());
-    }
-
-    private CellStyleBuilder cellStyle(final Object key, final CellStyleBuilder builder) {
-        builder.setBuilder(this);
-        _builders.put(key, builder);
-        return builder;
+        return _register(type, new CellStyleBuilder());
     }
 
     public CellStyleBuilder cellStyle(final String name) {
-        return cellStyle(name, new CellStyleBuilder());
+        return _register(name, new CellStyleBuilder());
     }
 
     public CellStyleBuilder cellStyle(final String name, final String cloneStyleFrom) {
@@ -70,13 +62,19 @@ public final class StylesBuilder implements Builder<Styles> {
         if (source == null) {
             throw new IllegalArgumentException("Style '" + cloneStyleFrom + "' is not registered");
         }
-        return cellStyle(name, source.copy());
+        return _register(name, source.copy());
+    }
+
+    private CellStyleBuilder _register(final Object key, final CellStyleBuilder builder) {
+        builder.setBuilder(this);
+        _builders.put(key, builder);
+        return builder;
     }
 
     @Override
     public Styles build(final Workbook workbook) {
         final StylesImpl styles = new StylesImpl();
-        _builders.forEach((key, builder) -> styles.register(key, builder.build(workbook)));
+        _builders.forEach((key, builder) -> styles._styles.put(key, builder.build(workbook)));
         return styles;
     }
 
@@ -91,45 +89,14 @@ public final class StylesBuilder implements Builder<Styles> {
 
         private final Map<Object, CellStyle> _styles = new HashMap<>();
 
-        public void register(final Object key, final CellStyle style) {
-            _styles.put(key, style);
-        }
-
         @Override
-        public CellStyle getStyle(final Column column) {
-            return _findStyle(column.getValue().getStyle(), column);
-        }
-
-        @Override
-        public CellStyle getStyle(final String name) {
+        public CellStyle byName(final String name) {
             return _styles.get(name);
         }
 
         @Override
-        public CellStyle getHeaderStyle(final Column column) {
-            return _findStyle(column.getValue().getHeaderStyle(), column);
-        }
-
-        @Override
-        public CellStyle getGroupHeaderStyle(final DataColumnGroup.Value group) {
-            final String name = group.getHeaderStyle();
-            if (name.isEmpty()) return null;
-            final CellStyle style = _styles.get(name);
-            if (style == null) {
-                throw new IllegalStateException("Style '" + name + "' is not registered");
-            }
-            return style;
-        }
-
-        private CellStyle _findStyle(final String name, final Column column) {
-            if (!name.isEmpty()) {
-                final CellStyle style = _styles.get(name);
-                if (style == null) {
-                    throw new IllegalStateException("Style '" + name + "' is not registered");
-                }
-                return style;
-            }
-            return _styles.get(column.getType().getRawClass());
+        public CellStyle byType(final Class<?> type) {
+            return _styles.get(type);
         }
     }
 }

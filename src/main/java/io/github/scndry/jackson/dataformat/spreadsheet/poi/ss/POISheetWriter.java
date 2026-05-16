@@ -29,6 +29,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.HeaderLayoutVisitor;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.HeaderComments;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
 
 /**
@@ -75,7 +76,7 @@ public final class POISheetWriter implements SheetWriter {
     public void setSchema(final SpreadsheetSchema schema) {
         _schema = schema;
         _styles = _schema.buildStyles(_sheet.getWorkbook());
-        _schema.applyHeaderComments(_sheet);
+        HeaderComments.apply(_sheet, _schema);
         _dataFormatter = new DataFormatter();
         _defaultCharWidth = SheetUtil.getDefaultCharWidth(_sheet.getWorkbook());
     }
@@ -99,7 +100,7 @@ public final class POISheetWriter implements SheetWriter {
                                        final DataColumnGroup.Value group) {
                 setReference(new CellAddress(row, firstCol));
                 writeString(group.getName());
-                final CellStyle gs = _styles.getGroupHeaderStyle(group);
+                final CellStyle gs = _styles.resolve(group.getHeaderStyle(), null);
                 if (gs != null) {
                     CellUtil.getCell(CellUtil.getRow(row, _sheet), firstCol).setCellStyle(gs);
                 }
@@ -156,8 +157,10 @@ public final class POISheetWriter implements SheetWriter {
         consumer.accept(cell, value);
         final Column column = _schema.findColumn(_reference);
         if (column != null) {
-            final CellStyle style = _schema.getDataRow() > row
-                    ? _styles.getHeaderStyle(column) : _styles.getStyle(column);
+            final String name = _schema.getDataRow() > row
+                    ? column.getValue().getHeaderStyle()
+                    : column.getValue().getStyle();
+            final CellStyle style = _styles.resolve(name, column.getType().getRawClass());
             if (style != null) {
                 cell.setCellStyle(style);
             }
