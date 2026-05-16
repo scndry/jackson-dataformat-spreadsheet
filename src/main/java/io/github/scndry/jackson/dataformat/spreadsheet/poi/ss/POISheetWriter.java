@@ -29,6 +29,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.HeaderLayoutVisitor;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.HeaderComments;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
 
 /**
@@ -75,7 +76,7 @@ public final class POISheetWriter implements SheetWriter {
     public void setSchema(final SpreadsheetSchema schema) {
         _schema = schema;
         _styles = _schema.buildStyles(_sheet.getWorkbook());
-        _schema.applyHeaderComments(_sheet);
+        HeaderComments.apply(_sheet, _schema);
         _dataFormatter = new DataFormatter();
         _defaultCharWidth = SheetUtil.getDefaultCharWidth(_sheet.getWorkbook());
     }

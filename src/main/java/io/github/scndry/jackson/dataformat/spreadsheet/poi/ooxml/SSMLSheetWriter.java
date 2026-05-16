@@ -32,6 +32,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.HeaderLayoutVisito
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.HeaderComments;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
 
 /**
@@ -113,7 +114,7 @@ public final class SSMLSheetWriter implements SheetWriter {
         try {
             _wb = _sheet.getWorkbook();
             _styles = _schema.buildStyles(_wb);
-            _schema.applyHeaderComments(_sheet);
+            HeaderComments.apply(_sheet, _schema);
             _schema.configureSheet(_sheet, _styles, -1);
             _writeScaffoldWorkbook();
             _splitScaffoldSheetXml();

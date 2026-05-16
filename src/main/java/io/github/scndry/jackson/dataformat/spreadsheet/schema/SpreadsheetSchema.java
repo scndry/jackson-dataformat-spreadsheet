@@ -5,10 +5,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.apache.poi.ss.usermodel.ClientAnchor;
-import org.apache.poi.ss.usermodel.Comment;
-import org.apache.poi.ss.usermodel.CreationHelper;
-import org.apache.poi.ss.usermodel.Drawing;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellAddress;
@@ -37,9 +33,6 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     public static final int FEATURE_COLUMN_REORDERING = 0x0002;
 
     public static final int DEFAULT_FEATURES = FEATURE_USE_HEADER;
-
-    private static final int COMMENT_BOX_WIDTH_COLS = 2;
-    private static final int COMMENT_BOX_HEIGHT_ROWS = 3;
 
     private final List<Column> _columns;
     private final CellAddress _origin;
@@ -105,25 +98,15 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         return _headerRowCount;
     }
 
-    /**
-     * Row index of the last (leaf) header row — the row carrying column
-     * names. Group header rows (when present) sit above this row. When
-     * {@link #usesHeader()} is disabled this collapses to the origin row.
-     */
+    /** Row index of the leaf header row (the row carrying column names).
+     *  Collapses to the origin row when {@link #usesHeader()} is disabled. */
     public int getLeafHeaderRow() {
         return _origin.getRow() + (usesHeader() ? _headerRowCount - 1 : 0);
     }
 
-    /**
-     * Walk every cell in the header region (column headers, group cells,
-     * vertical-merge regions) and invoke the visitor. Used by writers and
-     * comment application to share the run-identification algorithm.
-     *
-     * <p>Cell visit order: row-by-row top to bottom, then vertical merges
-     * after the last header row. Within a row, columns are visited in
-     * declaration order. Group cells emit the firstCol..lastCol range so
-     * callers can register horizontal merges.
-     */
+    /** Walks the header region (leaf headers, group cells, vertical merges)
+     *  and invokes the visitor for each. Used by writers and the comment
+     *  applicator to share the run-identification algorithm. */
     public void forEachHeaderCell(final HeaderLayoutVisitor visitor) {
         if (!usesHeader()) return;
         final int originRow = _origin.getRow();
@@ -248,38 +231,6 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
 
     public Styles buildStyles(final Workbook workbook) {
         return _stylesBuilder.build(workbook);
-    }
-
-    public void applyHeaderComments(final Sheet sheet) {
-        if (!usesHeader()) return;
-        final CreationHelper factory = sheet.getWorkbook().getCreationHelper();
-        forEachHeaderCell(new HeaderLayoutVisitor() {
-            private Drawing<?> drawing;
-
-            @Override
-            public void visitColumnHeader(final int row, final int col, final Column column) {
-                _addCommentIfPresent(row, col, column.getValue().getComment());
-            }
-
-            @Override
-            public void visitGroupCell(final int row, final int firstCol, final int lastCol,
-                                       final DataColumnGroup.Value group) {
-                _addCommentIfPresent(row, firstCol, group.getComment());
-            }
-
-            private void _addCommentIfPresent(final int row, final int col, final String text) {
-                if (text.isEmpty()) return;
-                if (drawing == null) drawing = sheet.createDrawingPatriarch();
-                final ClientAnchor anchor = factory.createClientAnchor();
-                anchor.setCol1(col);
-                anchor.setRow1(row);
-                anchor.setCol2(col + COMMENT_BOX_WIDTH_COLS);
-                anchor.setRow2(row + COMMENT_BOX_HEIGHT_ROWS);
-                final Comment c = drawing.createCellComment(anchor);
-                c.setString(factory.createRichTextString(text));
-                c.setAddress(row, col);
-            }
-        });
     }
 
     public void configureSheet(final Sheet sheet, final Styles styles, final int lastRow) {
