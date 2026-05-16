@@ -640,6 +640,8 @@ Note: `mapper.writerWithView()` does not work — it bypasses schema generation.
 
 Register named cell styles with `StylesBuilder` and reference them from annotations. Each named style maps to exactly one POI `CellStyle` (`workbook.createCellStyle()` invoked once per name at build time), so the [64,000 cell-style per-workbook limit](https://learn.microsoft.com/en-us/office/troubleshoot/excel/excel-specifications-and-limits) is bound by style declarations rather than row count.
 
+`StylesBuilder.simple()` returns a starter builder with per-type defaults registered (comma-grouped number formats, date/datetime formats). Drop it in early to get sensible defaults, then replace with a fully custom builder as needs grow.
+
 ```java
 StylesBuilder styles = new StylesBuilder()
     .cellStyle("currency")
@@ -690,7 +692,7 @@ Excel stores dates as numeric serial values. `ExcelDateModule` is registered by 
 
 Supported: `Date`, `Calendar`, `LocalDate`, `LocalDateTime`.
 
-No configuration needed. Read an Excel date cell and get a `LocalDate`. Write a `LocalDate` and get an Excel-formatted date.
+No configuration needed. Read an Excel date cell and get a `LocalDate`. Write a `LocalDate` and get an Excel-formatted date — provided the cell carries a date format; otherwise the raw serial number shows (e.g. `46157`). `StylesBuilder.simple()` registers per-type defaults as a starter (see [Styling](#styling)).
 
 On read, the workbook's date system (1900 or 1904) is detected and applied automatically. Write defaults to 1900.
 

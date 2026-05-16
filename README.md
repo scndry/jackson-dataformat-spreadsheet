@@ -192,6 +192,8 @@ try (SheetMappingIterator<Product> iter = reader.readValues(input)) {
 
 ### Cell Styling
 
+`StylesBuilder.simple()` for a per-type starter set; build a `StylesBuilder` from scratch for full control.
+
 ```java
 StylesBuilder styles = new StylesBuilder()
     .cellStyle("currency")
@@ -233,7 +235,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 
 ### Excel Date Handling
 
-Built-in conversion between Java date types and Excel serial numbers. Registered by default — no setup needed.
+Built-in conversion between Java date types and Excel serial numbers. Registered by default — no setup needed. Excel renders a date cell as a date only when it carries a date format; `StylesBuilder.simple()` registers per-type defaults as a starter.
 
 Supported: `Date`, `Calendar`, `LocalDate`, `LocalDateTime`
 
