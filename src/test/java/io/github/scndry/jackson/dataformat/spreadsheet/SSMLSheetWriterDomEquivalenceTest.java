@@ -12,15 +12,9 @@ import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
 import com.fasterxml.jackson.annotation.OptBoolean;
 
@@ -28,8 +22,6 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGroup;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * DOM-level equivalence tests: SSML writer output vs POI XSSFWorkbook output.
@@ -63,7 +55,7 @@ class SSMLSheetWriterDomEquivalenceTest {
         new SpreadsheetMapper().writeValue(ssmlFile, DATA, Entry.class);
         _poiMapper().writeValue(poiFile, DATA, Entry.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     // -- Nested list with outer field declared after the list ------------
@@ -86,9 +78,6 @@ class SSMLSheetWriterDomEquivalenceTest {
 
     @Test
     void sheetXmlDomEquivalent_nestedList() throws Exception {
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         List<NestedListEntry> data = Arrays.asList(
                 new NestedListEntry(1,
                         Arrays.asList(new NestedItem("Apple", 3), new NestedItem("Banana", 5)),
@@ -100,7 +89,7 @@ class SSMLSheetWriterDomEquivalenceTest {
         new SpreadsheetMapper().writeValue(ssmlFile, data, NestedListEntry.class);
         _poiMapper().writeValue(poiFile, data, NestedListEntry.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     @Test
@@ -108,9 +97,6 @@ class SSMLSheetWriterDomEquivalenceTest {
         // List XML accumulation crosses the SSML buffer threshold (~512 KB).
         // Tests that flush suspension during nested array scope keeps the
         // first element row tag present for back-write of the outer field.
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         int innerCount = 10000;
         NestedItem[] items = new NestedItem[innerCount];
         for (int i = 0; i < innerCount; i++) {
@@ -125,16 +111,13 @@ class SSMLSheetWriterDomEquivalenceTest {
         new SpreadsheetMapper().writeValue(ssmlFile, data, NestedListEntry.class);
         _poiMapper().writeValue(poiFile, data, NestedListEntry.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     @Test
     void sheetXmlDomEquivalent_nestedList_multiRecord() throws Exception {
         // _arrayScopeDepth must cycle 0 → 1 → 0 across records when the
         // root is an array of records (mapper.writeValue(list, T.class)).
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         List<NestedListEntry> data = Arrays.asList(
                 new NestedListEntry(1,
                         Arrays.asList(new NestedItem("Apple", 3), new NestedItem("Banana", 5)),
@@ -149,7 +132,7 @@ class SSMLSheetWriterDomEquivalenceTest {
         new SpreadsheetMapper().writeValue(ssmlFile, data, NestedListEntry.class);
         _poiMapper().writeValue(poiFile, data, NestedListEntry.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     // -- Two nested lists in one record, outer fields between/after ------
@@ -176,9 +159,6 @@ class SSMLSheetWriterDomEquivalenceTest {
 
     @Test
     void sheetXmlDomEquivalent_twoNestedListsPerRecord() throws Exception {
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         List<OrderWithTwoLists> data = Arrays.asList(
                 new OrderWithTwoLists(1,
                         Arrays.asList(new NestedItem("Apple", 3), new NestedItem("Banana", 5)),
@@ -192,7 +172,7 @@ class SSMLSheetWriterDomEquivalenceTest {
         new SpreadsheetMapper().writeValue(ssmlFile, data, OrderWithTwoLists.class);
         _poiMapper().writeValue(poiFile, data, OrderWithTwoLists.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     // -- List-of-list with an outer field after the inner list -----------
@@ -224,9 +204,6 @@ class SSMLSheetWriterDomEquivalenceTest {
 
     @Test
     void sheetXmlDomEquivalent_listOfList_outerAfterInnerList() throws Exception {
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         List<GroupedOrder> data = Arrays.asList(
                 new GroupedOrder(1,
                         Arrays.asList(
@@ -244,7 +221,7 @@ class SSMLSheetWriterDomEquivalenceTest {
         new SpreadsheetMapper().writeValue(ssmlFile, data, GroupedOrder.class);
         _poiMapper().writeValue(poiFile, data, GroupedOrder.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     // -- Multi-row header (@DataColumnGroup) -----------------------------
@@ -274,7 +251,7 @@ class SSMLSheetWriterDomEquivalenceTest {
         new SpreadsheetMapper().writeValue(ssmlFile, GROUPED_DATA, GroupedEntry.class);
         _poiMapper().writeValue(poiFile, GROUPED_DATA, GroupedEntry.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     // -- @DataColumnGroup styled attributes: headerStyle on the group cell,
@@ -310,7 +287,7 @@ class SSMLSheetWriterDomEquivalenceTest {
         _styledMapper().writeValue(ssmlFile, data, StyledGroupedEntry.class);
         _styledPoiMapper().writeValue(poiFile, data, StyledGroupedEntry.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     // -- 2-level @DataColumnGroup (3 header rows) + nested List + outer
@@ -350,9 +327,6 @@ class SSMLSheetWriterDomEquivalenceTest {
 
     @Test
     void sheetXmlDomEquivalent_twoLevelGroup_nestedList_mergeTrue() throws Exception {
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         List<OrderWith2LevelGroupAndList> data = Arrays.asList(
                 new OrderWith2LevelGroupAndList(1, "Alice",
                         Arrays.asList(
@@ -379,7 +353,7 @@ class SSMLSheetWriterDomEquivalenceTest {
         new SpreadsheetMapper().writeValue(ssmlFile, data, OrderWith2LevelGroupAndList.class);
         _poiMapper().writeValue(poiFile, data, OrderWith2LevelGroupAndList.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     @Test
@@ -390,7 +364,7 @@ class SSMLSheetWriterDomEquivalenceTest {
         new SpreadsheetMapper().writeValue(ssmlFile, DATA, Entry.class);
         _poiMapper().writeValue(poiFile, DATA, Entry.class);
 
-        _assertPartEqual(poiFile, ssmlFile, "/xl/sharedStrings.xml");
+        XlsxDomAssertions.assertPartEqual(poiFile, ssmlFile, "/xl/sharedStrings.xml");
     }
 
     // ----------------------------------------------------------------
@@ -427,66 +401,6 @@ class SSMLSheetWriterDomEquivalenceTest {
                 .stylesBuilder(_groupStyles())
                 .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
                 .build();
-    }
-
-    private static void _assertPartEqualIgnoringDimension(
-            final File expected, final File actual, final String partName) throws Exception {
-        try (OPCPackage expectedPkg = OPCPackage.open(expected);
-             OPCPackage actualPkg = OPCPackage.open(actual)) {
-
-            final Document expectedDoc = OpcXmlHelper.parsePart(expectedPkg, partName);
-            final Document actualDoc = OpcXmlHelper.parsePart(actualPkg, partName);
-
-            _removeDimensionElements(expectedDoc);
-            _removeDimensionElements(actualDoc);
-
-            // POI 4.x ~ 5.2.2 omit default s="0" on cells; SSML writer always emits.
-            // Strip on the SSML side so byte-equal comparison holds across versions.
-            // On POI 5.2.3+ both sides emit, and the strict check is preserved.
-            if (!PoiVersionProbe.isPoi523OrLater()) {
-                _stripDefaultStyleAttribute(actualDoc);
-            }
-
-            assertThat(actualDoc.getDocumentElement().isEqualNode(
-                    expectedDoc.getDocumentElement()))
-                    .as("%s DOM equality (ignoring dimension)", partName)
-                    .isTrue();
-        }
-    }
-
-    private static void _assertPartEqual(
-            final File expected, final File actual, final String partName) throws Exception {
-        try (OPCPackage expectedPkg = OPCPackage.open(expected);
-             OPCPackage actualPkg = OPCPackage.open(actual)) {
-
-            final Document expectedDoc = OpcXmlHelper.parsePart(expectedPkg, partName);
-            final Document actualDoc = OpcXmlHelper.parsePart(actualPkg, partName);
-
-            assertThat(actualDoc.getDocumentElement().isEqualNode(
-                    expectedDoc.getDocumentElement()))
-                    .as("%s DOM equality", partName)
-                    .isTrue();
-        }
-    }
-
-    private static void _removeDimensionElements(final Document doc) {
-        final NodeList dimensions = doc.getElementsByTagNameNS(
-                "http://schemas.openxmlformats.org/spreadsheetml/2006/main", "dimension");
-        for (int i = dimensions.getLength() - 1; i >= 0; i--) {
-            final Node node = dimensions.item(i);
-            node.getParentNode().removeChild(node);
-        }
-    }
-
-    private static void _stripDefaultStyleAttribute(final Document doc) {
-        final NodeList cells = doc.getElementsByTagNameNS(
-                "http://schemas.openxmlformats.org/spreadsheetml/2006/main", "c");
-        for (int i = 0; i < cells.getLength(); i++) {
-            final Element cell = (Element) cells.item(i);
-            if ("0".equals(cell.getAttribute("s"))) {
-                cell.removeAttribute("s");
-            }
-        }
     }
 
     private static File _debugFile(final String name) throws IOException {

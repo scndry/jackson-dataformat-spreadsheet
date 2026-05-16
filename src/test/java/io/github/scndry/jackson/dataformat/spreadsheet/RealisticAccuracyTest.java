@@ -18,19 +18,12 @@ import ch.qos.logback.classic.Logger;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Accuracy checks beyond the basic single-nested-list case. Each test asserts
@@ -70,9 +63,6 @@ class RealisticAccuracyTest {
 
     @Test
     void multipleListsPerRecord() throws Exception {
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         OrderTwoLists order = new OrderTwoLists(
                 "ORD-001",
                 Arrays.asList(new Item("Apple", 3), new Item("Banana", 5)),
@@ -89,7 +79,7 @@ class RealisticAccuracyTest {
         _poiMapper().writeValue(poiFile,
                 Collections.singletonList(order), OrderTwoLists.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     // ----------------------------------------------------------------
@@ -119,9 +109,6 @@ class RealisticAccuracyTest {
 
     @Test
     void deepNestedListOfList() throws Exception {
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         GroupedOrder order = new GroupedOrder(1,
                 Arrays.asList(
                         new Group("X",
@@ -140,7 +127,7 @@ class RealisticAccuracyTest {
         _poiMapper().writeValue(poiFile,
                 Collections.singletonList(order), GroupedOrder.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     // ----------------------------------------------------------------
@@ -184,9 +171,6 @@ class RealisticAccuracyTest {
 
     @Test
     void wideTable() throws Exception {
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         WideRecord record = new WideRecord(
                 "h01v", "h02v", "h03v", "h04v", "h05v",
                 1, 2, 3, 4.0, 5.0,
@@ -203,7 +187,7 @@ class RealisticAccuracyTest {
         _poiMapper().writeValue(poiFile,
                 Collections.singletonList(record), WideRecord.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     // ----------------------------------------------------------------
@@ -225,9 +209,6 @@ class RealisticAccuracyTest {
 
     @Test
     void veryLargeStrings() throws Exception {
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         StringBuilder bigMemo = new StringBuilder(1024);
         for (int i = 0; i < 100; i++) bigMemo.append("long memo text segment ").append(i).append(" -- ");
         StringBuilder bigDesc = new StringBuilder(2048);
@@ -248,7 +229,7 @@ class RealisticAccuracyTest {
         _poiMapper().writeValue(poiFile,
                 Collections.singletonList(record), LargeStringRecord.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     // ----------------------------------------------------------------
@@ -272,9 +253,6 @@ class RealisticAccuracyTest {
 
     @Test
     void sparseNullValues() throws Exception {
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         NullableRecord record = new NullableRecord(
                 1, null,
                 Arrays.asList(new NullableInner("a", null),
@@ -289,7 +267,7 @@ class RealisticAccuracyTest {
         _poiMapper().writeValue(poiFile,
                 Collections.singletonList(record), NullableRecord.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     // ----------------------------------------------------------------
@@ -300,9 +278,6 @@ class RealisticAccuracyTest {
 
     @Test
     void multiRecordDeepNested() throws Exception {
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         java.util.ArrayList<GroupedOrder> data = new java.util.ArrayList<>();
         for (int r = 0; r < 5; r++) {
             data.add(new GroupedOrder(r,
@@ -324,7 +299,7 @@ class RealisticAccuracyTest {
         new SpreadsheetMapper().writeValue(ssmlFile, data, GroupedOrder.class);
         _poiMapper().writeValue(poiFile, data, GroupedOrder.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     // ----------------------------------------------------------------
@@ -337,9 +312,6 @@ class RealisticAccuracyTest {
 
     @Test
     void largeSingleRecord_crossesBufferThreshold() throws Exception {
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         // SheetGenerator emits a TRACE log per write/closeStruct — 20K inners
         // × 3 cells + struct events floods the IDE console buffer at the
         // suite-default TRACE level. Bound to DEBUG just for this case.
@@ -364,7 +336,7 @@ class RealisticAccuracyTest {
             _poiMapper().writeValue(poiFile,
                     Collections.singletonList(record), NestedListEntry.class);
 
-            _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+            XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
         } finally {
             sheetGen.setLevel(prevLevel);
         }
@@ -411,9 +383,6 @@ class RealisticAccuracyTest {
 
     @Test
     void deepNestedLargeStrings() throws Exception {
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         StringBuilder bigDesc = new StringBuilder(2048);
         for (int i = 0; i < 100; i++) bigDesc.append("description chunk ").append(i).append(" / ");
         StringBuilder bigNote = new StringBuilder(1024);
@@ -440,7 +409,7 @@ class RealisticAccuracyTest {
         _poiMapper().writeValue(poiFile,
                 Collections.singletonList(root), FatRoot.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     // ----------------------------------------------------------------
@@ -451,9 +420,6 @@ class RealisticAccuracyTest {
 
     @Test
     void parentChildSameFirstRow() throws Exception {
-        Assumptions.assumeTrue(PoiVersionProbe.isPoi523OrLater(),
-                "DOM equivalence asserted only on POI 5.2.3+ — see #96");
-
         // Single group, two inners → row 0 is parent's, group's, and item[0]'s
         // firstRow simultaneously. Forward advance to row 1 must lock all three
         // entries that match firstRow=0 in the stack.
@@ -473,7 +439,7 @@ class RealisticAccuracyTest {
         _poiMapper().writeValue(poiFile,
                 Collections.singletonList(order), GroupedOrder.class);
 
-        _assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
     // ----------------------------------------------------------------
@@ -484,33 +450,6 @@ class RealisticAccuracyTest {
         return new SpreadsheetMapper(
                 new SpreadsheetFactory(XSSFWorkbook::new, SpreadsheetFactory.DEFAULT_SHEET_PARSER_FEATURE_FLAGS)
                         .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL));
-    }
-
-    private static void _assertPartEqualIgnoringDimension(
-            final File expected, final File actual, final String partName) throws Exception {
-        try (OPCPackage expectedPkg = OPCPackage.open(expected);
-             OPCPackage actualPkg = OPCPackage.open(actual)) {
-
-            final Document expectedDoc = OpcXmlHelper.parsePart(expectedPkg, partName);
-            final Document actualDoc = OpcXmlHelper.parsePart(actualPkg, partName);
-
-            _removeDimensionElements(expectedDoc);
-            _removeDimensionElements(actualDoc);
-
-            assertThat(actualDoc.getDocumentElement().isEqualNode(
-                    expectedDoc.getDocumentElement()))
-                    .as("%s DOM equality (ignoring dimension)", partName)
-                    .isTrue();
-        }
-    }
-
-    private static void _removeDimensionElements(final Document doc) {
-        final NodeList dimensions = doc.getElementsByTagNameNS(
-                "http://schemas.openxmlformats.org/spreadsheetml/2006/main", "dimension");
-        for (int i = dimensions.getLength() - 1; i >= 0; i--) {
-            final Node node = dimensions.item(i);
-            node.getParentNode().removeChild(node);
-        }
     }
 
     private static File _debugFile(final String name) throws IOException {
