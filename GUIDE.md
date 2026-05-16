@@ -374,8 +374,8 @@ try (SXSSFWorkbook wb = new SXSSFWorkbook()) {
 
 Flat spreadsheets map to nested POJOs automatically. This is a unique feature — no other Excel library supports bidirectional nested object mapping.
 
-| id | name | zipcode | city | title | salary |
-|----|------|---------|------|-------|--------|
+| id | name | address/zipcode | address/city | employment/title | employment/salary |
+|----|------|-----------------|--------------|------------------|-------------------|
 | 1 | Alice | 12345 | Seoul | SRE | 80000 |
 
 ```java
@@ -418,13 +418,11 @@ By default, nested field headers use the path from the parent (e.g., `address/zi
 Nested lists are serialized into multi-row output. *Deserialization is not currently supported.*
 
 ```java
-@DataGrid
+@DataGrid(mergeColumn = OptBoolean.TRUE)
 class Order {
-    @DataColumn(value = "Order ID", merge = OptBoolean.TRUE)
-    int orderId;
+    @DataColumn("Order ID") int orderId;
     List<Item> items;
-    @DataColumn(value = "Total", merge = OptBoolean.TRUE)
-    int total;
+    @DataColumn("Total") int total;
 }
 
 class Item {
@@ -512,12 +510,15 @@ Renders flattened columns from a nested object field under a shared group header
 ```java
 @DataGrid
 class Employee {
-    int id;
-    String name;
+    @DataColumn("ID") int id;
+    @DataColumn("Name") String name;
     @DataColumnGroup(value = "Address", comment = "Customer billing address")
     Address address;
 }
-class Address { String city; String zip; }
+class Address {
+    @DataColumn("City") String city;
+    @DataColumn("Zip") String zip;
+}
 ```
 
 renders as:
@@ -538,7 +539,7 @@ For deeper hierarchies the annotation stacks naturally:
 
 ```java
 class Company {
-    String name;
+    @DataColumn("Name") String name;
     @DataColumnGroup("2024") YearMetrics year2024;
     @DataColumnGroup("2025") YearMetrics year2025;
 }
@@ -546,7 +547,10 @@ class YearMetrics {
     @DataColumnGroup("Q1") QuarterMetrics q1;
     @DataColumnGroup("Q2") QuarterMetrics q2;
 }
-class QuarterMetrics { int sales; int profit; }
+class QuarterMetrics {
+    @DataColumn("Sales") int sales;
+    @DataColumn("Profit") int profit;
+}
 ```
 
 ```
@@ -588,8 +592,8 @@ class Bar {
 
 | Column | style | autoSize |
 |--------|-------|----------|
-| bar.foo.a | `"highlight"` (from @DataColumn) | `FALSE` (from Foo's @DataGrid) |
-| bar.foo.b | `"base"` (from Bar's @DataGrid) | `FALSE` (from Foo's @DataGrid) |
+| foo/a | `"highlight"` (from @DataColumn) | `FALSE` (from Foo's @DataGrid) |
+| foo/b | `"base"` (from Bar's @DataGrid) | `FALSE` (from Foo's @DataGrid) |
 
 ### Jackson Annotations
 
@@ -929,32 +933,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 List<Row> rows = mapper.readValues(inputStream, Row.class);
 ```
 
-## Performance
-
-At 100K rows (mixed types, shared string table):
-
-**Read:**
-
-| Library | Time | Memory |
-|---------|------|--------|
-| jackson-spreadsheet | 198 ms | 378 MB |
-| FastExcel | 212 ms | 428 MB |
-| Fesod | 279 ms | 400 MB |
-| Poiji | 843 ms | 2876 MB |
-| Apache POI | 1198 ms | 2333 MB |
-
-**Write:**
-
-| Library | Time | Memory |
-|---------|------|--------|
-| jackson-spreadsheet | 150 ms | 191 MB |
-| FastExcel | 166 ms | 156 MB |
-| Apache POI | 283 ms | 207 MB |
-| Fesod | 337 ms | 480 MB |
-
-Fastest read and write throughput among all libraries. See [BENCHMARK.md](BENCHMARK.md) for full results.
-
-### Low-Memory Mode for Large Files
+## Low-Memory Mode for Large Files
 
 For extremely large XLSX files that cause `OutOfMemoryError`:
 
@@ -985,7 +964,7 @@ Requires `com.h2database:h2` on the classpath:
 </dependency>
 ```
 
-Trades ~40% throughput for constant heap usage regardless of string table size. The temporary file is automatically deleted when the reader is closed.
+Trades throughput for constant heap usage regardless of string table size — see [BENCHMARK.md](BENCHMARK.md) for measured overhead. The temporary file is automatically deleted when the reader is closed.
 
 ## Logging
 
@@ -1017,4 +996,3 @@ Yes. Create a `SpreadsheetMapper` bean and inject it. It is thread-safe like `Ob
 - [BENCHMARK.md](BENCHMARK.md) — JMH benchmark results
 - [Jackson documentation](https://github.com/FasterXML/jackson-docs)
 - [Apache POI](https://poi.apache.org/components/spreadsheet/index.html)
-

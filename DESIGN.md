@@ -163,4 +163,3 @@ If you can do it with Jackson for JSON, you can do it with this library for Exce
 Same annotations. Same API. Different format. That's the abstraction.
 
 If it doesn't pass this test — if the user has to learn a new API or write spreadsheet-specific code for something Jackson already handles — it's a design failure.
-

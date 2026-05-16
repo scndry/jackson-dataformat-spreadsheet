@@ -109,10 +109,10 @@ Nested objects flatten into columns. Lists of nested objects expand into multipl
 ```java
 @DataGrid(mergeColumn = OptBoolean.TRUE)
 class Order {
-    @DataColumn("ID") int id;
-    @DataColumn("Customer") String customer;
+    @DataColumn("ID")         int id;
+    @DataColumn("Customer")   String customer;
     @DataColumnGroup("Items") List<LineItem> items;
-    @DataColumn("Total") BigDecimal total;
+    @DataColumn("Total")      BigDecimal total;
 }
 
 class LineItem {
@@ -285,4 +285,3 @@ The mapper instance is reusable across threads once configured (same rule as Jac
 ## License
 
 [Apache License 2.0](LICENSE)
-
