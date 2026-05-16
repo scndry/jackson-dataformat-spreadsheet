@@ -39,13 +39,13 @@ Available on Maven Central:
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.6.2</version>
+    <version>1.6.3</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.6.2"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.6.3"
 ```
 
 ### Requirements
@@ -277,7 +277,7 @@ Fastest read and write throughput at 100K rows, with the lowest write memory. 6x
 XLSX (OOXML) and XLS (legacy). XLSX uses StAX streaming; XLS uses POI object model.
 
 **Q: Is it production-ready?**
-Yes. Version 1.6.2 on Maven Central. Java 8+, Jackson 2.14+, POI 4.1.1+. Listed as a [community data format module](https://github.com/FasterXML/jackson#data-format-modules) in the FasterXML jackson repository.
+Yes. Version 1.6.3 on Maven Central. Java 8+, Jackson 2.14+, POI 4.1.1+. Listed as a [community data format module](https://github.com/FasterXML/jackson#data-format-modules) in the FasterXML jackson repository.
 
 **Q: Is the mapper thread-safe?**
 The mapper instance is reusable across threads once configured (same rule as Jackson's `ObjectMapper`). Concurrent calls with `File` / `InputStream` / `OutputStream` inputs are safe — the library opens an isolated `Workbook` per call. If you pass a `Sheet` directly, POI's `Workbook`/`Sheet` are not thread-safe, so each thread needs its own.
