@@ -42,7 +42,7 @@ List<Product> products = mapper.readValues(file, Product.class);
 
 The column-to-field mapping is driven by the class structure. Add a field, the column appears. Rename a field, the column follows. Remove a field, the column disappears. No index to update.
 
-But this is not a POI replacement. POI types (`Sheet`, `Workbook`) are first-class I/O targets. Open a workbook with POI, pass a `Sheet` to the mapper for data binding, then continue using POI for charts, formulas, conditional formatting — whatever the mapper doesn't cover. Data binding on top of POI, not instead of it.
+POI types (`Sheet`, `Workbook`) are first-class I/O targets — see [POI Integration](#poi-integration).
 
 ## Requirements
 
