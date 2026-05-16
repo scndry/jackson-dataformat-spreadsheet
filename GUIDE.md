@@ -729,7 +729,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.*;
 ```
 
-Column names resolve against `@DataColumn(value)`, the field name, or `@JsonAlias`. Style names resolve against `cellStyle(name)` in `StylesBuilder`. Both resolve at write time — typos throw `IllegalArgumentException` listing the available names.
+Column names resolve against `@DataColumn(value)`, the field name, or `@JsonAlias`. Style names resolve against `cellStyle(name)` in `StylesBuilder`. Both resolve at write time — typos throw `IllegalArgumentException` listing the available names. Alignment and wrap-text on a referenced style are silently dropped — DXF limitation.
 
 Comparison factories (`greaterThan`, `between`, `equalTo`, ...) accept typed values (numeric, boolean, string, date) or `Formula` for cell references and Excel expressions. String operands are auto-quoted; dates emit as `DATE(y,m,d)+TIME(h,m,s)`. The factory returns a `FormatCondition`; `.style(name)` finishes it as a `ConditionalFormatRule`.
 
@@ -793,10 +793,6 @@ Prefer `LocalDate` / `LocalDateTime` for deterministic CF rules. `Date` carries 
 #### Formula escape
 
 `formula(text)` is a power-user escape — the text is emitted verbatim into the OOXML `<formula>` element. The library does not validate Excel syntax. `columnRef(name)` resolves the schema column name to a row-relative reference (`$<col><dataStartRow>`) at write time, so Excel auto-shifts per cell in the formatting range.
-
-#### Style → DXF mapping
-
-Style names referenced by `.style(name)` resolve to a `cellStyle` in `StylesBuilder`. Fill, font, and border properties are translated into a DXF entry attached to the rule. Alignment and wrap-text are silently skipped (DXF doesn't support them).
 
 #### Color scale (3-color)
 
