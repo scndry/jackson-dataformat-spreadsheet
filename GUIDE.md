@@ -692,13 +692,9 @@ Custom patterns can be passed directly via `dataFormat(String)`. See [Number for
 
 ### Excel Dates
 
-Excel stores dates as numeric serial values. `ExcelDateModule` is registered by default, automatically converting between Java date types and Excel date numbers.
+`ExcelDateModule` is registered by default — `Date`, `Calendar`, `LocalDate`, `LocalDateTime` convert to/from Excel serial values automatically. Without a date format on the cell, Excel shows the raw serial (e.g. `46157`); `StylesBuilder.simple()` registers per-type defaults as a starter (see [Styling](#styling)).
 
-Supported: `Date`, `Calendar`, `LocalDate`, `LocalDateTime`.
-
-No configuration needed. Read an Excel date cell and get a `LocalDate`. Write a `LocalDate` and get an Excel-formatted date — provided the cell carries a date format; otherwise the raw serial number shows (e.g. `46157`). `StylesBuilder.simple()` registers per-type defaults as a starter (see [Styling](#styling)).
-
-On read, the workbook's date system (1900 or 1904) is detected and applied automatically. Write defaults to 1900.
+On read, the workbook's date system (1900 / 1904) is detected; write defaults to 1900.
 
 ## Sheet-Level Features
 
@@ -719,7 +715,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .build();
 ```
 
-`freezePane(colSplit, rowSplit)` delegates to POI `Sheet#createFreezePane` — the leftmost `colSplit` columns and topmost `rowSplit` rows stay fixed while scrolling. `autoFilter()` enables the filter dropdown across all schema columns; the range is computed from the schema and row count. Both the streaming default and `USE_POI_USER_MODEL` write paths apply these identically.
+`freezePane(colSplit, rowSplit)` freezes the leftmost columns / topmost rows. `autoFilter()` enables the filter dropdown across all schema columns. Both work identically on streaming and `USE_POI_USER_MODEL` write paths.
 
 ### Conditional Formatting
 
