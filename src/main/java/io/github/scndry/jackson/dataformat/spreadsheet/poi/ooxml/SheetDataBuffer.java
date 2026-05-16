@@ -5,6 +5,8 @@ import java.util.Arrays;
 
 import org.apache.poi.ss.util.CellReference;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
+
 /**
  * Sheet-data accumulator using Structure of Arrays layout.
  *
@@ -41,14 +43,6 @@ final class SheetDataBuffer {
     static final byte TYPE_STRING  = 1;
     static final byte TYPE_BLANK   = 3;
     static final byte TYPE_BOOLEAN = 4;
-
-    // Internal memory footprint per cell / per row — used by byteSize()
-    // for back-write OOM monitoring. Must stay in sync with
-    // BackWriteProjection.{cellMemoryBytes, rowMemoryBytes}.
-    //   Cell SoA slots: long _packed (8) + long _values (8) + int _next (4) = 20 bytes
-    //   Row directory : int _rowHead (4) + int _rowTail (4)                 = 8 bytes
-    static final int CELL_MEMORY_BYTES = 20;
-    static final int ROW_MEMORY_BYTES = 8;
 
     // Lazy capacity inflated on first append, then grown 1.5× — same shape
     // as java.util.ArrayList. Covers typical Excel schemas (≤ 16 columns)
@@ -129,7 +123,8 @@ final class SheetDataBuffer {
      *  {@link io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection}
      *  on the same memory basis. */
     long byteSize() {
-        return (long) _size * CELL_MEMORY_BYTES + (long) _rowSpan * ROW_MEMORY_BYTES;
+        return (long) _size * BackWriteProjection.CELL_MEMORY_BYTES
+                + (long) _rowSpan * BackWriteProjection.ROW_MEMORY_BYTES;
     }
 
     /** Sink invoked after each XML fragment is appended to {@code sb} so

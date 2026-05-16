@@ -1,12 +1,8 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.util.Date;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.OptBoolean;
-import com.fasterxml.jackson.databind.type.SimpleType;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,53 +16,19 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
 
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection.CELL_MEMORY_BYTES;
+import static io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection.ROW_MEMORY_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit-level checks for the back-write projection — guards the
- * cell-XML upper bound, the linear scaling against list size, the
- * heap-aware limit defaults, and the schema-level scope detection.
+ * linear scaling of {@link BackWriteProjection#project} against list
+ * size, the heap-aware limit defaults, and the schema-level scope
+ * detection.
  *
- * <p>These rules are documented in
- * {@link BackWriteProjection#cellMaxBytes(Column)} and
- * {@link BackWriteProjection#backWriteBufferLimit()}; a regression here
- * would silently weaken the back-write OOM guard.
+ * <p>A regression here would silently weaken the back-write OOM guard.
  */
 class BackWriteProjectionTest {
-
-    // SoA internal memory units — must stay in sync with
-    // BackWriteProjection.{CELL_MEMORY_BYTES, ROW_MEMORY_BYTES}.
-    private static final int CELL_MEMORY_BYTES = 20;
-    private static final int ROW_MEMORY_BYTES = 8;
-
-    // ----------------------------------------------------------------
-    // cellMaxBytes — SoA cell record is a fixed 20 bytes regardless of
-    // Java type (long _packed + long _values + int _next).
-    // ----------------------------------------------------------------
-
-    @Test
-    void cellMaxBytes_isConstantAcrossAllSupportedTypes() {
-        assertThat(BackWriteProjection.cellMaxBytes(_column(boolean.class))).isEqualTo(CELL_MEMORY_BYTES);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(Boolean.class))).isEqualTo(CELL_MEMORY_BYTES);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(String.class))).isEqualTo(CELL_MEMORY_BYTES);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(SampleEnum.class))).isEqualTo(CELL_MEMORY_BYTES);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(BigDecimal.class))).isEqualTo(CELL_MEMORY_BYTES);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(BigInteger.class))).isEqualTo(CELL_MEMORY_BYTES);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(int.class))).isEqualTo(CELL_MEMORY_BYTES);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(long.class))).isEqualTo(CELL_MEMORY_BYTES);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(float.class))).isEqualTo(CELL_MEMORY_BYTES);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(double.class))).isEqualTo(CELL_MEMORY_BYTES);
-        assertThat(BackWriteProjection.cellMaxBytes(_column(Date.class))).isEqualTo(CELL_MEMORY_BYTES);
-    }
-
-    enum SampleEnum { A }
-
-    private static Column _column(final Class<?> raw) {
-        return new Column(
-                ColumnPointer.empty().resolve("x"),
-                DataColumn.Value.empty(),
-                SimpleType.constructUnsafe(raw));
-    }
 
     // ----------------------------------------------------------------
     // project — linear in list size, sums every inner column's bound

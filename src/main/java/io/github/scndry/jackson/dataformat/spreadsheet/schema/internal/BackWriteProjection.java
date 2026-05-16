@@ -28,11 +28,13 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 @Slf4j
 public final class BackWriteProjection {
 
-    // SheetDataBuffer cell SoA: long _packed (8) + long _values (8) + int _next (4)
-    private static final int CELL_MEMORY_BYTES = 20;
+    /** SoA cell record footprint — {@code long _packed (8) + long _values (8) + int _next (4)}.
+     *  Single source of truth shared with {@code SheetDataBuffer.byteSize()}. */
+    public static final int CELL_MEMORY_BYTES = 20;
 
-    // SheetDataBuffer row directory: int _rowHead (4) + int _rowTail (4)
-    private static final int ROW_MEMORY_BYTES = 8;
+    /** SoA row directory entry footprint — {@code int _rowHead (4) + int _rowTail (4)}.
+     *  Single source of truth shared with {@code SheetDataBuffer.byteSize()}. */
+    public static final int ROW_MEMORY_BYTES = 8;
 
     /** Cache for {@link #requiresBackWriteScope(SpreadsheetSchema)} keyed on
      *  schema identity. WeakHashMap so schemas reclaimed by GC drop their
@@ -45,31 +47,13 @@ public final class BackWriteProjection {
     private BackWriteProjection() {
     }
 
-    /** SoA heap footprint of one buffered cell (constant across cell types).
-     *
-     *  <p>Every supported Java type writes a single cell into
-     *  {@code SheetDataBuffer}'s SoA arrays — numerics
-     *  ({@code writeNumber(int|long|float|double|BigDecimal)} and
-     *  {@code Date} / {@code java.time.*}) land via
-     *  {@code Double.doubleToRawLongBits}, strings / enums via the
-     *  shared-string index, booleans as 0/1, blanks as 0. Each occupies
-     *  one slot in {@code _packed}, {@code _values}, and {@code _next} —
-     *  20 bytes total. The {@code column} argument is kept for symmetry
-     *  with future per-type accounting and unused today. */
-    public static int cellMaxBytes(final Column column) {
-        return CELL_MEMORY_BYTES;
-    }
-
     /** SoA heap footprint of one inner row — every column's cell record
-     *  plus a row directory entry. */
+     *  ({@link #CELL_MEMORY_BYTES}) plus the row directory entry
+     *  ({@link #ROW_MEMORY_BYTES}). */
     public static long innerRowMaxBytes(
             final SpreadsheetSchema schema, final ColumnPointer arrayPointer) {
         final List<Column> inners = schema.getColumns(arrayPointer);
-        long bytes = ROW_MEMORY_BYTES;
-        for (final Column c : inners) {
-            bytes += cellMaxBytes(c);
-        }
-        return bytes;
+        return (long) ROW_MEMORY_BYTES + (long) inners.size() * CELL_MEMORY_BYTES;
     }
 
     /** Projected back-write buffer max for a nested list of
