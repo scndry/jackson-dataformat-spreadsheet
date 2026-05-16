@@ -1459,6 +1459,67 @@ class DataColumnGroupTest {
         return tempDir.resolve(name).toFile();
     }
 
+    // -- @DataColumnGroup empty value() falls back to column pointer path ----
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class FallbackRoot {
+        @DataColumnGroup FallbackInner address;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class FallbackInner {
+        @DataColumn("City") String city;
+        @DataColumn("Zip") String zip;
+    }
+
+    @Test
+    void groupValueEmpty_atRoot_usesFieldName() throws Exception {
+        File file = tempFile("group-fallback-root.xlsx");
+
+        mapper.writeValue(file, new FallbackRoot(new FallbackInner("Seoul", "12345")));
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            // Root field's pointer is the bare field name.
+            assertThat(sheet.getRow(0).getCell(0).getStringCellValue()).isEqualTo("address");
+            assertThat(sheet.getRow(1).getCell(0).getStringCellValue()).isEqualTo("City");
+            assertThat(sheet.getRow(1).getCell(1).getStringCellValue()).isEqualTo("Zip");
+        }
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class FallbackOuter {
+        @DataColumnGroup FallbackMid mid;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class FallbackMid {
+        @DataColumnGroup FallbackLeaf leaf;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class FallbackLeaf {
+        @DataColumn("v") int v;
+    }
+
+    @Test
+    void groupValueEmpty_atNested_usesColumnPointerPath() throws Exception {
+        File file = tempFile("group-fallback-nested.xlsx");
+
+        mapper.writeValue(file, new FallbackOuter(new FallbackMid(new FallbackLeaf(42))));
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            // Outer @DataColumnGroup with empty value → root pointer "mid".
+            assertThat(sheet.getRow(0).getCell(0).getStringCellValue()).isEqualTo("mid");
+            // Nested @DataColumnGroup with empty value → path "mid/leaf",
+            // not the bare field name "leaf".
+            assertThat(sheet.getRow(1).getCell(0).getStringCellValue()).isEqualTo("mid/leaf");
+            assertThat(sheet.getRow(2).getCell(0).getStringCellValue()).isEqualTo("v");
+            assertThat((int) sheet.getRow(3).getCell(0).getNumericCellValue()).isEqualTo(42);
+        }
+    }
+
     private static final Path DEBUG_OUTPUT_DIR = Paths.get("build/debug-output");
 
     private static File _debugFile(final String name) throws IOException {
