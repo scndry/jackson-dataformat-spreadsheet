@@ -113,6 +113,34 @@ class MergeRegionInnerCellsTest {
                 poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
+    // (2b) Group header merge with NO explicit groupHeaderStyle — the anchor
+    // cell inherits columnHeaderStyle via the writeString path, and the inner
+    // cells must inherit the same style. Without the fix the inner cells stay
+    // empty and the border breaks along the group region.
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    @DataGrid(columnStyle = "border", columnHeaderStyle = "border")
+    static class GroupHeaderInheritsRow {
+        int id;
+        String name;
+        @DataColumnGroup("Address") Address address;
+    }
+
+    @Test
+    void groupCellInheritsColumnHeaderStyle_ssmlEqualsPoi() throws Exception {
+        final List<GroupHeaderInheritsRow> data = Arrays.asList(
+                new GroupHeaderInheritsRow(1, "Alice", new Address("12345", "Seoul")),
+                new GroupHeaderInheritsRow(2, "Bob", new Address("67890", "Busan")));
+
+        final File ssmlFile = _debugFile("merge-inner-group-inherit-ssml.xlsx");
+        final File poiFile = _debugFile("merge-inner-group-inherit-poi.xlsx");
+        _ssmlMapper().writeValue(ssmlFile, data, GroupHeaderInheritsRow.class);
+        _poiMapper().writeValue(poiFile, data, GroupHeaderInheritsRow.class);
+
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(
+                poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+    }
+
     // (4) Nested list outer-field merge — outer column merged across inner
     // list rows via mergeScopedColumns; fires the back-write path so the
     // inner-cell fill happens after inner items emit.

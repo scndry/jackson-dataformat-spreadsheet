@@ -161,20 +161,20 @@ public final class SSMLSheetWriter implements SheetWriter {
                                        final DataColumnGroup.Value group) {
                 setReference(new CellAddress(row, firstCol));
                 final CellStyle gs = _styles.resolve(group.getHeaderStyle(), null);
-                final int groupStyleIdx;
+                final int anchorStyleIdx;
                 if (gs == null) {
                     writeString(group.getName());
-                    groupStyleIdx = 0;
+                    anchorStyleIdx = _headerStyleIndexForColumn(firstCol);
                 } else {
-                    groupStyleIdx = gs.getIndex();
+                    anchorStyleIdx = gs.getIndex();
                     final int sstIdx = _cacheString(group.getName());
                     _flushIfForwardJump();
-                    _data.appendString(row, firstCol, groupStyleIdx, sstIdx);
+                    _data.appendString(row, firstCol, anchorStyleIdx, sstIdx);
                     _checkBufferLimitInArrayScope();
                 }
                 if (firstCol < lastCol) {
                     _mergeRanges.add(new MergeRange(row, row, firstCol, lastCol));
-                    _fillMergedInnerCellsHorizontal(row, firstCol, lastCol, groupStyleIdx);
+                    _fillMergedInnerCellsHorizontal(row, firstCol, lastCol, anchorStyleIdx);
                 }
             }
 
