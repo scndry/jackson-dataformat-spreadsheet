@@ -161,22 +161,27 @@ public final class SSMLSheetWriter implements SheetWriter {
                                        final DataColumnGroup.Value group) {
                 setReference(new CellAddress(row, firstCol));
                 final CellStyle gs = _styles.resolve(group.getHeaderStyle(), null);
+                final int groupStyleIdx;
                 if (gs == null) {
                     writeString(group.getName());
+                    groupStyleIdx = 0;
                 } else {
+                    groupStyleIdx = gs.getIndex();
                     final int sstIdx = _cacheString(group.getName());
                     _flushIfForwardJump();
-                    _data.appendString(row, firstCol, gs.getIndex(), sstIdx);
+                    _data.appendString(row, firstCol, groupStyleIdx, sstIdx);
                     _checkBufferLimitInArrayScope();
                 }
                 if (firstCol < lastCol) {
                     _mergeRanges.add(new MergeRange(row, row, firstCol, lastCol));
+                    _fillMergedInnerCellsHorizontal(row, firstCol, lastCol, groupStyleIdx);
                 }
             }
 
             @Override
             public void visitVerticalMerge(final int firstRow, final int lastRow, final int col) {
                 _mergeRanges.add(new MergeRange(firstRow, lastRow, col, col));
+                _fillMergedInnerCellsVertical(firstRow, lastRow, col, _headerStyleIndexForColumn(col));
             }
         });
     }
@@ -269,7 +274,46 @@ public final class SSMLSheetWriter implements SheetWriter {
             final int col = _schema.columnIndexOf(column);
             if (col < 0) continue;
             _mergeRanges.add(new MergeRange(row, row + size - 1, col, col));
+            _fillMergedInnerCellsVertical(row, row + size - 1, col, _dataStyleIndexForColumn(col));
         }
+    }
+
+    /** Fill the inner cells of a vertical merge with the same style as the
+     *  top cell so cell-by-cell viewers (LibreOffice / Numbers) render the
+     *  merged region as a closed rectangle. Only triggers when the column
+     *  has an explicit style index — without one, the inner cells are
+     *  left untouched, matching POI's writer (which also skips
+     *  {@code setCellStyle} in that case). */
+    private void _fillMergedInnerCellsVertical(final int firstRow, final int lastRow,
+                                               final int col, final int styleIdx) {
+        if (styleIdx <= 0) return;
+        for (int r = firstRow + 1; r <= lastRow; r++) {
+            _data.appendBlank(r, col, styleIdx);
+        }
+    }
+
+    /** Horizontal counterpart of
+     *  {@link #_fillMergedInnerCellsVertical} for group-header merges. */
+    private void _fillMergedInnerCellsHorizontal(final int row, final int firstCol,
+                                                 final int lastCol, final int styleIdx) {
+        if (styleIdx <= 0) return;
+        for (int c = firstCol + 1; c <= lastCol; c++) {
+            _data.appendBlank(row, c, styleIdx);
+        }
+    }
+
+    private int _dataStyleIndexForColumn(final int col) {
+        if (_columnStyleIndex == null) return 0;
+        final int idx = col - _schema.getOriginColumn();
+        if (idx < 0 || idx >= _columnStyleIndex.length) return 0;
+        return _columnStyleIndex[idx];
+    }
+
+    private int _headerStyleIndexForColumn(final int col) {
+        if (_headerColumnStyleIndex == null) return 0;
+        final int idx = col - _schema.getOriginColumn();
+        if (idx < 0 || idx >= _headerColumnStyleIndex.length) return 0;
+        return _headerColumnStyleIndex[idx];
     }
 
     @Override

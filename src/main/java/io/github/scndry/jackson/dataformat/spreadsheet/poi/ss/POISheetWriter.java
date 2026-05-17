@@ -106,12 +106,18 @@ public final class POISheetWriter implements SheetWriter {
                 }
                 if (firstCol < lastCol) {
                     _sheet.addMergedRegion(new CellRangeAddress(row, row, firstCol, lastCol));
+                    _fillMergedInnerCellsHorizontal(row, firstCol, lastCol, gs);
                 }
             }
 
             @Override
             public void visitVerticalMerge(final int firstRow, final int lastRow, final int col) {
                 _sheet.addMergedRegion(new CellRangeAddress(firstRow, lastRow, col, col));
+                final Column column = _schema.findColumn(new CellAddress(firstRow, col));
+                final CellStyle hs = column == null ? null
+                        : _styles.resolve(column.getValue().getHeaderStyle(),
+                                column.getType().getRawClass());
+                _fillMergedInnerCellsVertical(firstRow, lastRow, col, hs);
             }
         });
     }
@@ -211,6 +217,32 @@ public final class POISheetWriter implements SheetWriter {
                 log.trace(region.formatAsString());
             }
             _sheet.addMergedRegion(region);
+            final CellStyle ds = _styles.resolve(column.getValue().getStyle(),
+                    column.getType().getRawClass());
+            _fillMergedInnerCellsVertical(row, row + size - 1, col, ds);
+        }
+    }
+
+    /** Fill the inner cells of a vertical merge with the same style as the
+     *  top cell so cell-by-cell viewers (LibreOffice / Numbers) render the
+     *  merged region as a closed rectangle. Only triggers when the column
+     *  has an explicit style — without one, the inner cells are left
+     *  untouched (no cell entry created), matching SSML's writer. */
+    private void _fillMergedInnerCellsVertical(final int firstRow, final int lastRow,
+                                               final int col, final CellStyle style) {
+        if (style == null) return;
+        for (int r = firstRow + 1; r <= lastRow; r++) {
+            CellUtil.getCell(CellUtil.getRow(r, _sheet), col).setCellStyle(style);
+        }
+    }
+
+    /** Horizontal counterpart of
+     *  {@link #_fillMergedInnerCellsVertical} for group-header merges. */
+    private void _fillMergedInnerCellsHorizontal(final int row, final int firstCol,
+                                                 final int lastCol, final CellStyle style) {
+        if (style == null) return;
+        for (int c = firstCol + 1; c <= lastCol; c++) {
+            CellUtil.getCell(CellUtil.getRow(row, _sheet), c).setCellStyle(style);
         }
     }
 
