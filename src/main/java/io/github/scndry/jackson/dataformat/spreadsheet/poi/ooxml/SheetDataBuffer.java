@@ -208,8 +208,33 @@ final class SheetDataBuffer {
                 _rowHead[rowOffset] = cellIdx;
                 _rowTail[rowOffset] = cellIdx;
             } else {
-                _next[_rowTail[rowOffset]] = cellIdx;
-                _rowTail[rowOffset] = cellIdx;
+                final int tailCol = (int) ((_packed[_rowTail[rowOffset]] >>> COL_SHIFT) & COL_MASK);
+                if (col >= tailCol) {
+                    // Fast path — forward column-ascending append (typical case).
+                    _next[_rowTail[rowOffset]] = cellIdx;
+                    _rowTail[rowOffset] = cellIdx;
+                } else {
+                    // Slow path — out-of-order column insertion (merge inner-cell
+                    // fill emitted after inner items). OOXML strict readers
+                    // require ascending cell-reference order within a row.
+                    final int head = _rowHead[rowOffset];
+                    final int headCol = (int) ((_packed[head] >>> COL_SHIFT) & COL_MASK);
+                    if (col < headCol) {
+                        _next[cellIdx] = head;
+                        _rowHead[rowOffset] = cellIdx;
+                    } else {
+                        int prev = head;
+                        while (true) {
+                            final int nxt = _next[prev];
+                            if (nxt < 0) break;
+                            final int nxtCol = (int) ((_packed[nxt] >>> COL_SHIFT) & COL_MASK);
+                            if (col < nxtCol) break;
+                            prev = nxt;
+                        }
+                        _next[cellIdx] = _next[prev];
+                        _next[prev] = cellIdx;
+                    }
+                }
             }
         }
         _size++;
