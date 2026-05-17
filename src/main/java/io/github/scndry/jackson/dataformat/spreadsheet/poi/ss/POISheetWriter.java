@@ -101,12 +101,19 @@ public final class POISheetWriter implements SheetWriter {
                 setReference(new CellAddress(row, firstCol));
                 writeString(group.getName());
                 final CellStyle gs = _styles.resolve(group.getHeaderStyle(), null);
+                final CellStyle anchorStyle;
                 if (gs != null) {
                     CellUtil.getCell(CellUtil.getRow(row, _sheet), firstCol).setCellStyle(gs);
+                    anchorStyle = gs;
+                } else {
+                    final Column column = _schema.findColumn(new CellAddress(row, firstCol));
+                    anchorStyle = column == null ? null
+                            : _styles.resolve(column.getValue().getHeaderStyle(),
+                                    column.getType().getRawClass());
                 }
                 if (firstCol < lastCol) {
                     _sheet.addMergedRegion(new CellRangeAddress(row, row, firstCol, lastCol));
-                    _fillMergedInnerCellsHorizontal(row, firstCol, lastCol, gs);
+                    _fillMergedInnerCellsHorizontal(row, firstCol, lastCol, anchorStyle);
                 }
             }
 
