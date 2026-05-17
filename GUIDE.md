@@ -57,13 +57,13 @@ POI types (`Sheet`, `Workbook`) are first-class I/O targets — see [POI Integra
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.6.3</version>
+    <version>1.6.4</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.6.3"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.6.4"
 ```
 
 ## Quick Start
