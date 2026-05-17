@@ -506,6 +506,15 @@ Renders flattened columns from a nested object field under a shared group header
 | `value` | field name | Column group header name |
 | `comment` | `""` | Group header cell comment text |
 | `headerStyle` | `""` | Cell style for the group header cell |
+| `columnStyle` | `""` | Default cell style for child data cells (cascade) |
+| `columnHeaderStyle` | `""` | Default cell style for child leaf header cells (cascade) |
+| `columnWidth` | `-1` (auto) | Default width for child columns (cascade) |
+| `autoSizeColumn` | `DEFAULT` | Default auto-size for child columns (cascade) |
+| `minColumnWidth` | `-1` (none) | Default minimum width for child columns (cascade) |
+| `maxColumnWidth` | `255` | Default maximum width for child columns (cascade) |
+| `mergeColumn` | `DEFAULT` | Default merge for child columns (cascade) |
+
+The seven cascade attributes mirror `@DataGrid`'s corresponding defaults and act as an intermediate layer between the leaf `@DataColumn` and the enclosing `@DataGrid` — see *Attribute Resolution Order* below.
 
 ```java
 @DataGrid
@@ -567,15 +576,15 @@ Depth 3 is the practical limit; readability degrades beyond that. `setColumnReor
 
 ### Attribute Resolution Order
 
-Column attributes resolve in priority order:
+Column attributes resolve in priority order (highest first, first-non-empty wins):
 
-1. `@DataColumn` on the property
-2. `@DataGrid` on the declaring class
-3. `@DataGrid` on the enclosing (parent) class
+1. `@DataColumn` on the leaf property
+2. Innermost enclosing `@DataColumnGroup` (cascade slots)
+3. Outer enclosing `@DataColumnGroup` (recurse outward)
+4. `@DataGrid` on the declaring class
+5. `@DataGrid` on the enclosing (parent) class
 
-`@DataColumnGroup.headerStyle` follows the same chain, falling back to
-`@DataGrid.groupHeaderStyle` from the declaring class, then from the
-enclosing class.
+`@DataColumnGroup.headerStyle` is level-specific — outer groups do not cascade their `headerStyle` into inner groups. Each group level falls back to `@DataGrid.groupHeaderStyle` from the declaring class, then from the enclosing class.
 
 ```java
 @DataGrid(autoSizeColumn = OptBoolean.FALSE)
