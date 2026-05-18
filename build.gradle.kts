@@ -148,6 +148,7 @@ jmh {
 tasks.jacocoTestReport {
     reports {
         csv.required.set(true)
+        xml.required.set(true)
     }
 }
 

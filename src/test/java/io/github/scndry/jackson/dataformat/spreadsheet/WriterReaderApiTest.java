@@ -13,7 +13,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.*;
+import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
@@ -228,5 +230,61 @@ class WriterReaderApiTest {
             Item item = mapper.readValue(is, Item.class);
             assertThat(item.name).isEqualTo("B");
         }
+    }
+
+    @Test
+    void writeWithStringOrigin() throws Exception {
+        File file = new File(tempDir, "origin-string.xlsx");
+        mapper.setOrigin("C5");
+        mapper.writeValue(file, Collections.singletonList(new Item("O", 1)), Item.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            // Origin "C5" → header at row 4 col 2 (0-indexed), data starts at row 5.
+            assertThat(sheet.getRow(4).getCell(2).getStringCellValue()).isEqualTo("name");
+            assertThat(sheet.getRow(5).getCell(2).getStringCellValue()).isEqualTo("O");
+        }
+    }
+
+    @Test
+    void readSingleValueFromSheetInput() throws Exception {
+        File file = new File(tempDir, "single-input.xlsx");
+        mapper.writeValue(SheetOutput.target(file, "Data"),
+                Arrays.asList(new Item("First", 1), new Item("Second", 2)), Item.class);
+
+        Item single = mapper.readValue(SheetInput.source(file, "Data"), Item.class);
+        assertThat(single.name).isEqualTo("First");
+    }
+
+    @Test
+    void readSingleValueFromPath() throws Exception {
+        File file = new File(tempDir, "single-path.xlsx");
+        mapper.writeValue(file, Arrays.asList(new Item("P1", 1), new Item("P2", 2)), Item.class);
+
+        Path path = file.toPath();
+        Item single = mapper.readValue(path, Item.class);
+        assertThat(single.name).isEqualTo("P1");
+    }
+
+    @Test
+    void writeSingleToSheetOutput() throws Exception {
+        File file = new File(tempDir, "infer-sheetoutput.xlsx");
+        // 1-arg overload — valueType inferred from single object's class.
+        mapper.writeValue(SheetOutput.target(file, "Inferred"), new Item("I", 1));
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            assertThat(wb.getSheet("Inferred")).isNotNull();
+            assertThat(wb.getSheet("Inferred").getRow(1).getCell(0).getStringCellValue()).isEqualTo("I");
+        }
+    }
+
+    @Test
+    void writeSingleToPath() throws Exception {
+        File file = new File(tempDir, "infer-path.xlsx");
+        // 1-arg overload — Path target, valueType inferred from single object's class.
+        mapper.writeValue(file.toPath(), new Item("PT", 9));
+
+        Item read = mapper.readValue(file, Item.class);
+        assertThat(read.qty).isEqualTo(9);
     }
 }

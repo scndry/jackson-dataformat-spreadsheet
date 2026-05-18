@@ -19,12 +19,22 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.openxml4j.opc.OPCPackage;
+import org.apache.poi.ss.usermodel.BorderFormatting;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.FontFormatting;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -612,6 +622,62 @@ class ConditionalFormattingTest {
         try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
             return wb.getSheetAt(0).getSheetConditionalFormatting()
                     .getConditionalFormattingAt(0).getRule(0);
+        }
+    }
+
+    @Test
+    void hssfPathConditionalFormattingFontAndBorder() throws Exception {
+        // HSSF (.xls) workbook routes font color, underline, font height, and
+        // border color through the indexed-color path of GridConfigurer's
+        // dxf builder — distinct from the XSSF color object path.
+        File file = new File(tempDir, "cf-hssf.xls");
+        List<Score> data = Arrays.asList(new Score("Alice", 90), new Score("Bob", 50));
+
+        SpreadsheetMapper mapper = SpreadsheetMapper.builder()
+                .stylesBuilder(new StylesBuilder()
+                        .cellStyle("highlight")
+                            .font()
+                                .bold()
+                                .fontHeight((short) 14)
+                                .color(IndexedColors.WHITE)
+                                .underline().single()
+                                .end()
+                            .borderTop().thin()
+                            .topBorderColor(IndexedColors.RED)
+                            .end())
+                .gridConfigurer(new GridConfigurer()
+                        .conditionalFormatting("score",
+                                greaterThanOrEqual(80).style("highlight")))
+                .build();
+
+        try (HSSFWorkbook wb = new HSSFWorkbook();
+             OutputStream os = new FileOutputStream(file)) {
+            Sheet sheet = wb.createSheet("Data");
+            mapper.writeValue(sheet, data, Score.class);
+            wb.write(os);
+        }
+
+        try (InputStream is = new FileInputStream(file);
+             HSSFWorkbook wb = new HSSFWorkbook(is)) {
+            SheetConditionalFormatting scf = wb.getSheetAt(0).getSheetConditionalFormatting();
+            assertThat(scf.getNumConditionalFormattings()).isEqualTo(1);
+            ConditionalFormattingRule rule = scf.getConditionalFormattingAt(0).getRule(0);
+            assertThat(rule.getComparisonOperation()).isEqualTo(ComparisonOperator.GE);
+            assertThat(rule.getFormula1()).isEqualTo("80");
+
+            // Indexed-path font dxf: color index, underline byte, height in twentieths of a point.
+            FontFormatting ff = rule.getFontFormatting();
+            assertThat(ff).isNotNull();
+            assertThat(ff.isBold()).isTrue();
+            assertThat(ff.getFontColorIndex()).isEqualTo(IndexedColors.WHITE.getIndex());
+            assertThat(ff.getUnderlineType()).isEqualTo(Font.U_SINGLE);
+            assertThat(ff.getFontHeight()).isEqualTo(14 * 20);
+
+            // Indexed-path border dxf: top color resolved to indexed value.
+            BorderFormatting bf = rule.getBorderFormatting();
+            assertThat(bf).isNotNull();
+            assertThat(bf.getBorderTop()).isEqualTo(BorderStyle.THIN);
+            assertThat(bf.getTopBorderColor()).isEqualTo(IndexedColors.RED.getIndex());
         }
     }
 

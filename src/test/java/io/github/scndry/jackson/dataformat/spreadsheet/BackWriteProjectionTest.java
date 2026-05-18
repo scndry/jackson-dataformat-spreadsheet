@@ -1,5 +1,8 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.OptBoolean;
@@ -8,6 +11,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
@@ -19,6 +23,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWrite
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection.CELL_MEMORY_BYTES;
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection.ROW_MEMORY_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit-level checks for the back-write projection — guards the
@@ -118,6 +123,41 @@ class BackWriteProjectionTest {
     void requiresBackWriteScope_outerFirstReturnsFalse() throws Exception {
         final SpreadsheetSchema schema = _schemaFor(OuterFirst.class);
         assertThat(BackWriteProjection.requiresBackWriteScope(schema)).isFalse();
+    }
+
+    // ----------------------------------------------------------------
+    // Integration — writeStartArray's fail-fast on projected overflow
+    // ----------------------------------------------------------------
+
+    @TempDir File tempDir;
+
+    @Test
+    void writeStartArray_projectionExceedsLimit_throwsWithMitigationGuidance() throws Exception {
+        // Outer has back-write scope (list followed by outer field). Compute
+        // the boundary list size that just trips the projection limit and
+        // verify the message contract — operator size, the projected and
+        // limit byte figures, and the three mitigation options.
+        final SpreadsheetMapper mapper = new SpreadsheetMapper();
+        final SpreadsheetSchema schema = mapper.sheetSchemaFor(Outer.class);
+        final ColumnPointer arrayPointer = _findInnerArrayPointer(schema);
+        final long perRow = BackWriteProjection.project(schema, arrayPointer, 1);
+        final long limit = BackWriteProjection.backWriteBufferLimit();
+        final int overflowSize = Math.toIntExact(limit / perRow + 1);
+
+        final List<Inner> items = new ArrayList<>(overflowSize);
+        for (int i = 0; i < overflowSize; i++) items.add(new Inner(i));
+        final Outer outer = new Outer(1, items, 100);
+
+        final File file = new File(tempDir, "overflow.xlsx");
+
+        assertThatThrownBy(() -> mapper.writeValue(
+                        file, Collections.singletonList(outer), Outer.class))
+                .rootCause()
+                .isInstanceOf(SheetStreamWriteException.class)
+                .hasMessageContaining("Nested list size " + overflowSize)
+                .hasMessageContaining("projected back-write")
+                .hasMessageContaining("exceeds limit")
+                .hasMessageContaining("USE_POI_USER_MODEL");
     }
 
     // ----------------------------------------------------------------
