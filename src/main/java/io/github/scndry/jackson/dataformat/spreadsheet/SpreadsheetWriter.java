@@ -111,10 +111,24 @@ public final class SpreadsheetWriter extends ObjectWriter {
         return _newSequenceWriter(false, createGenerator(out), true);
     }
 
+    /**
+     * @deprecated since 1.6.5, scheduled for removal in a future major release.
+     * The outer array wrapping is a no-op on a spreadsheet target — a spreadsheet's
+     * natural data model is already an array of rows, so the result is identical to
+     * {@link #writeValues(Sheet)}. Use that instead.
+     */
+    @Deprecated
     public SequenceWriter writeValuesAsArray(final Sheet out) throws IOException {
         return _newSequenceWriter(true, createGenerator(out), true);
     }
 
+    /**
+     * @deprecated since 1.6.5, scheduled for removal in a future major release.
+     * The outer array wrapping is a no-op on a spreadsheet target — a spreadsheet's
+     * natural data model is already an array of rows, so the result is identical to
+     * {@link #writeValues(SheetOutput)}. Use that instead.
+     */
+    @Deprecated
     public SequenceWriter writeValuesAsArray(final SheetOutput<?> out) throws IOException {
         return _newSequenceWriter(true, createGenerator(out), true);
     }
