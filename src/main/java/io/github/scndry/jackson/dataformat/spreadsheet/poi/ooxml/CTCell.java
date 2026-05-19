@@ -14,14 +14,14 @@ package io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml;
  */
 final class CTCell {
 
-    private final String _r;
-    private final STCellType _t;
-    private final String _v;
-    private final STCellFormulaType _ft;
-    private final String _is;
+    private String _r;
+    private STCellType _t;
+    private String _v;
+    private STCellFormulaType _ft;
+    private String _is;
 
-    CTCell(final String r, final STCellType t, final String v,
-           final STCellFormulaType ft, final String is) {
+    void set(final String r, final STCellType t, final String v,
+             final STCellFormulaType ft, final String is) {
         _r = r;
         _t = t;
         _v = v;

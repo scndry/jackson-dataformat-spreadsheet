@@ -21,6 +21,7 @@ final class XmlElementReader implements AutoCloseable {
     }
 
     private final XMLStreamReader _xml;
+    private final CTCell _ctCell = new CTCell();
     private boolean _closed;
 
     XmlElementReader(final InputStream src) {
@@ -141,7 +142,7 @@ final class XmlElementReader implements AutoCloseable {
     // Cell collection (CT_Cell — ECMA-376 §18.3.1.4)
     // ---------------------------------------------------------------
 
-    /** Collect cell attributes and children into a lightweight {@link CTCell}. */
+    /** Collect cell attributes and children into a reusable {@link CTCell}. */
     CTCell collectCell() {
         try {
             final String r = _xml.getAttributeValue(null, SpreadsheetML.ATTR_REF);
@@ -169,7 +170,8 @@ final class XmlElementReader implements AutoCloseable {
                         break;
                 }
             }
-            return new CTCell(r, t, v, ft, is);
+            _ctCell.set(r, t, v, ft, is);
+            return _ctCell;
         } catch (XMLStreamException e) {
             throw new IllegalStateException("Failed to read cell", e);
         }
