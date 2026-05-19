@@ -12,7 +12,6 @@ import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.CellType;
-import org.apache.poi.ss.util.CellAddress;
 
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.core.base.ParserMinimalBase;
@@ -50,7 +49,8 @@ public final class SheetParser extends ParserMinimalBase {
     private ObjectCodec _objectCodec;
     private SpreadsheetSchema _schema;
     private SheetStreamContext _parsingContext;
-    private CellAddress _reference;
+    private int _referenceRow = -1;
+    private int _referenceColumn = -1;
     private CellValue _value;
     private boolean _headerProcessed;
 
@@ -66,7 +66,6 @@ public final class SheetParser extends ParserMinimalBase {
         _formatFeatures = formatFeatures;
         _reader = reader;
         _nextTokens = new LinkedList<>();
-        _reference = new CellAddress(-1, -1);
     }
 
     public boolean isEnabled(final Feature f) {
@@ -133,7 +132,7 @@ public final class SheetParser extends ParserMinimalBase {
                 _parsingContext = _parsingContext.clearAndGetParent();
                 break;
             case FIELD_NAME:
-                final Column column = _schema.getColumn(_reference);
+                final Column column = _schema.getColumn(_referenceColumn);
                 final ColumnPointer pointer = _parsingContext.relativePointer(column.getPointer());
                 _parsingContext.setCurrentName(pointer.head().name());
                 break;
@@ -174,13 +173,15 @@ public final class SheetParser extends ParserMinimalBase {
                 _nextTokens.add(JsonToken.START_ARRAY);
                 break;
             case ROW_START:
-                _reference = new CellAddress(_reader.getRow(), -1);
+                _referenceRow = _reader.getRow();
+                _referenceColumn = -1;
                 _nextTokens.add(JsonToken.START_OBJECT);
                 break;
             case CELL_VALUE:
-                _reference = _reader.getReference();
+                _referenceRow = _reader.getRow();
+                _referenceColumn = _reader.getColumn();
                 _value = _reader.getCellValue();
-                final Column column = _schema.findColumn(_reference);
+                final Column column = _schema.findColumn(_referenceColumn);
                 if (column == null) break; // unmatched column (reordering)
                 _emitScopeTokens(column);
                 _nextTokens.add(JsonToken.FIELD_NAME);
@@ -337,7 +338,7 @@ public final class SheetParser extends ParserMinimalBase {
 
     @Override
     public JsonLocation getCurrentLocation() {
-        return new SheetLocation(_contentReference(), _reference.getRow(), _reference.getColumn());
+        return new SheetLocation(_contentReference(), _referenceRow, _referenceColumn);
     }
 
     @Override

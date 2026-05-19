@@ -106,7 +106,7 @@ public final class POISheetWriter implements SheetWriter {
                     CellUtil.getCell(CellUtil.getRow(row, _sheet), firstCol).setCellStyle(gs);
                     anchorStyle = gs;
                 } else {
-                    final Column column = _schema.findColumn(new CellAddress(row, firstCol));
+                    final Column column = _schema.findColumn(firstCol);
                     anchorStyle = column == null ? null
                             : _styles.resolve(column.getValue().getHeaderStyle(),
                                     column.getType().getRawClass());
@@ -120,7 +120,7 @@ public final class POISheetWriter implements SheetWriter {
             @Override
             public void visitVerticalMerge(final int firstRow, final int lastRow, final int col) {
                 _sheet.addMergedRegion(new CellRangeAddress(firstRow, lastRow, col, col));
-                final Column column = _schema.findColumn(new CellAddress(firstRow, col));
+                final Column column = _schema.findColumn(col);
                 final CellStyle hs = column == null ? null
                         : _styles.resolve(column.getValue().getHeaderStyle(),
                                 column.getType().getRawClass());

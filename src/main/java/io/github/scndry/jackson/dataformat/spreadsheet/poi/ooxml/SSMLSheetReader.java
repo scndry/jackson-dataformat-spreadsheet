@@ -38,7 +38,6 @@ public final class SSMLSheetReader implements SheetReader {
     private final PackagePart _sheet;
     private SheetToken _next;
     private CTCell _cell;
-    private CellAddress _reference;
     private int _rowIndex = -1;
     private int _columnIndex = -1;
 
@@ -78,7 +77,7 @@ public final class SSMLSheetReader implements SheetReader {
 
     @Override
     public CellAddress getReference() {
-        return _reference;
+        return _columnIndex < 0 ? null : new CellAddress(_rowIndex, _columnIndex);
     }
 
     @Override
@@ -165,13 +164,12 @@ public final class SSMLSheetReader implements SheetReader {
                 break;
             case CELL_VALUE:
                 _cell = _reader.collectCell();
-                _reference = new CellAddress(_cell.getR());
-                _columnIndex = _reference.getColumn();
+                _columnIndex = _parseColumnFromRef(_cell.getR());
                 _next = _matched(START_CELL, END_ROW) ? SheetToken.CELL_VALUE : SheetToken.ROW_END;
                 break;
             case ROW_END:
                 _cell = null;
-                _reference = null;
+                _columnIndex = -1;
                 _next = _matched(
                         START_ROW,
                         END_SHEET_DATA) ? SheetToken.ROW_START : SheetToken.SHEET_DATA_END;
@@ -193,5 +191,16 @@ public final class SSMLSheetReader implements SheetReader {
     private boolean _matched(final Matcher start, final Matcher end) {
         final Matcher hit = _reader.nextUntil(start, end);
         return hit != null && !hit.isEndElement();
+    }
+
+    private static int _parseColumnFromRef(final String ref) {
+        int col = 0;
+        final int len = ref.length();
+        for (int i = 0; i < len; i++) {
+            final char c = ref.charAt(i);
+            if (c < 'A' || c > 'Z') break;
+            col = col * 26 + (c - 'A' + 1);
+        }
+        return col - 1;
     }
 }
