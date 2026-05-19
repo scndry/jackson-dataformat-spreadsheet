@@ -392,7 +392,7 @@ public final class SheetParser extends ParserMinimalBase {
 
     @Override
     public BigInteger getBigIntegerValue() throws IOException {
-        return new BigInteger(_value.getStringValue());
+        return new BigDecimal(_value.getStringValue()).toBigIntegerExact();
     }
 
     @Override
