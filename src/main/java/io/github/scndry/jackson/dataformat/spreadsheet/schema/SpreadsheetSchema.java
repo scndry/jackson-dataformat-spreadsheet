@@ -76,10 +76,14 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     }
 
     public Column findColumn(final CellAddress reference) {
+        return findColumn(reference.getColumn());
+    }
+
+    public Column findColumn(final int column) {
         if (_columns.isEmpty()) {
             return null;
         }
-        final int idx = reference.getColumn() - getOriginColumn();
+        final int idx = column - getOriginColumn();
         if (idx < 0 || idx >= _columns.size()) {
             return null;
         }
@@ -87,7 +91,11 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     }
 
     public Column getColumn(final CellAddress reference) {
-        return _columns.get(reference.getColumn() - getOriginColumn());
+        return getColumn(reference.getColumn());
+    }
+
+    public Column getColumn(final int column) {
+        return _columns.get(column - getOriginColumn());
     }
 
     public int getDataRow() {
