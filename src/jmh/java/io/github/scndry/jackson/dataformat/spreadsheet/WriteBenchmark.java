@@ -1,18 +1,5 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
-import org.apache.fesod.sheet.FesodSheet;
-import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.xssf.streaming.SXSSFWorkbook;
-import org.dhatim.fastexcel.Workbook;
-import org.dhatim.fastexcel.Worksheet;
-import org.openjdk.jmh.annotations.*;
-import org.openjdk.jmh.infra.Blackhole;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -20,6 +7,15 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.fesod.sheet.FesodSheet;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
+import org.dhatim.fastexcel.Workbook;
+import org.dhatim.fastexcel.Worksheet;
+import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -29,25 +25,23 @@ import java.util.concurrent.TimeUnit;
 @Fork(1)
 public class WriteBenchmark {
 
-    @Param({"1000", "10000", "50000", "100000"})
+    @Param({"1000", "10000", "50000", "100000", "500000"})
     int rowCount;
 
-    List<EntryData> data;
+    List<BenchRow> data;
     File file;
-
-    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
-    public static class EntryData {
-        public String name;
-        public int quantity;
-        public double price;
-        public String description;
-    }
+    SpreadsheetMapper mapper;
+    SpreadsheetMapper mapperPoi;
 
     @Setup(Level.Trial)
     public void setUp() {
-        data = new ArrayList<>(rowCount);
+        mapper = new SpreadsheetMapper();
+        mapperPoi = new SpreadsheetMapper(
+                new SpreadsheetFactory(SXSSFWorkbook::new, SpreadsheetFactory.DEFAULT_SHEET_PARSER_FEATURE_FLAGS)
+                        .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL));
+        data = new ArrayList<>();
         for (int i = 0; i < rowCount; i++) {
-            data.add(new EntryData("item-" + i, i, i * 1.5, "description of item " + i));
+            data.add(BenchRow.create(i));
         }
     }
 
@@ -64,17 +58,13 @@ public class WriteBenchmark {
 
     @Benchmark
     public void jacksonSpreadsheet(Blackhole bh) throws IOException {
-        SpreadsheetMapper mapper = new SpreadsheetMapper();
-        mapper.writeValue(file, data, EntryData.class);
+        mapper.writeValue(file, data, BenchRow.class);
         bh.consume(file);
     }
 
     @Benchmark
     public void jacksonSpreadsheetPOI(Blackhole bh) throws IOException {
-        SpreadsheetMapper mapper = new SpreadsheetMapper(
-                new SpreadsheetFactory(SXSSFWorkbook::new, SpreadsheetFactory.DEFAULT_SHEET_PARSER_FEATURE_FLAGS)
-                        .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL));
-        mapper.writeValue(file, data, EntryData.class);
+        mapperPoi.writeValue(file, data, BenchRow.class);
         bh.consume(file);
     }
 
@@ -83,17 +73,22 @@ public class WriteBenchmark {
         try (SXSSFWorkbook wb = new SXSSFWorkbook()) {
             Sheet sheet = wb.createSheet();
             Row header = sheet.createRow(0);
-            header.createCell(0).setCellValue("name");
-            header.createCell(1).setCellValue("quantity");
-            header.createCell(2).setCellValue("price");
-            header.createCell(3).setCellValue("description");
+            for (int c = 0; c < BenchRow.HEADERS.length; c++) {
+                header.createCell(c).setCellValue(BenchRow.HEADERS[c]);
+            }
             for (int i = 0; i < data.size(); i++) {
-                EntryData e = data.get(i);
+                BenchRow r = data.get(i);
                 Row row = sheet.createRow(i + 1);
-                row.createCell(0).setCellValue(e.name);
-                row.createCell(1).setCellValue(e.quantity);
-                row.createCell(2).setCellValue(e.price);
-                row.createCell(3).setCellValue(e.description);
+                row.createCell(0).setCellValue(r.getId());
+                row.createCell(1).setCellValue(r.getName());
+                row.createCell(2).setCellValue(r.getCategory());
+                row.createCell(3).setCellValue(r.getStatus());
+                row.createCell(4).setCellValue(r.getQuantity());
+                row.createCell(5).setCellValue(r.getPrice());
+                row.createCell(6).setCellValue(r.getAmount().doubleValue());
+                row.createCell(7).setCellValue(r.getDueDate());
+                row.createCell(8).setCellValue(r.getDescription());
+                row.createCell(9).setCellValue(r.getCreatedAt());
             }
             try (OutputStream os = new FileOutputStream(file)) {
                 wb.write(os);
@@ -105,7 +100,7 @@ public class WriteBenchmark {
 
     @Benchmark
     public void fesod(Blackhole bh) throws IOException {
-        FesodSheet.write(file, EntryData.class).sheet().doWrite(data);
+        FesodSheet.write(file, BenchRow.class).sheet().doWrite(data);
         bh.consume(file);
     }
 
@@ -114,16 +109,22 @@ public class WriteBenchmark {
         try (OutputStream os = new FileOutputStream(file);
              Workbook wb = new Workbook(os, "bench", "1.0")) {
             Worksheet ws = wb.newWorksheet("Sheet1");
-            ws.value(0, 0, "name");
-            ws.value(0, 1, "quantity");
-            ws.value(0, 2, "price");
-            ws.value(0, 3, "description");
+            for (int c = 0; c < BenchRow.HEADERS.length; c++) {
+                ws.value(0, c, BenchRow.HEADERS[c]);
+            }
             for (int i = 0; i < data.size(); i++) {
-                EntryData e = data.get(i);
-                ws.value(i + 1, 0, e.name);
-                ws.value(i + 1, 1, e.quantity);
-                ws.value(i + 1, 2, e.price);
-                ws.value(i + 1, 3, e.description);
+                BenchRow r = data.get(i);
+                int row = i + 1;
+                ws.value(row, 0, r.getId());
+                ws.value(row, 1, r.getName());
+                ws.value(row, 2, r.getCategory());
+                ws.value(row, 3, r.getStatus());
+                ws.value(row, 4, r.getQuantity());
+                ws.value(row, 5, r.getPrice());
+                ws.value(row, 6, r.getAmount());
+                ws.value(row, 7, r.getDueDate().atStartOfDay());
+                ws.value(row, 8, r.getDescription());
+                ws.value(row, 9, r.getCreatedAt());
             }
             bh.consume(file);
         }
