@@ -62,8 +62,7 @@ public final class POISheetReader implements SheetReader {
         final CellType type = CellFormat.ultimateType(_cell);
         switch (type) {
             case NUMERIC:
-                final double value = _cell.getNumericCellValue();
-                return new CellValue(value, _formattedString(value, _cell.getCellStyle()));
+                return new POICellValue(_cell.getNumericCellValue(), _cell, _formatter);
             case STRING:
                 return new CellValue(_cell.getStringCellValue());
             case BOOLEAN:
@@ -154,13 +153,4 @@ public final class POISheetReader implements SheetReader {
         return false;
     }
 
-    private String _formattedString(final double value, final CellStyle style) {
-        if (style != null && style.getDataFormatString() != null) {
-            return _formatter.formatRawCellContents(
-                    value,
-                    style.getDataFormat(),
-                    style.getDataFormatString());
-        }
-        return null;
-    }
 }

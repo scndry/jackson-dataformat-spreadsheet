@@ -11,7 +11,7 @@ import org.apache.poi.ss.usermodel.CellType;
  * @see SheetReader
  * @see SheetParser
  */
-public final class CellValue {
+public class CellValue {
 
     public static final CellValue BLANK = new CellValue(CellType.BLANK, 0.0, false, null, 0);
     public static final CellValue TRUE = new CellValue(CellType.BOOLEAN, 0.0, true, null, 0);
