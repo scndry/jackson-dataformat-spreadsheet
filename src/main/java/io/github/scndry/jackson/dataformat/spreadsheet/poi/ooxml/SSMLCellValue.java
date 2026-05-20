@@ -36,10 +36,15 @@ final class SSMLCellValue extends CellValue {
         return _lazyText;
     }
 
+    @Override
+    public String getRawText() {
+        return _textValue();
+    }
+
     private String _formattedString() {
         final int numFmtId = _styles.getNumFmtId(_styleIndex);
         final String fmt = _styles.getFormatString(numFmtId);
-        if (fmt == null) return super.getStringValue();
+        if (fmt == null) return _textValue();
         return _formatter.formatRawCellContents(
                 getNumberValue(),
                 numFmtId,
