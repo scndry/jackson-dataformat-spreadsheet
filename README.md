@@ -136,32 +136,31 @@ class LineItem {
 
 ## How It Compares
 
-### Performance (100K rows, mixed types, shared string table)
+### Performance (100K rows, 10-column schema, shared string table)
 
 **Read:**
 
 | Library | Time | Memory |
 |---------|------|--------|
-| jackson-spreadsheet | 190 ms | 360 MB |
-| FastExcel | 208 ms | 407 MB |
-| Fesod | 266 ms | 381 MB |
-| Poiji | 809 ms | 2739 MB |
-| Apache POI | 1173 ms | 2227 MB |
+| jackson-spreadsheet | 287 ms | **579 MB** |
+| FastExcel | **265 ms** | 722 MB |
+| Apache Fesod | 537 ms | 882 MB |
+| Apache POI | 1998 ms | 4287 MB |
 
 **Write:**
 
 | Library | Time | Memory |
 |---------|------|--------|
-| jackson-spreadsheet | 138 ms | 125 MB |
-| FastExcel | 152 ms | 149 MB |
-| Apache POI | 269 ms | 204 MB |
-| Fesod | 323 ms | 458 MB |
+| jackson-spreadsheet | **327 ms** | **271 MB** |
+| FastExcel | 353 ms | 329 MB |
+| Apache POI (SXSSF) | 664 ms | 520 MB |
+| Apache Fesod | 791 ms | 1096 MB |
 
-Fastest read and write throughput, lowest write memory at 100K rows. See [BENCHMARK.md](BENCHMARK.md) for full results.
+See [BENCHMARK.md](BENCHMARK.md) for the full per-scale tables (1K – 500K), sustained 60-second throughput, and shared-strings strategies.
 
 ### Feature Comparison
 
-| Feature | jackson-spreadsheet | Apache POI | Fesod | FastExcel |
+| Feature | jackson-spreadsheet | Apache POI | Apache Fesod | FastExcel |
 |---------|:---:|:---:|:---:|:---:|
 | POJO data binding | Yes | No | Yes | No |
 | Nested object support | Yes | No | No | No |
@@ -264,14 +263,14 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions and data flow diagra
 **Q: How is this different from Apache POI?**
 POI gives you cells. This gives you POJOs. You define a class with `@DataGrid`, and `mapper.readValues()` returns typed objects. No `row.getCell(0).getStringCellValue()`.
 
-**Q: How is this different from Fesod?**
-Fesod has its own API. This extends Jackson's `ObjectMapper`, so you get the full Jackson ecosystem — custom deserializers, mix-ins, modules, polymorphic types.
+**Q: How is this different from Apache Fesod?**
+Apache Fesod has its own API. This extends Jackson's `ObjectMapper`, so you get the full Jackson ecosystem — custom deserializers, mix-ins, modules, polymorphic types.
 
 **Q: Does it support nested objects?**
 Yes. Nested POJOs automatically flatten to columns on write and reconstruct on read. No configuration needed.
 
 **Q: How does performance compare?**
-Fastest read and write throughput at 100K rows, with the lowest write memory. 6x faster read than Apache POI. Default writer is 10% faster than FastExcel and uses 16% less memory. See [BENCHMARK.md](BENCHMARK.md).
+Throughput close to FastExcel at 100K rows (writer slightly faster), with ~20% less allocation in both read and write. ~7x faster than Apache POI on read. See [BENCHMARK.md](BENCHMARK.md).
 
 **Q: What Excel formats are supported?**
 XLSX (OOXML) and XLS (legacy). XLSX uses StAX streaming; XLS uses POI object model.
