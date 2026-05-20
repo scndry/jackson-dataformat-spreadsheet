@@ -68,6 +68,14 @@ public class CellValue {
         return _textValue;
     }
 
+    public String getRawText() {
+        return getStringValue();
+    }
+
+    protected final String _textValue() {
+        return _textValue;
+    }
+
     public CellType getCellType() {
         return _cellType;
     }

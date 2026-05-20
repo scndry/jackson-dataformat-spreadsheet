@@ -4,10 +4,10 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +46,7 @@ public final class SheetParser extends ParserMinimalBase {
     private final Deque<JsonToken> _nextTokens;
     private final int _formatFeatures;
     private boolean _closed;
+    private boolean _ended;
     private ObjectCodec _objectCodec;
     private SpreadsheetSchema _schema;
     private SheetStreamContext _parsingContext;
@@ -65,7 +66,7 @@ public final class SheetParser extends ParserMinimalBase {
         _objectCodec = codec;
         _formatFeatures = formatFeatures;
         _reader = reader;
-        _nextTokens = new LinkedList<>();
+        _nextTokens = new ArrayDeque<>();
     }
 
     public boolean isEnabled(final Feature f) {
@@ -112,13 +113,14 @@ public final class SheetParser extends ParserMinimalBase {
     public JsonToken nextToken() throws IOException {
         _checkSchemaSet();
         _prepareDeterministicNext();
+        if (_nextTokens.isEmpty()) {
+            _currToken = null;
+            if (log.isTraceEnabled()) log.trace("null");
+            return null;
+        }
         final JsonToken token = _nextTokens.removeFirst();
         if (log.isTraceEnabled()) {
             log.trace("{}", token);
-        }
-        if (token == null) {
-            _currToken = null;
-            return null;
         }
         switch (token) {
             case START_ARRAY:
@@ -152,7 +154,7 @@ public final class SheetParser extends ParserMinimalBase {
     }
 
     private void _prepareDeterministicNext() throws StreamReadException {
-        while (_nextTokens.isEmpty() || _isStartObject()) {
+        while (!_ended && (_nextTokens.isEmpty() || _isStartObject())) {
             _prepareNext();
             _handleEmptyObject();
         }
@@ -165,7 +167,7 @@ public final class SheetParser extends ParserMinimalBase {
     private void _prepareNext() throws StreamReadException {
         final SheetToken token = _readNext();
         if (token == null) {
-            _nextTokens.add(null);
+            _ended = true;
             return;
         }
         switch (token) {
@@ -285,7 +287,7 @@ public final class SheetParser extends ParserMinimalBase {
         }
         _nextTokens.clear();
         if (isEnabled(Feature.BREAK_ON_BLANK_ROW)) {
-            _nextTokens.add(null);
+            _ended = true;
         } else if (isEnabled(Feature.BLANK_ROW_AS_NULL)) {
             _nextTokens.add(JsonToken.VALUE_NULL);
         }
@@ -393,7 +395,7 @@ public final class SheetParser extends ParserMinimalBase {
 
     @Override
     public BigInteger getBigIntegerValue() throws IOException {
-        final String s = _value.getStringValue();
+        final String s = _value.getRawText();
         if (s != null) {
             try {
                 return new BigDecimal(s).toBigIntegerExact();
@@ -416,7 +418,7 @@ public final class SheetParser extends ParserMinimalBase {
 
     @Override
     public BigDecimal getDecimalValue() throws IOException {
-        final String s = _value.getStringValue();
+        final String s = _value.getRawText();
         if (s != null) {
             try {
                 return new BigDecimal(s);
