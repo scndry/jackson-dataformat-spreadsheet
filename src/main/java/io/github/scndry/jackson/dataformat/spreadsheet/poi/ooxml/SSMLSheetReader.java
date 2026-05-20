@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.openxml4j.exceptions.InvalidOperationException;
 import org.apache.poi.openxml4j.opc.PackagePart;
 import org.apache.poi.ss.SpreadsheetVersion;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.FormulaError;
 import org.apache.poi.ss.util.CellAddress;
 
@@ -33,6 +34,8 @@ public final class SSMLSheetReader implements SheetReader {
     private static final Matcher END_SHEET_DATA = Matcher.endElement(SpreadsheetML.SHEET_DATA);
 
     private final SharedStringsLookup _strings;
+    private final StylesLookup _styles;
+    private final DataFormatter _formatter = new DataFormatter();
     private final XmlElementReader _reader;
     private final SSMLWorkbook _workbook;
     private final PackagePart _sheet;
@@ -57,6 +60,10 @@ public final class SSMLSheetReader implements SheetReader {
             } else {
                 _strings = new InMemorySharedStringsLookup(sharedStrings);
             }
+            final PackagePart stylesPart = _workbook.getStylesPart();
+            _styles = stylesPart == null
+                    ? BlankStylesLookup.INSTANCE
+                    : new LazyStylesLookup(stylesPart);
             _reader = new XmlElementReader(_sheet.getInputStream());
             _reader.nextUntil(START_SHEET_DATA);
         } catch (IOException e) {
@@ -89,13 +96,10 @@ public final class SSMLSheetReader implements SheetReader {
             case BOOLEAN:
                 return CellValue.valueOf("1".equals(value));
             case NUMBER:
-                if (_cell.getFt() == null) {
-                    return value == null ? CellValue.BLANK : new CellValue(
-                            Double.parseDouble(value),
-                            value);
-                }
-                if (_cell.getFt() == STCellFormulaType.SHARED) {
-                    return new CellValue(Double.parseDouble(value));
+                if (value == null) return CellValue.BLANK;
+                if (_cell.getFt() == null || _cell.getFt() == STCellFormulaType.SHARED) {
+                    return new SSMLCellValue(
+                            Double.parseDouble(value), value, _cell.getS(), _styles, _formatter);
                 }
                 throw new UnsupportedOperationException("Unexpected formula type: " +
                         _cell.getFt());
