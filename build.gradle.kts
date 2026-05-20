@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "io.github.scndry"
-version = "1.6.5-SNAPSHOT"
+version = "1.6.5"
 description = "Support for reading and writing Excel (XLSX/XLS) via Jackson abstractions."
 
 val title = "Jackson dataformat: Spreadsheet"
