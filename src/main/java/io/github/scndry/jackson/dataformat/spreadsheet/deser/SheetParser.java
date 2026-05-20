@@ -393,7 +393,15 @@ public final class SheetParser extends ParserMinimalBase {
 
     @Override
     public BigInteger getBigIntegerValue() throws IOException {
-        return new BigDecimal(_value.getStringValue()).toBigIntegerExact();
+        final String s = _value.getStringValue();
+        if (s != null) {
+            try {
+                return new BigDecimal(s).toBigIntegerExact();
+            } catch (NumberFormatException ignored) {
+                // non-numeric cell format (e.g., currency, percentage) — fall through
+            }
+        }
+        return BigDecimal.valueOf(_value.getNumberValue()).toBigIntegerExact();
     }
 
     @Override
@@ -408,7 +416,15 @@ public final class SheetParser extends ParserMinimalBase {
 
     @Override
     public BigDecimal getDecimalValue() throws IOException {
-        return new BigDecimal(_value.getStringValue());
+        final String s = _value.getStringValue();
+        if (s != null) {
+            try {
+                return new BigDecimal(s);
+            } catch (NumberFormatException ignored) {
+                // non-numeric cell format (e.g., currency, percentage) — fall through
+            }
+        }
+        return BigDecimal.valueOf(_value.getNumberValue());
     }
 
     @Override
