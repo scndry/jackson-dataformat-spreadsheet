@@ -42,6 +42,16 @@ final class SpreadsheetML {
     static final String SHEET = "sheet";
     /** {@code <sheets>} — sheet list container (§18.2.20) */
     static final String SHEETS = "sheets";
+    /** {@code <styleSheet>} — styles root (§18.8.39) */
+    static final String STYLE_SHEET = "styleSheet";
+    /** {@code <numFmts>} — number format list (§18.8.31) */
+    static final String NUM_FMTS = "numFmts";
+    /** {@code <numFmt>} — number format entry (§18.8.30) */
+    static final String NUM_FMT = "numFmt";
+    /** {@code <cellXfs>} — cell formatting record list (§18.8.10) */
+    static final String CELL_XFS = "cellXfs";
+    /** {@code <xf>} — formatting record (§18.8.45) */
+    static final String XF = "xf";
 
     // ---------------------------------------------------------------
     // Attribute local names
@@ -51,6 +61,8 @@ final class SpreadsheetML {
     static final String ATTR_REF = "r";
     /** {@code t} — cell type on {@code <c>}, formula type on {@code <f>} */
     static final String ATTR_TYPE = "t";
+    /** {@code s} — cell style (XF) index on {@code <c>} */
+    static final String ATTR_STYLE = "s";
     /** {@code uniqueCount} — unique string count on {@code <sst>} */
     static final String ATTR_UNIQUE_COUNT = "uniqueCount";
     /** {@code date1904} — date windowing on {@code <workbookPr>} */
@@ -59,6 +71,10 @@ final class SpreadsheetML {
     static final String ATTR_NAME = "name";
     /** {@code sheetId} — sheet ID on {@code <sheet>} */
     static final String ATTR_SHEET_ID = "sheetId";
+    /** {@code numFmtId} — number format index on {@code <numFmt>} / {@code <xf>} */
+    static final String ATTR_NUM_FMT_ID = "numFmtId";
+    /** {@code formatCode} — format pattern on {@code <numFmt>} */
+    static final String ATTR_FORMAT_CODE = "formatCode";
 
     // ---------------------------------------------------------------
     // Relationship namespace URIs

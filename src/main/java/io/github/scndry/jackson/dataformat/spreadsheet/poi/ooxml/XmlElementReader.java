@@ -148,6 +148,8 @@ final class XmlElementReader implements AutoCloseable {
             final String r = _xml.getAttributeValue(null, SpreadsheetML.ATTR_REF);
             final STCellType t = STCellType
                     .of(_xml.getAttributeValue(null, SpreadsheetML.ATTR_TYPE));
+            final String sAttr = _xml.getAttributeValue(null, SpreadsheetML.ATTR_STYLE);
+            final int s = (sAttr == null) ? 0 : Integer.parseInt(sAttr);
             String v = null;
             STCellFormulaType ft = null;
             String is = null;
@@ -170,7 +172,7 @@ final class XmlElementReader implements AutoCloseable {
                         break;
                 }
             }
-            _ctCell.set(r, t, v, ft, is);
+            _ctCell.set(r, t, s, v, ft, is);
             return _ctCell;
         } catch (XMLStreamException e) {
             throw new IllegalStateException("Failed to read cell", e);
