@@ -180,10 +180,9 @@ mapper.readValue(file, Employee.class)
   │    └─ Jackson FormatVisitor → annotation introspection → SpreadsheetSchema
   │
   ├─ SpreadsheetFactory.createParser(file)
-  │    ├─ USE_POI_USER_MODEL? → POISheetReader (POI object model)
-  │    ├─ PackageUtil.isOOXML(file)?
-  │    │   ├─ yes → SSMLSheetReader (StAX streaming)
-  │    │   └─ no  → POISheetReader  (POI object model)
+  │    ├─ USE_POI_USER_MODEL OR non-OOXML(file)?
+  │    │   ├─ yes → POISheetReader (POI object model)
+  │    │   └─ no  → SSMLSheetReader (StAX streaming)
   │    └─ new SheetParser(reader, formatFeatures)
   │
   └─ SheetParser.nextToken() loop
@@ -246,10 +245,9 @@ Result: lowest memory allocation among all tested libraries at 100K rows. See [B
 mapper.writeValue(file, employee)
   │
   ├─ SpreadsheetFactory.createGenerator(file)
-  │    ├─ USE_POI_USER_MODEL?
+  │    ├─ USE_POI_USER_MODEL OR non-XSSF(sheet)?
   │    │   ├─ yes → POISheetWriter → SheetGenerator
-  │    │   └─ no  → XSSFSheet? → SSMLSheetWriter → SheetGenerator
-  │    └─ non-XSSF fallback → POISheetWriter → SheetGenerator
+  │    │   └─ no  → SSMLSheetWriter → SheetGenerator
   │
   └─ Jackson BeanSerializer
        ├─ writeStartObject()
