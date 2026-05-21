@@ -287,14 +287,18 @@ public final class SpreadsheetFactory extends JsonFactory {
             || !PackageUtil.isOOXML(src);
     }
 
+    private boolean _shouldUsePOIUserModel(final InputStream src) {
+        return Feature.USE_POI_USER_MODEL.enabledIn(_featureFlags)
+            || !PackageUtil.isOOXML(src);
+    }
+
     // Copy InputStream to temp File — POI's File path uses much less heap than InputStream (POIFS HOWTO ~20% vs ~120% for HSSF; OPCPackage Javadoc reports the same trend for OOXML).
     @SuppressWarnings("unchecked")
     private SheetInput<?> _preferRawAsFile(final SheetInput<?> src) throws IOException {
         if (src.isFile()) return src;
-        if (Feature.USE_POI_USER_MODEL.enabledIn(_featureFlags)) return src;
         final InputStream raw = FileMagic.prepareToCheckMagic(
                 ((SheetInput<InputStream>) src).getRaw());
-        if (!PackageUtil.isOOXML(raw)) {
+        if (_shouldUsePOIUserModel(raw)) {
             return src.isNamed()
                     ? SheetInput.source(raw, src.getName())
                     : SheetInput.source(raw, src.getIndex());
