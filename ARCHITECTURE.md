@@ -44,7 +44,7 @@ Jackson processes data in three layers. This library plugs into all three:
 |-------|---------|-------------|------|
 | **Data Binding** | ObjectMapper, ObjectReader, ObjectWriter | SpreadsheetMapper, SpreadsheetReader, SpreadsheetWriter | POJO serialization — **inherited, not reimplemented** |
 | **Streaming** | JsonParser, JsonGenerator, JsonFactory | SheetParser, SheetGenerator, SpreadsheetFactory | Flat cell ↔ nested token translation — **the core abstraction** |
-| **Format I/O** | UTF8StreamJsonParser reads bytes | SheetReader / SheetWriter (interface) | Raw format read/write — **swappable** (POI or SSML) |
+| **Format I/O** | UTF8StreamJsonParser reads bytes | SheetReader / SheetWriter (interface) | Raw format read/write — **swappable** (Streaming or POI User Model) |
 
 Layer 3 is fully inherited — all Jackson annotations, overloads, and features work as-is. Layer 2 is where the library's core logic lives. Layer 1 is pluggable behind an interface.
 
