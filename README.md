@@ -276,7 +276,7 @@ Throughput close to FastExcel at 100K rows (writer slightly faster), with ~20% l
 XLSX (OOXML) and XLS (legacy). XLSX uses StAX streaming; XLS uses POI object model.
 
 **Q: Is it production-ready?**
-Yes. Version 1.6.5 on Maven Central. Java 8+, Jackson 2.14+, POI 4.1.1+. Listed as a [community data format module](https://github.com/FasterXML/jackson#data-format-modules) in the FasterXML jackson repository.
+Yes. Available on Maven Central. Java 8+, Jackson 2.14+, POI 4.1.1+. Listed as a [community data format module](https://github.com/FasterXML/jackson#data-format-modules) in the FasterXML jackson repository.
 
 **Q: Is the mapper thread-safe?**
 The mapper instance is reusable across threads once configured (same rule as Jackson's `ObjectMapper`). Concurrent calls with `File` / `InputStream` / `OutputStream` inputs are safe — the library opens an isolated `Workbook` per call. If you pass a `Sheet` directly, POI's `Workbook`/`Sheet` are not thread-safe, so each thread needs its own.
