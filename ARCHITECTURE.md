@@ -181,8 +181,8 @@ mapper.readValue(file, Employee.class)
   │
   ├─ SpreadsheetFactory.createParser(file)
   │    ├─ USE_POI_USER_MODEL OR non-OOXML(file)?
-  │    │   ├─ yes → POISheetReader (POI object model)
-  │    │   └─ no  → SSMLSheetReader (StAX streaming)
+  │    │   ├─ yes → POISheetReader (POI User Model)
+  │    │   └─ no  → SSMLSheetReader (Streaming)
   │    └─ new SheetParser(reader, formatFeatures)
   │
   └─ SheetParser.nextToken() loop
@@ -246,8 +246,9 @@ mapper.writeValue(file, employee)
   │
   ├─ SpreadsheetFactory.createGenerator(file)
   │    ├─ USE_POI_USER_MODEL OR non-XSSF(sheet)?
-  │    │   ├─ yes → POISheetWriter → SheetGenerator
-  │    │   └─ no  → SSMLSheetWriter → SheetGenerator
+  │    │   ├─ yes → POISheetWriter (POI User Model)
+  │    │   └─ no  → SSMLSheetWriter (Streaming)
+  │    └─ new SheetGenerator(writer)
   │
   └─ Jackson BeanSerializer
        ├─ writeStartObject()
