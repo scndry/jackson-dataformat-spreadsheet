@@ -181,8 +181,8 @@ mapper.readValue(file, Employee.class)
   │
   ├─ SpreadsheetFactory.createParser(file)
   │    ├─ USE_POI_USER_MODEL OR non-OOXML(file)?
-  │    │   ├─ yes → POISheetReader (POI object model)
-  │    │   └─ no  → SSMLSheetReader (StAX streaming)
+  │    │   ├─ yes → POISheetReader (POI User Model)
+  │    │   └─ no  → SSMLSheetReader (Streaming)
   │    └─ new SheetParser(reader, formatFeatures)
   │
   └─ SheetParser.nextToken() loop
@@ -206,7 +206,7 @@ Both implement `SheetReader`. Format is auto-detected via ZIP magic bytes (`File
 | Shared strings | Custom `SharedStringsLookup` (lazy StAX) | POI's built-in `SharedStringsTable` |
 | When used | Auto-detected for XLSX files | XLS files, direct `Sheet` input, or `USE_POI_USER_MODEL` |
 
-When the input is an `InputStream`, OOXML files are copied to a temporary file — ZIP random access requires seekable I/O. `USE_POI_USER_MODEL` bypasses this copy: the stream is handed directly to POI, which holds the entire ZIP in memory (`ZipInputStreamZipEntrySource`). This is the escape hatch for disk-write-restricted environments — at the cost of higher heap usage.
+When the input is an `InputStream`, OOXML files are copied to a temporary file — ZIP random access requires seekable I/O. The POI User Model path bypasses this copy: the stream is handed directly to POI, which decompresses the entire ZIP into memory (OOM risk on large files). Setting `USE_POI_USER_MODEL` forces this path even for OOXML input — the escape hatch for disk-write-restricted environments.
 
 ### SharedStrings
 
@@ -229,13 +229,13 @@ public interface SharedStringsLookup {
 
 **Read** — Two `SharedStringsLookup` implementations:
 
-- **InMemorySharedStringsLookup** (default) — All character data in a single `char[]` buffer with `int[]` offset/length arrays. Eliminates per-String object overhead. Entries are parsed lazily via StAX — only when first accessed.
-- **FileBackedSharedStringsLookup** — H2 MVStore with 4 MB page cache and 1024-entry LRU lookup cache. Constant heap usage regardless of table size. Prevents OOM when the SST exceeds available heap. Optional AES encryption protects sensitive data at rest.
+- **InMemorySharedStringsLookup** (default) — SoA buffer layout eliminates per-String object overhead. Entries are parsed lazily via StAX — only when first accessed.
+- **FileBackedSharedStringsLookup** — H2 MVStore with bounded cache. Constant heap usage regardless of table size. Prevents OOM when the SST exceeds available heap. Optional AES encryption protects sensitive data at rest.
 
 **Write** — Two `SharedStringsStore` implementations for the streaming writer:
 
-- **InMemorySharedStringsStore** (default) — SoA layout: one `char[]` slab with `int[]` offset/length arrays and open-addressing hash index. Lower GC pressure than `HashMap<String, Integer>`.
-- **FileBackedSharedStringsStore** — H2 MVStore with single-entry cache optimized for sequential access during SST serialization. Constant heap usage for high-cardinality string columns.
+- **InMemorySharedStringsStore** (default) — SoA buffer layout with a custom hash index. Lower GC pressure than `HashMap<String, Integer>`.
+- **FileBackedSharedStringsStore** — H2 MVStore tuned for sequential SST serialization. Constant heap usage for high-cardinality string columns.
 
 Result: lowest memory allocation among all tested libraries at 100K rows. See [BENCHMARK.md](BENCHMARK.md).
 
@@ -246,8 +246,9 @@ mapper.writeValue(file, employee)
   │
   ├─ SpreadsheetFactory.createGenerator(file)
   │    ├─ USE_POI_USER_MODEL OR non-XSSF(sheet)?
-  │    │   ├─ yes → POISheetWriter → SheetGenerator
-  │    │   └─ no  → SSMLSheetWriter → SheetGenerator
+  │    │   ├─ yes → POISheetWriter (POI User Model)
+  │    │   └─ no  → SSMLSheetWriter (Streaming)
+  │    └─ new SheetGenerator(writer)
   │
   └─ Jackson BeanSerializer
        ├─ writeStartObject()
@@ -342,7 +343,7 @@ The read path and the write path have different relationships with POI:
 
 By default, both XLSX read and write paths bypass POI's User Model — the read path uses direct StAX parsing, the write path uses StringBuilder streaming with a POI scaffold for package metadata. `USE_POI_USER_MODEL` reverts both paths to full POI User Model processing.
 
-`POICompat` provides a reflection-based shim for APIs that differ across POI versions (`Date1904Support.isDate1904()` in POI 4.1.1+, `OPCPackage.isStrictOoxmlFormat()` in POI 5.1.0+). Methods are looked up at class load time; missing methods fall back to safe defaults.
+`POICompat` absorbs POI version differences internally, letting the library support POI 4.1.1+.
 
 ---
 
