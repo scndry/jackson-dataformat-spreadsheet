@@ -4,6 +4,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.SpreadsheetFactory;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
@@ -31,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 @Fork(1)
 public class SharedStringsBenchmark {
 
-    @Param({"10000", "50000", "100000"})
+    @Param({"10000", "50000", "100000", "500000"})
     int rowCount;
 
     File readFile;
@@ -51,10 +52,11 @@ public class SharedStringsBenchmark {
     @Setup(Level.Trial)
     public void setUp() throws IOException {
         // Read source — pre-generated file with string-heavy data.
-        // XSSFWorkbook (not SXSSF) to ensure shared string table is used.
+        // SXSSF with useSharedStringsTable=true: streaming write avoids setup OOM
+        // while preserving the SST format expected by the read path.
         readFile = File.createTempFile("bench-sst-read-", ".xlsx");
         readFile.deleteOnExit();
-        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+        try (SXSSFWorkbook wb = new SXSSFWorkbook(new XSSFWorkbook(), 100, false, true)) {
             Sheet sheet = wb.createSheet();
             Row header = sheet.createRow(0);
             header.createCell(0).setCellValue("col1");
@@ -74,7 +76,7 @@ public class SharedStringsBenchmark {
         }
 
         // In-memory data for write benchmarks (same string-heavy distribution).
-        data = new ArrayList<>(rowCount);
+        data = new ArrayList<>();
         for (int i = 0; i < rowCount; i++) {
             StringEntry e = new StringEntry();
             e.col1 = "category-" + (i % 100);
