@@ -240,13 +240,10 @@ public final class SpreadsheetFactory extends JsonFactory {
     }
 
     private SheetReader _createFileSheetReader(final SheetInput<File> src) throws IOException {
-        if (Feature.USE_POI_USER_MODEL.enabledIn(_featureFlags)) {
+        if (_shouldUsePOIUserModel(src.getRaw())) {
             return _createPOISheetReader(WorkbookFactory.create(src.getRaw()), src);
         }
-        if (PackageUtil.isOOXML(src.getRaw())) {
-            return _createSSMLSheetReader(SSMLWorkbook.create(src.getRaw()), src);
-        }
-        return _createPOISheetReader(WorkbookFactory.create(src.getRaw()), src);
+        return _createSSMLSheetReader(SSMLWorkbook.create(src.getRaw()), src);
     }
 
     private SheetReader _createInputStreamSheetReader(
@@ -283,6 +280,11 @@ public final class SpreadsheetFactory extends JsonFactory {
             throw new IllegalArgumentException("No sheet for " + src);
         }
         return new POISheetReader(sheet);
+    }
+
+    private boolean _shouldUsePOIUserModel(final File src) {
+        return Feature.USE_POI_USER_MODEL.enabledIn(_featureFlags)
+            || !PackageUtil.isOOXML(src);
     }
 
     // Copy InputStream to temp File — POI's File path uses much less heap than InputStream (POIFS HOWTO ~20% vs ~120% for HSSF; OPCPackage Javadoc reports the same trend for OOXML).
@@ -343,17 +345,16 @@ public final class SpreadsheetFactory extends JsonFactory {
         final Workbook workbook = _workbookProvider.create();
         final Sheet sheet = out.isNamed()
                 ? workbook.createSheet(out.getName()) : workbook.createSheet();
-        if (Feature.USE_POI_USER_MODEL.enabledIn(_featureFlags)) {
-            return _createPOISheetWriter(sheet, out.getRaw());
-        }
-        if (sheet instanceof XSSFSheet) {
-            return _createSSMLSheetWriter(out.getRaw(), sheet);
-        }
-        if (log.isDebugEnabled()) {
+        final boolean useUserModel = _shouldUsePOIUserModel(sheet);
+        final boolean autoFallback = useUserModel && !Feature.USE_POI_USER_MODEL.enabledIn(_featureFlags);
+        if (autoFallback && log.isDebugEnabled()) {
             log.debug("Sheet is not XSSFSheet ({}); falling back to POISheetWriter",
                     sheet.getClass().getSimpleName());
         }
-        return _createPOISheetWriter(sheet, out.getRaw());
+        if (useUserModel) {
+            return _createPOISheetWriter(sheet, out.getRaw());
+        }
+        return _createSSMLSheetWriter(out.getRaw(), sheet);
     }
 
     private SSMLSheetWriter _createSSMLSheetWriter(
@@ -371,6 +372,11 @@ public final class SpreadsheetFactory extends JsonFactory {
         return new POISheetWriter(sheet, out);
     }
 
+    private boolean _shouldUsePOIUserModel(final Sheet sheet) {
+        return Feature.USE_POI_USER_MODEL.enabledIn(_featureFlags)
+            || !(sheet instanceof XSSFSheet);
+    }
+
     @SuppressWarnings("unchecked")
     private SheetOutput<OutputStream> _rawAsOutputStream(
             final SheetOutput<?> out) throws IOException {
@@ -384,8 +390,14 @@ public final class SpreadsheetFactory extends JsonFactory {
      */
     public enum Feature implements FormatFeature {
         /**
-         * Use POI's User Model ({@code Sheet}/{@code Row}/{@code Cell}) for all read/write operations,
-         * bypassing SSML streaming. Default: disabled (SSML is used for OOXML).
+         * Force POI User Model ({@code Sheet}/{@code Row}/{@code Cell}) for OOXML read/write,
+         * bypassing SSML streaming.
+         *
+         * <p>POI User Model is also selected automatically when SSML is not applicable:
+         * direct {@code Sheet} input/output, XLS files, non-OOXML {@code InputStream},
+         * or non-XSSF custom workbooks. This flag is one of several triggers.
+         *
+         * <p>Default: disabled.
          */
         USE_POI_USER_MODEL(false),
         /**
