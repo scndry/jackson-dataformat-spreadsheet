@@ -226,7 +226,7 @@ Conditional formatting rules reference columns from the model class and styles f
 
 ```java
 SpreadsheetMapper mapper = SpreadsheetMapper.builder()
-    .origin("B2")           // start at B2 instead of A1
+    .origin("B2")            // start at B2 instead of A1
     .useHeader(false)        // no header row
     .enable(SheetParser.Feature.BREAK_ON_BLANK_ROW)
     .build();
