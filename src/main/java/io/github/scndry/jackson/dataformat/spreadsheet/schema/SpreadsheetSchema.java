@@ -92,6 +92,13 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         return false;
     }
 
+    public boolean hasNestedList() {
+        for (final Column col : _columns) {
+            if (col != null && col.getPointer().contains(ColumnPointer.array())) return true;
+        }
+        return false;
+    }
+
     public Set<ColumnPointer> allArrayScopes() {
         final Set<ColumnPointer> scopes = new LinkedHashSet<>();
         for (final Column col : _columns) {
