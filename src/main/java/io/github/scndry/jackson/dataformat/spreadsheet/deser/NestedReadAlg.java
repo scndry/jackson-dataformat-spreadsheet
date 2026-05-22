@@ -13,9 +13,11 @@ import org.apache.poi.ss.usermodel.CellType;
 
 import com.fasterxml.jackson.core.JsonToken;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamReadException;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
 
 /**
  * Read algorithm — record-tree buffer keyed by array scope. Each
@@ -34,16 +36,23 @@ final class NestedReadAlg {
     private final List<ColumnPointer> _anchorScopesByDepth;
     private final Set<ColumnPointer> _leafArrayScopes;
     private final Map<ColumnPointer, ColumnPointer> _parentArrayScopeOf;
+    private final long _bufferLimitBytes;
 
     private final List<Cell> _rowBuffer = new ArrayList<>();
     private final Map<ColumnPointer, RecordNode> _openRecords = new HashMap<>();
     private final Map<ColumnPointer, Object> _lastAnchorByScope = new HashMap<>();
+    private long _bufferedCells;
 
     NestedReadAlg(final SpreadsheetSchema schema) {
+        this(schema, BackWriteProjection.backWriteBufferLimit());
+    }
+
+    NestedReadAlg(final SpreadsheetSchema schema, final long bufferLimitBytes) {
         _schema = schema;
         _anchorScopesByDepth = _collectAnchorScopes(schema);
         _leafArrayScopes = _findLeafArrayScopes(schema);
         _parentArrayScopeOf = _computeParentScopeMap(schema);
+        _bufferLimitBytes = bufferLimitBytes;
     }
 
     void onSheetDataStart(final Emitter out) {
@@ -58,7 +67,7 @@ final class NestedReadAlg {
         _rowBuffer.add(new Cell(column, value));
     }
 
-    void onRowEnd(final Emitter out) {
+    void onRowEnd(final Emitter out) throws SheetStreamReadException {
         for (final ColumnPointer scope : _anchorScopesByDepth) {
             final Column anchorCol = _schema.findAnchorColumn(scope);
             if (anchorCol == null) continue;
@@ -77,6 +86,7 @@ final class NestedReadAlg {
                 if (c.value == null || c.value.getCellType() == CellType.BLANK) continue;
                 if (SpreadsheetSchema.immediateScope(c.column.getPointer()).equals(scope)) {
                     openRecord.outerCells.add(c);
+                    _bufferedCells++;
                 }
             }
             _openRecords.put(scope, openRecord);
@@ -95,6 +105,7 @@ final class NestedReadAlg {
 
             final RecordNode leafRecord = new RecordNode(leafScope);
             leafRecord.outerCells.addAll(leafCells);
+            _bufferedCells += leafCells.size();
 
             final ColumnPointer parentScope = _parentArrayScopeOf.get(leafScope);
             final RecordNode parentRecord = _openRecords.get(parentScope);
@@ -102,11 +113,23 @@ final class NestedReadAlg {
                     .computeIfAbsent(leafScope, k -> new ArrayList<>())
                     .add(leafRecord);
         }
+
+        _checkBufferLimit();
     }
 
     void onSheetDataEnd(final Emitter out) {
         _closeRecordsAtOrDeeperThan(ColumnPointer.empty(), out);
         out.token(JsonToken.END_ARRAY);
+    }
+
+    private void _checkBufferLimit() throws SheetStreamReadException {
+        final long bufferedBytes = _bufferedCells * (long) BackWriteProjection.CELL_MEMORY_BYTES;
+        if (bufferedBytes <= _bufferLimitBytes) return;
+        throw new SheetStreamReadException(null,
+                "Nested-list buffer (" + BackWriteProjection.formatBytes(bufferedBytes)
+                + ") exceeds limit (" + BackWriteProjection.formatBytes(_bufferLimitBytes)
+                + "). Use USE_POI_USER_MODEL to bypass back-write buffering,"
+                + " or split the outer record into smaller chunks.");
     }
 
     private void _closeRecordsAtOrDeeperThan(final ColumnPointer scope, final Emitter out) {
@@ -131,6 +154,7 @@ final class NestedReadAlg {
                     .add(record);
         } else {
             _emitRecord(record, out);
+            _bufferedCells = 0;
         }
     }
 

@@ -243,7 +243,7 @@ public final class SheetParser extends ParserMinimalBase {
         }
     }
 
-    private void _prepareNextNested() {
+    private void _prepareNextNested() throws StreamReadException {
         final SheetToken token = _readNext();
         if (token == null) {
             _ended = true;
@@ -267,7 +267,11 @@ public final class SheetParser extends ParserMinimalBase {
                 _nestedAlg.onCellValue(column, value);
                 break;
             case ROW_END:
-                _nestedAlg.onRowEnd(_nestedEmitter);
+                try {
+                    _nestedAlg.onRowEnd(_nestedEmitter);
+                } catch (final SheetStreamReadException e) {
+                    throw e.withParser(this);
+                }
                 break;
             case SHEET_DATA_END:
                 _nestedAlg.onSheetDataEnd(_nestedEmitter);
