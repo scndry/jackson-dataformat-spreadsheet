@@ -2,6 +2,7 @@ package io.github.scndry.jackson.dataformat.spreadsheet.schema.internal;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -98,21 +99,50 @@ public final class BackWriteProjection {
         return String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024));
     }
 
-    /** Returns true when the schema's column order has any outer
-     *  (non-array-scope) column appearing after at least one inner
-     *  (array-scope) column — the trigger for SSML back-write. */
+    /** Returns true when any record scope (root or nested) has an
+     *  outer field of that scope appearing after a child array of the
+     *  same scope — the trigger for SSML back-write at that scope. */
     public static boolean hasOuterFieldAfterList(final SpreadsheetSchema schema) {
-        boolean seenInner = false;
+        final Set<ColumnPointer> scopes = new LinkedHashSet<>();
+        scopes.add(ColumnPointer.empty());
         for (final Column c : schema) {
             if (c == null) continue;
-            final boolean inner = c.getPointer().contains(ColumnPointer.array());
-            if (inner) {
-                seenInner = true;
-            } else if (seenInner) {
-                return true;
+            ColumnPointer head = ColumnPointer.empty();
+            for (final ColumnPointer seg : c.getPointer()) {
+                head = head.resolve(seg);
+                if (seg.equals(ColumnPointer.array())) scopes.add(head);
+            }
+        }
+        for (final ColumnPointer scope : scopes) {
+            if (_outerAfterListAt(schema, scope)) return true;
+        }
+        return false;
+    }
+
+    private static boolean _outerAfterListAt(
+            final SpreadsheetSchema schema, final ColumnPointer scope) {
+        boolean seenChildArray = false;
+        for (final Column c : schema) {
+            if (c == null) continue;
+            final ColumnPointer myScope = _immediateScope(c.getPointer());
+            if (!myScope.equals(scope) && !myScope.startsWith(scope)) continue;
+            if (myScope.equals(scope)) {
+                if (seenChildArray) return true;
+            } else {
+                seenChildArray = true;
             }
         }
         return false;
+    }
+
+    private static ColumnPointer _immediateScope(final ColumnPointer pointer) {
+        ColumnPointer head = ColumnPointer.empty();
+        ColumnPointer last = ColumnPointer.empty();
+        for (final ColumnPointer seg : pointer) {
+            head = head.resolve(seg);
+            if (seg.equals(ColumnPointer.array())) last = head;
+        }
+        return last;
     }
 
     /** Returns true when the schema has more than one top-level array

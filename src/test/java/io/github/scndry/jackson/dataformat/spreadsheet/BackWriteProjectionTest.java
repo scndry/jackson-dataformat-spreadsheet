@@ -125,6 +125,49 @@ class BackWriteProjectionTest {
         assertThat(BackWriteProjection.requiresBackWriteScope(schema)).isFalse();
     }
 
+    // Mid level holds the outer-after-list pattern; root is clean
+    // (id + items[] only). Triggers SSML back-write at the items/[] scope
+    // — root-only detection misses this.
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class MidWithTrailing {
+        @DataColumn(value = "midId", merge = OptBoolean.TRUE) String midId;
+        List<Inner> details;
+        @DataColumn(value = "midName", merge = OptBoolean.TRUE) String midName;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class NestedOuterAfterList {
+        @DataColumn(value = "id", merge = OptBoolean.TRUE) int id;
+        List<MidWithTrailing> items;
+    }
+
+    @Test
+    void requiresBackWriteScope_nestedScopeOuterAfterListReturnsTrue() throws Exception {
+        final SpreadsheetSchema schema = _schemaFor(NestedOuterAfterList.class);
+        assertThat(BackWriteProjection.requiresBackWriteScope(schema)).isTrue();
+    }
+
+    // Mid level keeps outer-before-list ordering at every scope; back-write
+    // not required anywhere.
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class MidOuterFirst {
+        @DataColumn(value = "midId", merge = OptBoolean.TRUE) String midId;
+        @DataColumn(value = "midName", merge = OptBoolean.TRUE) String midName;
+        List<Inner> details;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class NestedOuterFirst {
+        @DataColumn(value = "id", merge = OptBoolean.TRUE) int id;
+        List<MidOuterFirst> items;
+    }
+
+    @Test
+    void requiresBackWriteScope_nestedScopeOuterFirstReturnsFalse() throws Exception {
+        final SpreadsheetSchema schema = _schemaFor(NestedOuterFirst.class);
+        assertThat(BackWriteProjection.requiresBackWriteScope(schema)).isFalse();
+    }
+
     // ----------------------------------------------------------------
     // Integration — writeStartArray's fail-fast on projected overflow
     // ----------------------------------------------------------------
