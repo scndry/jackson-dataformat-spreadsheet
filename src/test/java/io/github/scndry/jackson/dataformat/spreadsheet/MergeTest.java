@@ -488,4 +488,302 @@ class MergeTest {
     private File tempFile(String name) {
         return tempDir.resolve(name).toFile();
     }
+
+    // -- Sibling nested lists reproduction (mergeRange off-by-one bug) --
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class Item {
+        @DataColumn("ItemB") int b;
+        @DataColumn("ItemC") int c;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class Note {
+        @DataColumn("NoteB") int b;
+        @DataColumn("NoteC") int c;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class TwoListsOuter {
+        @DataColumn(value = "ID", merge = OptBoolean.TRUE) int id;
+        List<Item> items;
+        List<Note> notes;
+        @DataColumn(value = "Total", merge = OptBoolean.TRUE) int total;
+    }
+
+    @Test
+    void siblingNestedLists_mergeRangeMustNotOverflow() throws Exception {
+        File file = new File("/tmp/jackson-spreadsheet-multi-list-bug.xlsx");
+        if (file.exists() && !file.delete()) {
+            throw new IllegalStateException("Failed to delete " + file);
+        }
+
+        // Two outers, each with items[2] + notes[2] (same length M=N=2)
+        TwoListsOuter outer1 = new TwoListsOuter(
+                1,
+                Arrays.asList(new Item(11, 12), new Item(13, 14)),
+                Arrays.asList(new Note(15, 16), new Note(17, 18)),
+                99);
+        TwoListsOuter outer2 = new TwoListsOuter(
+                2,
+                Arrays.asList(new Item(21, 22), new Item(23, 24)),
+                Arrays.asList(new Note(25, 26), new Note(27, 28)),
+                199);
+
+        mapper.writeValue(file, Arrays.asList(outer1, outer2), TwoListsOuter.class);
+
+        System.out.println("[Reproduction] Written to: " + file.getAbsolutePath());
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            List<CellRangeAddress> merged = sheet.getMergedRegions();
+
+            System.out.println("[Reproduction] Merged regions:");
+            for (CellRangeAddress r : merged) {
+                System.out.println("  " + r);
+            }
+
+            // Expected: each outer's id (col 0) mergeRange spans max(M,N) = 2 rows.
+            // Bug: spans M+N-1 = 3 rows → overlaps the next outer's first row.
+            assertThat(merged)
+                    .filteredOn(r -> r.getFirstColumn() == 0)
+                    .allSatisfy(r -> {
+                        int rowSpan = r.getLastRow() - r.getFirstRow() + 1;
+                        assertThat(rowSpan)
+                                .as("id mergeRange row span (expected max(M,N)=2, "
+                                        + "bug spans M+N-1=3)")
+                                .isEqualTo(2);
+                    });
+        }
+    }
+
+    @Test
+    void siblingNestedLists_mergeRangeMustNotOverflow_ssmlMode() throws Exception {
+        // SSML emits XML directly, so the bug surfaces as overlapping
+        // mergedRegions instead of an immediate throw (POI mode).
+        File file = new File("/tmp/jackson-spreadsheet-multi-list-bug-ssml.xlsx");
+        if (file.exists() && !file.delete()) {
+            throw new IllegalStateException("Failed to delete " + file);
+        }
+
+        SpreadsheetMapper ssmlMapper = new SpreadsheetMapper();
+
+        TwoListsOuter outer1 = new TwoListsOuter(
+                1,
+                Arrays.asList(new Item(11, 12), new Item(13, 14)),
+                Arrays.asList(new Note(15, 16), new Note(17, 18)),
+                99);
+        TwoListsOuter outer2 = new TwoListsOuter(
+                2,
+                Arrays.asList(new Item(21, 22), new Item(23, 24)),
+                Arrays.asList(new Note(25, 26), new Note(27, 28)),
+                199);
+
+        ssmlMapper.writeValue(file, Arrays.asList(outer1, outer2), TwoListsOuter.class);
+
+        System.out.println("[SSML Reproduction] Written to: " + file.getAbsolutePath());
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            List<CellRangeAddress> merged = sheet.getMergedRegions();
+
+            System.out.println("[SSML Reproduction] Merged regions:");
+            for (CellRangeAddress r : merged) {
+                System.out.println("  " + r);
+            }
+
+            assertThat(merged)
+                    .filteredOn(r -> r.getFirstColumn() == 0)
+                    .allSatisfy(r -> {
+                        int rowSpan = r.getLastRow() - r.getFirstRow() + 1;
+                        assertThat(rowSpan)
+                                .as("id mergeRange row span (expected max(M,N)=2, "
+                                        + "bug spans M+N-1=3)")
+                                .isEqualTo(2);
+                    });
+        }
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class TwoListsWithMiddleField {
+        @DataColumn(value = "ID", merge = OptBoolean.TRUE) int id;
+        List<Item> items;
+        @DataColumn(value = "Mid", merge = OptBoolean.TRUE) int middle;   // between lists
+        List<Note> notes;
+        @DataColumn(value = "Total", merge = OptBoolean.TRUE) int total;
+    }
+
+    @Test
+    void siblingNestedLists_middleField_poiMode() throws Exception {
+        File file = tempFile("middle-field-poi.xlsx");
+
+        TwoListsWithMiddleField outer1 = new TwoListsWithMiddleField(
+                1,
+                Arrays.asList(new Item(11, 12), new Item(13, 14)),
+                50,
+                Arrays.asList(new Note(15, 16), new Note(17, 18)),
+                99);
+        TwoListsWithMiddleField outer2 = new TwoListsWithMiddleField(
+                2,
+                Arrays.asList(new Item(21, 22), new Item(23, 24)),
+                150,
+                Arrays.asList(new Note(25, 26), new Note(27, 28)),
+                199);
+
+        mapper.writeValue(file, Arrays.asList(outer1, outer2),
+                TwoListsWithMiddleField.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            List<CellRangeAddress> merged = sheet.getMergedRegions();
+            assertThat(merged)
+                    .filteredOn(r -> r.getFirstColumn() == 0)
+                    .allSatisfy(r -> {
+                        int rowSpan = r.getLastRow() - r.getFirstRow() + 1;
+                        assertThat(rowSpan).isEqualTo(2);
+                    });
+        }
+    }
+
+    @Test
+    void siblingNestedLists_middleField_ssmlMode() throws Exception {
+        File file = new File("/tmp/jackson-spreadsheet-multi-list-middle-bug-ssml.xlsx");
+        if (file.exists() && !file.delete()) {
+            throw new IllegalStateException("Failed to delete " + file);
+        }
+
+        SpreadsheetMapper ssmlMapper = new SpreadsheetMapper();
+
+        TwoListsWithMiddleField outer1 = new TwoListsWithMiddleField(
+                1,
+                Arrays.asList(new Item(11, 12), new Item(13, 14)),
+                50,
+                Arrays.asList(new Note(15, 16), new Note(17, 18)),
+                99);
+        TwoListsWithMiddleField outer2 = new TwoListsWithMiddleField(
+                2,
+                Arrays.asList(new Item(21, 22), new Item(23, 24)),
+                150,
+                Arrays.asList(new Note(25, 26), new Note(27, 28)),
+                199);
+
+        ssmlMapper.writeValue(file, Arrays.asList(outer1, outer2),
+                TwoListsWithMiddleField.class);
+
+        System.out.println("[SSML Middle] Written to: " + file.getAbsolutePath());
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            List<CellRangeAddress> merged = sheet.getMergedRegions();
+
+            System.out.println("[SSML Middle] Merged regions:");
+            for (CellRangeAddress r : merged) {
+                System.out.println("  " + r);
+            }
+
+            assertThat(merged)
+                    .filteredOn(r -> r.getFirstColumn() == 0)
+                    .allSatisfy(r -> {
+                        int rowSpan = r.getLastRow() - r.getFirstRow() + 1;
+                        assertThat(rowSpan)
+                                .as("id mergeRange row span (expected max(M,N)=2)")
+                                .isEqualTo(2);
+                    });
+        }
+    }
+
+    @Test
+    void siblingNestedLists_lengthMismatch_throws() {
+        File file = tempFile("length-mismatch.xlsx");
+
+        TwoListsOuter outer = new TwoListsOuter(
+                1,
+                Arrays.asList(new Item(11, 12), new Item(13, 14)),
+                Arrays.asList(new Note(15, 16), new Note(17, 18), new Note(19, 20)),
+                99);
+
+        assertThatThrownBy(() -> mapper.writeValue(file, outer))
+                .rootCause()
+                .hasMessageContaining("Sibling nested List<T> fields")
+                .hasMessageContaining("Previous list size: 2")
+                .hasMessageContaining("current list size: 3");
+    }
+
+    @Test
+    void siblingNestedLists_lengthMismatch_throws_ssmlMode() {
+        File file = tempFile("length-mismatch-ssml.xlsx");
+        SpreadsheetMapper ssmlMapper = new SpreadsheetMapper();
+
+        TwoListsOuter outer = new TwoListsOuter(
+                1,
+                Arrays.asList(new Item(11, 12), new Item(13, 14)),
+                Arrays.asList(new Note(15, 16), new Note(17, 18), new Note(19, 20)),
+                99);
+
+        assertThatThrownBy(() -> ssmlMapper.writeValue(file, outer))
+                .rootCause()
+                .hasMessageContaining("Sibling nested List<T> fields")
+                .hasMessageContaining("Previous list size: 2")
+                .hasMessageContaining("current list size: 3");
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class Detail {
+        @DataColumn("DetailX") int x;
+        @DataColumn("DetailY") int y;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class WithNested {
+        @DataColumn("Yi") int yi;
+        List<Detail> zs;
+        @DataColumn("Yj") int yj;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class SiblingWithNestedOuter {
+        @DataColumn(value = "ID", merge = OptBoolean.TRUE) int id;
+        List<Item> xs;            // flat element
+        List<WithNested> ys;      // nested element (contains List<Detail>)
+    }
+
+    @Test
+    void siblingNestedLists_innerNested_throws() {
+        // xs row span = 2 (flat).
+        // ys = 1 WithNested with 3 details → row span = 3.
+        // Length mismatch caught by sibling length check at ys close.
+        File file = tempFile("sibling-with-nested.xlsx");
+
+        SiblingWithNestedOuter outer = new SiblingWithNestedOuter(
+                1,
+                Arrays.asList(new Item(11, 12), new Item(13, 14)),
+                Arrays.asList(new WithNested(20,
+                        Arrays.asList(new Detail(21, 22), new Detail(23, 24), new Detail(25, 26)),
+                        29)));
+
+        assertThatThrownBy(() -> mapper.writeValue(file, outer))
+                .rootCause()
+                .hasMessageContaining("Sibling nested List<T> fields")
+                .hasMessageContaining("Previous list size: 2")
+                .hasMessageContaining("current list size: 3");
+    }
+
+    @Test
+    void siblingNestedLists_innerNested_throws_ssmlMode() {
+        File file = tempFile("sibling-with-nested-ssml.xlsx");
+        SpreadsheetMapper ssmlMapper = new SpreadsheetMapper();
+
+        SiblingWithNestedOuter outer = new SiblingWithNestedOuter(
+                1,
+                Arrays.asList(new Item(11, 12), new Item(13, 14)),
+                Arrays.asList(new WithNested(20,
+                        Arrays.asList(new Detail(21, 22), new Detail(23, 24), new Detail(25, 26)),
+                        29)));
+
+        assertThatThrownBy(() -> ssmlMapper.writeValue(file, outer))
+                .rootCause()
+                .hasMessageContaining("Sibling nested List<T> fields")
+                .hasMessageContaining("Previous list size: 2")
+                .hasMessageContaining("current list size: 3");
+    }
 }
