@@ -1,6 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema.internal;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -145,26 +146,28 @@ public final class BackWriteProjection {
         return last;
     }
 
-    /** Returns true when the schema has more than one top-level array
-     *  field — sibling lists share the parent row, so the second list
-     *  must back-write into rows already produced by the first list. */
+    /** Returns true when any record scope (root or nested) has more than
+     *  one immediate child array — sibling lists share the parent row,
+     *  so the second list must back-write into rows already produced by
+     *  the first list. */
     public static boolean hasMultipleSiblingLists(final SpreadsheetSchema schema) {
-        final Set<ColumnPointer> topLevelArrays = new HashSet<>();
+        final Map<ColumnPointer, Set<ColumnPointer>> childArraysByParent = new HashMap<>();
         for (final Column c : schema) {
             if (c == null) continue;
-            final ColumnPointer head = _topLevelArrayHead(c.getPointer());
-            if (head != null) topLevelArrays.add(head);
+            ColumnPointer head = ColumnPointer.empty();
+            ColumnPointer parent = ColumnPointer.empty();
+            for (final ColumnPointer seg : c.getPointer()) {
+                head = head.resolve(seg);
+                if (seg.equals(ColumnPointer.array())) {
+                    childArraysByParent.computeIfAbsent(parent, k -> new HashSet<>()).add(head);
+                    parent = head;
+                }
+            }
         }
-        return topLevelArrays.size() > 1;
-    }
-
-    private static ColumnPointer _topLevelArrayHead(final ColumnPointer pointer) {
-        ColumnPointer head = ColumnPointer.empty();
-        for (final ColumnPointer seg : pointer) {
-            head = head.resolve(seg);
-            if (seg.equals(ColumnPointer.array())) return head;
+        for (final Set<ColumnPointer> childArrays : childArraysByParent.values()) {
+            if (childArrays.size() > 1) return true;
         }
-        return null;
+        return false;
     }
 
     /** Cached form of {@link #hasOuterFieldAfterList(SpreadsheetSchema)} or

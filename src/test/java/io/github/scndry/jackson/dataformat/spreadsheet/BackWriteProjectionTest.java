@@ -168,6 +168,48 @@ class BackWriteProjectionTest {
         assertThat(BackWriteProjection.requiresBackWriteScope(schema)).isFalse();
     }
 
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class Extra {
+        @DataColumn("e") int e;
+    }
+
+    // Root scope holds two sibling lists — top-level detection already
+    // catches this. Baseline test the existing schema lacked.
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class RootSiblingLists {
+        @DataColumn("id") int id;
+        List<Inner> items;
+        List<Extra> extras;
+    }
+
+    @Test
+    void requiresBackWriteScope_rootMultiSiblingReturnsTrue() throws Exception {
+        final SpreadsheetSchema schema = _schemaFor(RootSiblingLists.class);
+        assertThat(BackWriteProjection.requiresBackWriteScope(schema)).isTrue();
+    }
+
+    // Sibling lists live inside a nested record (mids[]/{as[], bs[]}) —
+    // top-level head count is 1 (mids/[]), so top-level-only detection
+    // misses this.
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class NestedMultiSiblingMid {
+        @DataColumn("mid") String mid;
+        List<Inner> as;
+        List<Extra> bs;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class NestedMultiSiblingTop {
+        @DataColumn("id") int id;
+        List<NestedMultiSiblingMid> mids;
+    }
+
+    @Test
+    void requiresBackWriteScope_nestedScopeMultiSiblingReturnsTrue() throws Exception {
+        final SpreadsheetSchema schema = _schemaFor(NestedMultiSiblingTop.class);
+        assertThat(BackWriteProjection.requiresBackWriteScope(schema)).isTrue();
+    }
+
     // ----------------------------------------------------------------
     // Integration — writeStartArray's fail-fast on projected overflow
     // ----------------------------------------------------------------
