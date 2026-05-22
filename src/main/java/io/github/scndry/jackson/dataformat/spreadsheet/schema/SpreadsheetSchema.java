@@ -2,7 +2,9 @@ package io.github.scndry.jackson.dataformat.spreadsheet.schema;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.Sheet;
@@ -73,6 +75,50 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     @Override
     public Iterator<Column> iterator() {
         return _columns.iterator();
+    }
+
+    public Column findAnchorColumn(final ColumnPointer scope) {
+        for (final Column col : _columns) {
+            if (col == null || !col.isAnchor()) continue;
+            if (immediateScope(col.getPointer()).equals(scope)) return col;
+        }
+        return null;
+    }
+
+    public boolean hasAnchor() {
+        for (final Column col : _columns) {
+            if (col != null && col.isAnchor()) return true;
+        }
+        return false;
+    }
+
+    public Set<ColumnPointer> allArrayScopes() {
+        final Set<ColumnPointer> scopes = new LinkedHashSet<>();
+        for (final Column col : _columns) {
+            if (col == null) continue;
+            scopes.addAll(allArrayScopes(col.getPointer()));
+        }
+        return scopes;
+    }
+
+    public static ColumnPointer immediateScope(final ColumnPointer pointer) {
+        ColumnPointer head = ColumnPointer.empty();
+        ColumnPointer last = ColumnPointer.empty();
+        for (final ColumnPointer seg : pointer) {
+            head = head.resolve(seg);
+            if (seg.equals(ColumnPointer.array())) last = head;
+        }
+        return last;
+    }
+
+    public static List<ColumnPointer> allArrayScopes(final ColumnPointer pointer) {
+        final List<ColumnPointer> scopes = new ArrayList<>();
+        ColumnPointer head = ColumnPointer.empty();
+        for (final ColumnPointer seg : pointer) {
+            head = head.resolve(seg);
+            if (seg.equals(ColumnPointer.array())) scopes.add(head);
+        }
+        return scopes;
     }
 
     public Column findColumn(final CellAddress reference) {
