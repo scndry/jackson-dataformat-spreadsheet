@@ -27,6 +27,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.NestedAnchorValidator;
 
 /**
  * {@link com.fasterxml.jackson.core.JsonParser} implementation
@@ -44,12 +45,16 @@ public final class SheetParser extends ParserMinimalBase {
     private final IOContext _ioContext;
     private final SheetReader _reader;
     private final Deque<JsonToken> _nextTokens;
+    private final Deque<String> _nextNames = new ArrayDeque<>();
+    private final Deque<CellValue> _nextValues = new ArrayDeque<>();
     private final int _formatFeatures;
     private boolean _closed;
     private boolean _ended;
     private ObjectCodec _objectCodec;
     private SpreadsheetSchema _schema;
     private SheetStreamContext _parsingContext;
+    private NestedReadAlg _nestedAlg;
+    private NestedReadAlg.Emitter _nestedEmitter;
     private int _referenceRow = -1;
     private int _referenceColumn = -1;
     private CellValue _value;
@@ -98,6 +103,28 @@ public final class SheetParser extends ParserMinimalBase {
                     + " @DataColumnGroup annotations from the target class.");
         }
         _parsingContext = SheetStreamContext.createRootContext(_schema);
+        if (_schema.hasAnchor() || _schema.hasNestedList()) {
+            NestedAnchorValidator.validate(_schema);
+        }
+        if (_schema.hasAnchor()) {
+            _nestedAlg = new NestedReadAlg(_schema);
+            _nestedEmitter = new NestedReadAlg.Emitter() {
+                @Override
+                public void token(final JsonToken t) {
+                    _nextTokens.add(t);
+                }
+                @Override
+                public void fieldName(final String name) {
+                    _nextTokens.add(JsonToken.FIELD_NAME);
+                    _nextNames.add(name);
+                }
+                @Override
+                public void scalar(final CellValue value, final JsonToken scalarToken) {
+                    _nextTokens.add(scalarToken);
+                    _nextValues.add(value);
+                }
+            };
+        }
     }
 
     @Override
@@ -134,9 +161,13 @@ public final class SheetParser extends ParserMinimalBase {
                 _parsingContext = _parsingContext.clearAndGetParent();
                 break;
             case FIELD_NAME:
-                final Column column = _schema.getColumn(_referenceColumn);
-                final ColumnPointer pointer = _parsingContext.relativePointer(column.getPointer());
-                _parsingContext.setCurrentName(pointer.head().name());
+                if (_nestedAlg != null) {
+                    _parsingContext.setCurrentName(_nextNames.removeFirst());
+                } else {
+                    final Column column = _schema.getColumn(_referenceColumn);
+                    final ColumnPointer pointer = _parsingContext.relativePointer(column.getPointer());
+                    _parsingContext.setCurrentName(pointer.head().name());
+                }
                 break;
             case VALUE_EMBEDDED_OBJECT:
             case VALUE_STRING:
@@ -145,6 +176,9 @@ public final class SheetParser extends ParserMinimalBase {
             case VALUE_TRUE:
             case VALUE_FALSE:
             case VALUE_NULL:
+                if (_nestedAlg != null && !_nextValues.isEmpty()) {
+                    _value = _nextValues.removeFirst();
+                }
                 break;
             case NOT_AVAILABLE:
                 throw SheetStreamReadException.unexpected(this, token);
@@ -165,6 +199,14 @@ public final class SheetParser extends ParserMinimalBase {
     }
 
     private void _prepareNext() throws StreamReadException {
+        if (_nestedAlg != null) {
+            _prepareNextNested();
+        } else {
+            _prepareNextFlat();
+        }
+    }
+
+    private void _prepareNextFlat() throws StreamReadException {
         final SheetToken token = _readNext();
         if (token == null) {
             _ended = true;
@@ -197,6 +239,38 @@ public final class SheetParser extends ParserMinimalBase {
                 break;
             case SHEET_DATA_END:
                 _nextTokens.add(JsonToken.END_ARRAY);
+                break;
+        }
+    }
+
+    private void _prepareNextNested() {
+        final SheetToken token = _readNext();
+        if (token == null) {
+            _ended = true;
+            return;
+        }
+        switch (token) {
+            case SHEET_DATA_START:
+                _nestedAlg.onSheetDataStart(_nestedEmitter);
+                break;
+            case ROW_START:
+                _referenceRow = _reader.getRow();
+                _referenceColumn = -1;
+                _nestedAlg.onRowStart();
+                break;
+            case CELL_VALUE:
+                _referenceRow = _reader.getRow();
+                _referenceColumn = _reader.getColumn();
+                final CellValue value = _reader.getCellValue();
+                final Column column = _schema.findColumn(_referenceColumn);
+                if (column == null) break;
+                _nestedAlg.onCellValue(column, value);
+                break;
+            case ROW_END:
+                _nestedAlg.onRowEnd(_nestedEmitter);
+                break;
+            case SHEET_DATA_END:
+                _nestedAlg.onSheetDataEnd(_nestedEmitter);
                 break;
         }
     }
