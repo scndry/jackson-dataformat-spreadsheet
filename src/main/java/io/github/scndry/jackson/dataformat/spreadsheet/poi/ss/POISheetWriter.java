@@ -223,7 +223,12 @@ public final class POISheetWriter implements SheetWriter {
             if (log.isTraceEnabled()) {
                 log.trace(region.formatAsString());
             }
-            _sheet.addMergedRegion(region);
+            // addMergedRegionUnsafe skips POI's overlap validation. Validation
+            // is O(K) over already-registered regions, so the per-record loop
+            // here would degrade to O(N²) at N outer records × merged outer
+            // columns. The library only merges outer columns over their
+            // record's row range, so distinct calls never overlap.
+            _sheet.addMergedRegionUnsafe(region);
             final CellStyle ds = _styles.resolve(column.getValue().getStyle(),
                     column.getType().getRawClass());
             _fillMergedInnerCellsVertical(row, row + size - 1, col, ds);
