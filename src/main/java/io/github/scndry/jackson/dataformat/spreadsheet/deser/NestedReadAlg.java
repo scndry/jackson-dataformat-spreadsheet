@@ -37,6 +37,8 @@ final class NestedReadAlg {
     private final Set<ColumnPointer> _leafArrayScopes;
     private final Map<ColumnPointer, ColumnPointer> _parentArrayScopeOf;
     private final long _bufferLimitBytes;
+    private final boolean _blankRowAsNull;
+    private final boolean _breakOnBlankRow;
 
     private final List<Cell> _rowBuffer = new ArrayList<>();
     private final Map<ColumnPointer, RecordNode> _openRecords = new HashMap<>();
@@ -44,15 +46,22 @@ final class NestedReadAlg {
     private long _bufferedCells;
 
     NestedReadAlg(final SpreadsheetSchema schema) {
-        this(schema, BackWriteProjection.backWriteBufferLimit());
+        this(schema, BackWriteProjection.backWriteBufferLimit(), true, false);
     }
 
     NestedReadAlg(final SpreadsheetSchema schema, final long bufferLimitBytes) {
+        this(schema, bufferLimitBytes, true, false);
+    }
+
+    NestedReadAlg(final SpreadsheetSchema schema, final long bufferLimitBytes,
+                  final boolean blankRowAsNull, final boolean breakOnBlankRow) {
         _schema = schema;
         _anchorScopesByDepth = _collectAnchorScopes(schema);
         _leafArrayScopes = _findLeafArrayScopes(schema);
         _parentArrayScopeOf = _computeParentScopeMap(schema);
         _bufferLimitBytes = bufferLimitBytes;
+        _blankRowAsNull = blankRowAsNull;
+        _breakOnBlankRow = breakOnBlankRow;
     }
 
     void onSheetDataStart(final Emitter out) {
@@ -67,7 +76,19 @@ final class NestedReadAlg {
         _rowBuffer.add(new Cell(column, value));
     }
 
-    void onRowEnd(final Emitter out) throws SheetStreamReadException {
+    /** Returns false when iteration should stop (BREAK_ON_BLANK_ROW). */
+    boolean onRowEnd(final Emitter out) throws SheetStreamReadException {
+        if (_rowBuffer.isEmpty()) {
+            if (_breakOnBlankRow) {
+                _closeRecordsAtOrDeeperThan(ColumnPointer.empty(), out);
+                return false;
+            }
+            if (_blankRowAsNull) {
+                _closeRecordsAtOrDeeperThan(ColumnPointer.empty(), out);
+                out.token(JsonToken.VALUE_NULL);
+            }
+            return true;
+        }
         for (final ColumnPointer scope : _anchorScopesByDepth) {
             final Column anchorCol = _schema.findAnchorColumn(scope);
             if (anchorCol == null) continue;
@@ -115,6 +136,7 @@ final class NestedReadAlg {
         }
 
         _checkBufferLimit();
+        return true;
     }
 
     void onSheetDataEnd(final Emitter out) {

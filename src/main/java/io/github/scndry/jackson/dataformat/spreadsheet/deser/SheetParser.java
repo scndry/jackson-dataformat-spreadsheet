@@ -27,6 +27,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.NestedAnchorValidator;
 
 /**
@@ -107,7 +108,10 @@ public final class SheetParser extends ParserMinimalBase {
             NestedAnchorValidator.validate(_schema);
         }
         if (_schema.hasAnchor()) {
-            _nestedAlg = new NestedReadAlg(_schema);
+            _nestedAlg = new NestedReadAlg(_schema,
+                    BackWriteProjection.backWriteBufferLimit(),
+                    isEnabled(Feature.BLANK_ROW_AS_NULL),
+                    isEnabled(Feature.BREAK_ON_BLANK_ROW));
             _nestedEmitter = new NestedReadAlg.Emitter() {
                 @Override
                 public void token(final JsonToken t) {
@@ -268,7 +272,9 @@ public final class SheetParser extends ParserMinimalBase {
                 break;
             case ROW_END:
                 try {
-                    _nestedAlg.onRowEnd(_nestedEmitter);
+                    if (!_nestedAlg.onRowEnd(_nestedEmitter)) {
+                        _ended = true;
+                    }
                 } catch (final SheetStreamReadException e) {
                     throw e.withParser(this);
                 }
