@@ -251,14 +251,10 @@ class NestedListReadTest {
         @DataColumnGroup("Mids") List<NestedSiblingMid> mids;
     }
 
-    // POI mode only: BackWriteProjection.hasMultipleSiblingLists currently
-    // counts top-level arrays only, so SSML skips flush suspension when
-    // the sibling lists live inside a nested scope and write fails.
-    // V2 read-side handles the shape — exercised here via POI random access.
     @Test
     void roundTrip_nestedSiblingLists() throws Exception {
         File file = tempDir.resolve("nested-sibling.xlsx").toFile();
-        SpreadsheetMapper mapper = _poiMapper();
+        SpreadsheetMapper mapper = new SpreadsheetMapper();
 
         NestedSiblingTop expected = new NestedSiblingTop(1, Arrays.asList(
                 new NestedSiblingMid("M1",
