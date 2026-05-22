@@ -68,6 +68,10 @@ public abstract class SheetStreamContext extends JsonStreamContext {
         return _size;
     }
 
+    public int getMaxChildArrayRowSpan() {
+        return 0;
+    }
+
     public abstract int getRow();
 
     public abstract int getColumn();
@@ -160,6 +164,12 @@ public abstract class SheetStreamContext extends JsonStreamContext {
         @Override
         public SheetStreamContext clearAndGetParent() {
             _parent._size += _size - 1;
+            if (this instanceof ArrayContext && _parent instanceof ObjectContext) {
+                final ObjectContext parent = (ObjectContext) _parent;
+                if (_size > parent._maxChildArrayRowSpan) {
+                    parent._maxChildArrayRowSpan = _size;
+                }
+            }
             return super.clearAndGetParent();
         }
     }
@@ -219,9 +229,15 @@ public abstract class SheetStreamContext extends JsonStreamContext {
     static final class ObjectContext extends ChildContext {
 
         private String _name;
+        int _maxChildArrayRowSpan;
 
         ObjectContext(final SheetStreamContext parent) {
             super(TYPE_OBJECT, parent);
+        }
+
+        @Override
+        public int getMaxChildArrayRowSpan() {
+            return _maxChildArrayRowSpan;
         }
 
         @Override

@@ -1,8 +1,10 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema.internal;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 import lombok.extern.slf4j.Slf4j;
@@ -113,13 +115,36 @@ public final class BackWriteProjection {
         return false;
     }
 
-    /** Cached form of {@link #hasOuterFieldAfterList(SpreadsheetSchema)}.
-     *  Writers call this once per nested array to gate flush suspension —
-     *  the cache avoids recomputing the result across every record. */
+    /** Returns true when the schema has more than one top-level array
+     *  field — sibling lists share the parent row, so the second list
+     *  must back-write into rows already produced by the first list. */
+    public static boolean hasMultipleSiblingLists(final SpreadsheetSchema schema) {
+        final Set<ColumnPointer> topLevelArrays = new HashSet<>();
+        for (final Column c : schema) {
+            if (c == null) continue;
+            final ColumnPointer head = _topLevelArrayHead(c.getPointer());
+            if (head != null) topLevelArrays.add(head);
+        }
+        return topLevelArrays.size() > 1;
+    }
+
+    private static ColumnPointer _topLevelArrayHead(final ColumnPointer pointer) {
+        ColumnPointer head = ColumnPointer.empty();
+        for (final ColumnPointer seg : pointer) {
+            head = head.resolve(seg);
+            if (seg.equals(ColumnPointer.array())) return head;
+        }
+        return null;
+    }
+
+    /** Cached form of {@link #hasOuterFieldAfterList(SpreadsheetSchema)} or
+     *  {@link #hasMultipleSiblingLists(SpreadsheetSchema)}. Writers call this
+     *  once per nested array to gate flush suspension — the cache avoids
+     *  recomputing the result across every record. */
     public static boolean requiresBackWriteScope(final SpreadsheetSchema schema) {
         final Boolean cached = SCOPE_CACHE.get(schema);
         if (cached != null) return cached;
-        final boolean v = hasOuterFieldAfterList(schema);
+        final boolean v = hasOuterFieldAfterList(schema) || hasMultipleSiblingLists(schema);
         SCOPE_CACHE.put(schema, v);
         return v;
     }

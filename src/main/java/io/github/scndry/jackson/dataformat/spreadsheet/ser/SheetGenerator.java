@@ -134,6 +134,18 @@ public final class SheetGenerator extends GeneratorBase {
     public void writeEndArray() throws IOException {
         final boolean nested = !_outputContext.getParent().inRoot();
         final boolean backWriteRisk = nested && BackWriteProjection.requiresBackWriteScope(_schema);
+        if (nested) {
+            // Sibling list length check — unequal sizes would produce
+            // overlapping merged regions across siblings.
+            final int actualSize = _outputContext.size();
+            final int previousSpan = _outputContext.getParent().getMaxChildArrayRowSpan();
+            if (previousSpan > 0 && previousSpan != actualSize) {
+                throw new SheetStreamWriteException(
+                        "Sibling nested List<T> fields in @DataGrid must have equal sizes."
+                        + " Previous list size: " + previousSpan
+                        + ", current list size: " + actualSize, this);
+            }
+        }
         _outputContext = _closeStruct(END_ARRAY);
         _writer.restoreRowWindow();
         if (backWriteRisk) {
@@ -154,10 +166,10 @@ public final class SheetGenerator extends GeneratorBase {
 
     @Override
     public void writeEndObject() throws IOException {
-        final int size = _outputContext.size();
+        final int rowSpan = _outputContext.getMaxChildArrayRowSpan();
         _outputContext = _closeStruct(END_OBJECT);
         final ColumnPointer pointer = _outputContext.currentPointer();
-        _writer.mergeScopedColumns(pointer, _outputContext.getRow(), size);
+        _writer.mergeScopedColumns(pointer, _outputContext.getRow(), rowSpan);
     }
 
     @Override
