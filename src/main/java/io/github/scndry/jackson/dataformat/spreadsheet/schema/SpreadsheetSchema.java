@@ -1,8 +1,10 @@
 package io.github.scndry.jackson.dataformat.spreadsheet.schema;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.Sheet;
@@ -46,8 +48,8 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     // (parent, []) pairs can be enumerated at schema construction. Avoids
     // per-cell SegmentPointer / String[] allocation in
     // SheetStreamContext.ObjectContext/ArrayContext.currentPointer().
-    private final java.util.Map<ColumnPointer, java.util.Map<String, ColumnPointer>> _resolveTable;
-    private final java.util.Map<ColumnPointer, ColumnPointer> _resolveArrayTable;
+    private final Map<ColumnPointer, Map<String, ColumnPointer>> _resolveTable;
+    private final Map<ColumnPointer, ColumnPointer> _resolveArrayTable;
 
     public SpreadsheetSchema(
             final List<Column> columns,
@@ -61,8 +63,8 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         _stylesBuilder = stylesBuilder;
         _gridConfigurer = gridConfigurer;
         _headerRowCount = _computeHeaderRowCount(columns);
-        _resolveTable = new java.util.HashMap<>();
-        _resolveArrayTable = new java.util.HashMap<>();
+        _resolveTable = new HashMap<>();
+        _resolveArrayTable = new HashMap<>();
         _buildResolveTables();
     }
 
@@ -80,8 +82,8 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
                     }
                 } else {
                     final String name = seg.name();
-                    final java.util.Map<String, ColumnPointer> nameMap =
-                            _resolveTable.computeIfAbsent(head, k -> new java.util.HashMap<>());
+                    final Map<String, ColumnPointer> nameMap =
+                            _resolveTable.computeIfAbsent(head, k -> new HashMap<>());
                     next = nameMap.get(name);
                     if (next == null) {
                         next = head.resolve(name);
@@ -102,7 +104,7 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
      * should invoke {@link ColumnPointer#resolve(String)} directly.
      */
     public ColumnPointer resolve(final ColumnPointer parent, final String name) {
-        final java.util.Map<String, ColumnPointer> nameMap = _resolveTable.get(parent);
+        final Map<String, ColumnPointer> nameMap = _resolveTable.get(parent);
         if (nameMap != null) {
             final ColumnPointer cached = nameMap.get(name);
             if (cached != null) return cached;
