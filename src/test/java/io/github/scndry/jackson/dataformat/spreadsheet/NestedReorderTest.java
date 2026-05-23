@@ -37,7 +37,7 @@ class NestedReorderTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class ROOrder {
-        @DataColumn(value = "id", anchor = OptBoolean.TRUE, merge = OptBoolean.TRUE) Integer id;
+        @DataColumn(value = "id", anchor = true, merge = OptBoolean.TRUE) Integer id;
         @DataColumn("name") String name;
         @DataColumnGroup("Items") List<ROItem> items;
     }

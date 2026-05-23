@@ -24,7 +24,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 @Data @NoArgsConstructor @DataGrid
 public class NestedRow {
 
-    @DataColumn(merge = OptBoolean.TRUE, anchor = OptBoolean.TRUE)
+    @DataColumn(merge = OptBoolean.TRUE, anchor = true)
     private Long id;
     @DataColumn(merge = OptBoolean.TRUE)
     private String name;

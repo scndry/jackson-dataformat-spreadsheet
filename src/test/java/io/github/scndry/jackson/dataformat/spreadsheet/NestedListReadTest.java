@@ -26,7 +26,7 @@ class NestedListReadTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class Order {
-        @DataColumn(value = "ID", merge = OptBoolean.TRUE, anchor = OptBoolean.TRUE) int id;
+        @DataColumn(value = "ID", merge = OptBoolean.TRUE, anchor = true) int id;
         @DataColumn(value = "Customer", merge = OptBoolean.TRUE) String customer;
         @DataColumnGroup("Items") List<LineItem> items;
         @DataColumn(value = "Total", merge = OptBoolean.TRUE) int total;
@@ -77,13 +77,13 @@ class NestedListReadTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class DeepOuter {
-        @DataColumn(value = "OID", merge = OptBoolean.TRUE, anchor = OptBoolean.TRUE) int id;
+        @DataColumn(value = "OID", merge = OptBoolean.TRUE, anchor = true) int id;
         @DataColumnGroup("Mid") List<MidLevel> items;
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor
     static class MidLevel {
-        @DataColumn(value = "MID", merge = OptBoolean.TRUE, anchor = OptBoolean.TRUE) String midId;
+        @DataColumn(value = "MID", merge = OptBoolean.TRUE, anchor = true) String midId;
         @DataColumnGroup("Detail") List<Inner> details;
         @DataColumn(value = "MNAME", merge = OptBoolean.TRUE) String midName;
     }
@@ -112,19 +112,19 @@ class NestedListReadTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class TopLevel {
-        @DataColumn(value = "TID", merge = OptBoolean.TRUE, anchor = OptBoolean.TRUE) int id;
+        @DataColumn(value = "TID", merge = OptBoolean.TRUE, anchor = true) int id;
         @DataColumnGroup("Mid") List<MidNode> mids;
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor
     static class MidNode {
-        @DataColumn(value = "MID", merge = OptBoolean.TRUE, anchor = OptBoolean.TRUE) String mid;
+        @DataColumn(value = "MID", merge = OptBoolean.TRUE, anchor = true) String mid;
         @DataColumnGroup("Sub") List<SubNode> subs;
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor
     static class SubNode {
-        @DataColumn(value = "SID", merge = OptBoolean.TRUE, anchor = OptBoolean.TRUE) String sid;
+        @DataColumn(value = "SID", merge = OptBoolean.TRUE, anchor = true) String sid;
         @DataColumnGroup("Leaf") List<Inner> leaves;
     }
 
@@ -161,7 +161,7 @@ class NestedListReadTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class SiblingOrder {
-        @DataColumn(value = "ID", merge = OptBoolean.TRUE, anchor = OptBoolean.TRUE) int id;
+        @DataColumn(value = "ID", merge = OptBoolean.TRUE, anchor = true) int id;
         @DataColumnGroup("Items") List<SiblingItem> items;
         @DataColumnGroup("Payments") List<SiblingPayment> payments;
     }
@@ -184,7 +184,7 @@ class NestedListReadTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor
     static class GroupItem {
-        @DataColumn(value = "GID", merge = OptBoolean.TRUE, anchor = OptBoolean.TRUE) String gid;
+        @DataColumn(value = "GID", merge = OptBoolean.TRUE, anchor = true) String gid;
         @DataColumnGroup("Detail") List<Inner> details;
     }
 
@@ -196,7 +196,7 @@ class NestedListReadTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class Invoice {
-        @DataColumn(value = "INV", merge = OptBoolean.TRUE, anchor = OptBoolean.TRUE) int id;
+        @DataColumn(value = "INV", merge = OptBoolean.TRUE, anchor = true) int id;
         @DataColumnGroup("Groups") List<GroupItem> groups;
         @DataColumnGroup("Receipts") List<Receipt> receipts;
     }
@@ -240,14 +240,14 @@ class NestedListReadTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor
     static class NestedSiblingMid {
-        @DataColumn(value = "MID", anchor = OptBoolean.TRUE, merge = OptBoolean.TRUE) String mid;
+        @DataColumn(value = "MID", anchor = true, merge = OptBoolean.TRUE) String mid;
         @DataColumnGroup("As") List<Inner> as;
         @DataColumnGroup("Bs") List<Inner> bs;
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class NestedSiblingTop {
-        @DataColumn(value = "ID", anchor = OptBoolean.TRUE, merge = OptBoolean.TRUE) int id;
+        @DataColumn(value = "ID", anchor = true, merge = OptBoolean.TRUE) int id;
         @DataColumnGroup("Mids") List<NestedSiblingMid> mids;
     }
 

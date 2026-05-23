@@ -2,7 +2,6 @@ package io.github.scndry.jackson.dataformat.spreadsheet.deser;
 
 import java.util.List;
 
-import com.fasterxml.jackson.annotation.OptBoolean;
 import com.fasterxml.jackson.core.JsonToken;
 
 import lombok.AllArgsConstructor;
@@ -35,7 +34,7 @@ class RecordTreeBufferLimitTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class Outer {
-        @DataColumn(value = "id", anchor = OptBoolean.TRUE) int id;
+        @DataColumn(value = "id", anchor = true) int id;
         List<Inner> items;
     }
 

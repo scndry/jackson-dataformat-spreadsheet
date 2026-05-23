@@ -8,8 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import com.fasterxml.jackson.annotation.OptBoolean;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -82,7 +80,7 @@ public class NestedIntParityBenchmark {
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     public static class IntOuter {
-        @DataColumn(anchor = OptBoolean.TRUE) private int id;
+        @DataColumn(anchor = true) private int id;
         @DataColumn private int o1;
         @DataColumn private int o2;
         @DataColumn private int o3;

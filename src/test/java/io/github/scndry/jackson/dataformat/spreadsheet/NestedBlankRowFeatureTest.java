@@ -38,7 +38,7 @@ class NestedBlankRowFeatureTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class BlankOrder {
-        @DataColumn(value = "id", anchor = OptBoolean.TRUE, merge = OptBoolean.TRUE) Integer id;
+        @DataColumn(value = "id", anchor = true, merge = OptBoolean.TRUE) Integer id;
         @DataColumnGroup("Items") List<BlankItem> items;
     }
 

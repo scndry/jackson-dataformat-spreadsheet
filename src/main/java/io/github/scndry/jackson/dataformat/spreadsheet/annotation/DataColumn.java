@@ -53,8 +53,15 @@ public @interface DataColumn {
     /** Whether to merge cells vertically for repeated values. */
     OptBoolean merge() default OptBoolean.DEFAULT;
 
-    /** Marks this column as the row anchor for nested-list records. */
-    OptBoolean anchor() default OptBoolean.DEFAULT;
+    /**
+     * Marks this column as the row anchor for nested-list records.
+     * Plain {@code boolean} (not {@link OptBoolean}) because anchor
+     * has no cascading source — a {@code DataGrid} cannot supply an
+     * anchor default the way it does for {@link #merge} or
+     * {@link #autoSize}, so a 3-state value would always collapse to
+     * 2-state.
+     */
+    boolean anchor() default false;
 
     @EqualsAndHashCode
     final class Value implements JacksonAnnotationValue<DataColumn> {
@@ -70,13 +77,13 @@ public @interface DataColumn {
         private final int _minWidth;
         private final int _maxWidth;
         private final OptBoolean _merge;
-        private final OptBoolean _anchor;
+        private final boolean _anchor;
 
         public Value(final String name, final String comment,
                      final String style, final String headerStyle,
                      final int width, final OptBoolean autoSize,
                      final int minWidth, final int maxWidth, final OptBoolean merge,
-                     final OptBoolean anchor) {
+                     final boolean anchor) {
             _name = name;
             _comment = comment;
             _style = style;
@@ -92,7 +99,7 @@ public @interface DataColumn {
         private Value() {
             this("", "", "", "", DataGrid.DEFAULT_COLUMN_WIDTH, OptBoolean.DEFAULT,
                     DataGrid.DEFAULT_MIN_COLUMN_WIDTH, DataGrid.DEFAULT_MAX_COLUMN_WIDTH,
-                    OptBoolean.DEFAULT, OptBoolean.DEFAULT);
+                    OptBoolean.DEFAULT, false);
         }
 
         private Value(final DataColumn ann) {
@@ -116,7 +123,7 @@ public @interface DataColumn {
         public int getMinWidth() { return _minWidth; }
         public int getMaxWidth() { return _maxWidth; }
         public OptBoolean getMerge() { return _merge; }
-        public OptBoolean getAnchor() { return _anchor; }
+        public boolean getAnchor() { return _anchor; }
 
         public Value withName(final String name) {
             if (name == null || name.isEmpty()) return this;
@@ -149,7 +156,7 @@ public @interface DataColumn {
         }
 
         public boolean isAnchor() {
-            return _anchor == OptBoolean.TRUE;
+            return _anchor;
         }
 
         @Override

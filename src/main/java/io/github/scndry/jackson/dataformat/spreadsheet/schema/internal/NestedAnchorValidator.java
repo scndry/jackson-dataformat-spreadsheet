@@ -14,7 +14,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 /**
  * Read-time validation for the depth-aware nested-list contract:
  * each nested-list-bearing record level must declare exactly one
- * {@code @DataColumn(anchor = TRUE)} column at its immediate scope.
+ * {@code @DataColumn(anchor = true)} column at its immediate scope.
  * Called from {@code SheetParser.setSchema} only when the schema has
  * at least one anchor — the write path is unaffected.
  *
@@ -96,7 +96,7 @@ public final class NestedAnchorValidator {
                     .append("': ").append(String.join(", ", names));
         }
         sb.append("\n\nEach nested-list-bearing record level requires exactly one"
-                + " @DataColumn(anchor = TRUE) column at its immediate scope.");
+                + " @DataColumn(anchor = true) column at its immediate scope.");
         return sb.toString();
     }
 

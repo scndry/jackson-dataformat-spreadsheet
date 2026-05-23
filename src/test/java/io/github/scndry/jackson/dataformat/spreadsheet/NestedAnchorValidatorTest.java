@@ -2,8 +2,6 @@ package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import java.util.List;
 
-import com.fasterxml.jackson.annotation.OptBoolean;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -19,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Read-time anchor invariant checks — exactly one
- * {@code @DataColumn(anchor = TRUE)} at each nested-list-bearing record
+ * {@code @DataColumn(anchor = true)} at each nested-list-bearing record
  * level, none elsewhere. Driven from {@code SheetParser.setSchema}
  * when the schema has any anchor; the write path is untouched.
  */
@@ -33,7 +31,7 @@ class NestedAnchorValidatorTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class Valid {
-        @DataColumn(value = "id", anchor = OptBoolean.TRUE) int id;
+        @DataColumn(value = "id", anchor = true) int id;
         List<Inner> items;
     }
 
@@ -51,7 +49,7 @@ class NestedAnchorValidatorTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class MissingAtNested {
-        @DataColumn(value = "id", anchor = OptBoolean.TRUE) int id;
+        @DataColumn(value = "id", anchor = true) int id;
         List<MidNoAnchor> items;
     }
 
@@ -66,7 +64,7 @@ class NestedAnchorValidatorTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor
     static class MidWithAnchor {
-        @DataColumn(value = "midId", anchor = OptBoolean.TRUE) String midId;
+        @DataColumn(value = "midId", anchor = true) String midId;
         List<Inner> details;
     }
 
@@ -102,13 +100,13 @@ class NestedAnchorValidatorTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor
     static class InnerWithAnchor {
-        @DataColumn(value = "x", anchor = OptBoolean.TRUE) int x;
+        @DataColumn(value = "x", anchor = true) int x;
         @DataColumn("y") int y;
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class ExtraAtInnermost {
-        @DataColumn(value = "id", anchor = OptBoolean.TRUE) int id;
+        @DataColumn(value = "id", anchor = true) int id;
         List<InnerWithAnchor> items;
     }
 
@@ -123,7 +121,7 @@ class NestedAnchorValidatorTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class ExtraOnFlat {
-        @DataColumn(value = "id", anchor = OptBoolean.TRUE) int id;
+        @DataColumn(value = "id", anchor = true) int id;
         @DataColumn("name") String name;
     }
 
@@ -138,8 +136,8 @@ class NestedAnchorValidatorTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class DuplicateAtRoot {
-        @DataColumn(value = "id", anchor = OptBoolean.TRUE) int id;
-        @DataColumn(value = "name", anchor = OptBoolean.TRUE) String name;
+        @DataColumn(value = "id", anchor = true) int id;
+        @DataColumn(value = "name", anchor = true) String name;
         List<Inner> items;
     }
 
