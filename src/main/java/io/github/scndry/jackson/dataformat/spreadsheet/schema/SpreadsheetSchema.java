@@ -42,6 +42,14 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     private final StylesBuilder _stylesBuilder;
     private final GridConfigurer _gridConfigurer;
     private final int _headerRowCount;
+    // Pre-built lookup tables for resolve / resolveArray on the write path's
+    // per-cell currentPointer chain. Every cell's pointer is a prefix of
+    // some schema column pointer, so all needed (parent, name) and
+    // (parent, []) pairs can be enumerated at schema construction. Avoids
+    // per-cell SegmentPointer / String[] allocation in
+    // SheetStreamContext.ObjectContext/ArrayContext.currentPointer().
+    private final java.util.Map<ColumnPointer, java.util.Map<String, ColumnPointer>> _resolveTable;
+    private final java.util.Map<ColumnPointer, ColumnPointer> _resolveArrayTable;
 
     public SpreadsheetSchema(
             final List<Column> columns,
@@ -55,6 +63,51 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         _stylesBuilder = stylesBuilder;
         _gridConfigurer = gridConfigurer;
         _headerRowCount = _computeHeaderRowCount(columns);
+        _resolveTable = new java.util.HashMap<>();
+        _resolveArrayTable = new java.util.HashMap<>();
+        _buildResolveTables();
+    }
+
+    private void _buildResolveTables() {
+        for (final Column col : _columns) {
+            if (col == null) continue;
+            ColumnPointer head = ColumnPointer.empty();
+            for (final ColumnPointer seg : col.getPointer()) {
+                ColumnPointer next;
+                if (seg.equals(ColumnPointer.array())) {
+                    next = _resolveArrayTable.get(head);
+                    if (next == null) {
+                        next = head.resolveArray();
+                        _resolveArrayTable.put(head, next);
+                    }
+                } else {
+                    final String name = seg.name();
+                    final java.util.Map<String, ColumnPointer> nameMap =
+                            _resolveTable.computeIfAbsent(head, k -> new java.util.HashMap<>());
+                    next = nameMap.get(name);
+                    if (next == null) {
+                        next = head.resolve(name);
+                        nameMap.put(name, next);
+                    }
+                }
+                head = next;
+            }
+        }
+    }
+
+    public ColumnPointer resolve(final ColumnPointer parent, final String name) {
+        final java.util.Map<String, ColumnPointer> nameMap = _resolveTable.get(parent);
+        if (nameMap != null) {
+            final ColumnPointer cached = nameMap.get(name);
+            if (cached != null) return cached;
+        }
+        return parent.resolve(name);
+    }
+
+    public ColumnPointer resolveArray(final ColumnPointer parent) {
+        final ColumnPointer cached = _resolveArrayTable.get(parent);
+        if (cached != null) return cached;
+        return parent.resolveArray();
     }
 
     private static int _computeHeaderRowCount(final List<Column> columns) {
