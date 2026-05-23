@@ -22,6 +22,14 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Round-trip tests for nested-list read/write — single record,
+ * 1/2/3-depth nesting, sibling lists, empty list, {@code @JsonView}
+ * filtering, and SSML/POI cross-mode parity. Common-case shapes
+ * live here; partial-cell edge cases in
+ * {@link NestedListEdgeCaseTest}, blank-row semantics in
+ * {@link NestedBlankRowFeatureTest}.
+ */
 class NestedListReadTest {
 
     @TempDir Path tempDir;
