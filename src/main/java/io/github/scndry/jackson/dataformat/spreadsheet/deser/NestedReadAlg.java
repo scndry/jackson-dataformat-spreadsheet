@@ -36,6 +36,7 @@ final class NestedReadAlg {
     private final List<ColumnPointer> _anchorScopesByDepth;
     private final Set<ColumnPointer> _leafArrayScopes;
     private final Map<ColumnPointer, ColumnPointer> _parentArrayScopeOf;
+    private final Map<Column, ColumnPointer> _immediateScopeByColumn;
     private final long _bufferLimitBytes;
     private final boolean _blankRowAsNull;
     private final boolean _breakOnBlankRow;
@@ -59,9 +60,20 @@ final class NestedReadAlg {
         _anchorScopesByDepth = _collectAnchorScopes(schema);
         _leafArrayScopes = _findLeafArrayScopes(schema);
         _parentArrayScopeOf = _computeParentScopeMap(schema);
+        _immediateScopeByColumn = _computeImmediateScopeByColumn(schema);
         _bufferLimitBytes = bufferLimitBytes;
         _blankRowAsNull = blankRowAsNull;
         _breakOnBlankRow = breakOnBlankRow;
+    }
+
+    private static Map<Column, ColumnPointer> _computeImmediateScopeByColumn(
+            final SpreadsheetSchema schema) {
+        final Map<Column, ColumnPointer> result = new HashMap<>();
+        for (final Column c : schema) {
+            if (c == null) continue;
+            result.put(c, SpreadsheetSchema.immediateScope(c.getPointer()));
+        }
+        return result;
     }
 
     void onSheetDataStart(final Emitter out) {
@@ -105,7 +117,7 @@ final class NestedReadAlg {
             final RecordNode openRecord = new RecordNode(scope);
             for (final Cell c : _rowBuffer) {
                 if (c.value == null || c.value.getCellType() == CellType.BLANK) continue;
-                if (SpreadsheetSchema.immediateScope(c.column.getPointer()).equals(scope)) {
+                if (_immediateScopeByColumn.get(c.column).equals(scope)) {
                     openRecord.outerCells.add(c);
                     _bufferedCells++;
                 }
@@ -118,7 +130,7 @@ final class NestedReadAlg {
             final List<Cell> leafCells = new ArrayList<>();
             for (final Cell c : _rowBuffer) {
                 if (c.value == null || c.value.getCellType() == CellType.BLANK) continue;
-                if (SpreadsheetSchema.immediateScope(c.column.getPointer()).equals(leafScope)) {
+                if (_immediateScopeByColumn.get(c.column).equals(leafScope)) {
                     leafCells.add(c);
                 }
             }
