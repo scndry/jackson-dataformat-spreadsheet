@@ -18,6 +18,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SchemaAnchorInspector;
 
 /**
  * Record-tree buffer keyed by array scope. Each anchored record
@@ -73,7 +74,7 @@ final class RecordTreeBuffer {
         final Map<Column, ColumnPointer> result = new HashMap<>();
         for (final Column c : schema) {
             if (c == null) continue;
-            result.put(c, SpreadsheetSchema.immediateScope(c.getPointer()));
+            result.put(c, SchemaAnchorInspector.immediateScope(c.getPointer()));
         }
         return result;
     }
@@ -131,7 +132,7 @@ final class RecordTreeBuffer {
             return true;
         }
         for (final ColumnPointer scope : _anchorScopesByDepth) {
-            final Column anchorCol = _schema.findAnchorColumn(scope);
+            final Column anchorCol = SchemaAnchorInspector.findAnchorColumn(_schema, scope);
             if (anchorCol == null) continue;
             final Cell cell = _findCell(anchorCol);
             if (cell == null) continue;
@@ -254,19 +255,20 @@ final class RecordTreeBuffer {
 
     private static List<ColumnPointer> _collectAnchorScopes(final SpreadsheetSchema schema) {
         final List<ColumnPointer> scopes = new ArrayList<>();
-        if (schema.findAnchorColumn(ColumnPointer.empty()) != null) {
+        if (SchemaAnchorInspector.findAnchorColumn(schema, ColumnPointer.empty()) != null) {
             scopes.add(ColumnPointer.empty());
         }
-        final List<ColumnPointer> arrayScopes = new ArrayList<>(schema.allArrayScopes());
+        final List<ColumnPointer> arrayScopes =
+                new ArrayList<>(SchemaAnchorInspector.allArrayScopes(schema));
         arrayScopes.sort(Comparator.comparingInt(RecordTreeBuffer::_scopeDepth));
         for (final ColumnPointer s : arrayScopes) {
-            if (schema.findAnchorColumn(s) != null) scopes.add(s);
+            if (SchemaAnchorInspector.findAnchorColumn(schema, s) != null) scopes.add(s);
         }
         return scopes;
     }
 
     private static Set<ColumnPointer> _findLeafArrayScopes(final SpreadsheetSchema schema) {
-        final Set<ColumnPointer> all = schema.allArrayScopes();
+        final Set<ColumnPointer> all = SchemaAnchorInspector.allArrayScopes(schema);
         final Set<ColumnPointer> leafs = new LinkedHashSet<>();
         for (final ColumnPointer scope : all) {
             boolean hasChild = false;
@@ -281,7 +283,7 @@ final class RecordTreeBuffer {
     private static Map<ColumnPointer, ColumnPointer> _computeParentScopeMap(
             final SpreadsheetSchema schema) {
         final Map<ColumnPointer, ColumnPointer> result = new HashMap<>();
-        for (final ColumnPointer scope : schema.allArrayScopes()) {
+        for (final ColumnPointer scope : SchemaAnchorInspector.allArrayScopes(schema)) {
             result.put(scope, _parentArrayScopeOf(scope));
         }
         return result;

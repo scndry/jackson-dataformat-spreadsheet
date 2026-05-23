@@ -70,7 +70,7 @@ public final class NestedAnchorValidator {
         final Map<ColumnPointer, List<Column>> result = new LinkedHashMap<>();
         for (final Column c : schema) {
             if (c == null || !c.isAnchor()) continue;
-            result.computeIfAbsent(SpreadsheetSchema.immediateScope(c.getPointer()),
+            result.computeIfAbsent(SchemaAnchorInspector.immediateScope(c.getPointer()),
                     k -> new ArrayList<>()).add(c);
         }
         return result;

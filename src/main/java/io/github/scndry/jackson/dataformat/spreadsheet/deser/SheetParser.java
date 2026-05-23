@@ -29,6 +29,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.NestedAnchorValidator;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SchemaAnchorInspector;
 
 /**
  * {@link com.fasterxml.jackson.core.JsonParser} implementation
@@ -104,10 +105,10 @@ public final class SheetParser extends ParserMinimalBase {
                     + " @DataColumnGroup annotations from the target class.");
         }
         _parsingContext = SheetStreamContext.createRootContext(_schema);
-        if (_schema.hasAnchor() || _schema.hasNestedList()) {
+        if (SchemaAnchorInspector.hasAnchor(_schema) || SchemaAnchorInspector.hasNestedList(_schema)) {
             NestedAnchorValidator.validate(_schema);
         }
-        if (_schema.hasAnchor()) {
+        if (SchemaAnchorInspector.hasAnchor(_schema)) {
             _recordBuffer = new RecordTreeBuffer(_schema,
                     BackWriteProjection.backWriteBufferLimit(),
                     isEnabled(Feature.BLANK_ROW_AS_NULL),
