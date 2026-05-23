@@ -100,8 +100,7 @@ final class RecordTreeBuffer {
 
     void onCellValue(final Column column, final CellValue value) throws SheetStreamReadException {
         if (!_isSupportedCellType(value.getCellType())) {
-            throw new SheetStreamReadException(null,
-                    "Unexpected value: " + value.getCellType());
+            throw SheetStreamReadException.unexpected(null, value.getCellType());
         }
         _rowBuffer.add(new Cell(column, value));
     }
