@@ -268,7 +268,11 @@ public final class SheetParser extends ParserMinimalBase {
                 final CellValue value = _reader.getCellValue();
                 final Column column = _schema.findColumn(_referenceColumn);
                 if (column == null) break;
-                _nestedAlg.onCellValue(column, value);
+                try {
+                    _nestedAlg.onCellValue(column, value);
+                } catch (final SheetStreamReadException e) {
+                    throw e.withParser(this);
+                }
                 break;
             case ROW_END:
                 try {

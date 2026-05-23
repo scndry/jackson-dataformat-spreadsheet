@@ -84,8 +84,24 @@ final class NestedReadAlg {
         _rowBuffer.clear();
     }
 
-    void onCellValue(final Column column, final CellValue value) {
+    void onCellValue(final Column column, final CellValue value) throws SheetStreamReadException {
+        if (!_isSupportedCellType(value.getCellType())) {
+            throw new SheetStreamReadException(null,
+                    "Unexpected value: " + value.getCellType());
+        }
         _rowBuffer.add(new Cell(column, value));
+    }
+
+    private static boolean _isSupportedCellType(final CellType type) {
+        switch (type) {
+            case NUMERIC:
+            case STRING:
+            case BLANK:
+            case BOOLEAN:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /** Returns false when iteration should stop (BREAK_ON_BLANK_ROW). */
@@ -284,7 +300,8 @@ final class NestedReadAlg {
             case BLANK: return JsonToken.VALUE_NULL;
             case BOOLEAN: return v.getBooleanValue()
                     ? JsonToken.VALUE_TRUE : JsonToken.VALUE_FALSE;
-            default: return JsonToken.VALUE_NULL;
+            default: throw new IllegalStateException(
+                    "Unsupported cell type leaked past onCellValue: " + v.getCellType());
         }
     }
 
