@@ -6,7 +6,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.annotation.OptBoolean;
+import com.fasterxml.jackson.databind.MapperFeature;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -328,5 +330,131 @@ class NestedListReadTest {
         List<SiblingOrder> read = mapper.readValues(file, SiblingOrder.class);
         assertThat(read).hasSize(1);
         assertThat(read.get(0)).isEqualTo(expected);
+    }
+
+    /**
+     * Three-depth fixture round-tripped across SSML and POI modes —
+     * SSML write then POI read, POI write then SSML read — confirms
+     * the deepest nesting layout is reader-agnostic.
+     */
+    @Test
+    void roundTrip_threeDepth_crossPoiSsml() throws Exception {
+        SpreadsheetMapper ssml = new SpreadsheetMapper();
+        SpreadsheetMapper poi = _poiMapper();
+
+        TopLevel expected = new TopLevel(1, Arrays.asList(
+                new MidNode("M1", Arrays.asList(
+                        new SubNode("S1A", Arrays.asList(new Inner(1, 2), new Inner(3, 4))),
+                        new SubNode("S1B", Arrays.asList(new Inner(5, 6))))),
+                new MidNode("M2", Arrays.asList(
+                        new SubNode("S2A", Arrays.asList(new Inner(7, 8)))))));
+
+        File ssmlFile = tempDir.resolve("three-depth-ssml-write.xlsx").toFile();
+        ssml.writeValue(ssmlFile, expected);
+        List<TopLevel> readViaPoi = poi.readValues(ssmlFile, TopLevel.class);
+        assertThat(readViaPoi).hasSize(1);
+        assertThat(readViaPoi.get(0)).isEqualTo(expected);
+
+        File poiFile = tempDir.resolve("three-depth-poi-write.xlsx").toFile();
+        poi.writeValue(poiFile, expected);
+        List<TopLevel> readViaSsml = ssml.readValues(poiFile, TopLevel.class);
+        assertThat(readViaSsml).hasSize(1);
+        assertThat(readViaSsml.get(0)).isEqualTo(expected);
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class ComplexMid {
+        @DataColumn(value = "CMID", anchor = true, merge = OptBoolean.TRUE) String mid;
+        @DataColumnGroup("Subs") List<SubNode> subs;
+        @DataColumnGroup("Notes") List<Inner> notes;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class ComplexTop {
+        @DataColumn(value = "CTID", anchor = true, merge = OptBoolean.TRUE) int id;
+        @DataColumnGroup("Mids") List<ComplexMid> mids;
+    }
+
+    /**
+     * Three-depth path (Top -> Mid -> Sub -> Leaf) combined with a
+     * sibling list at the Mid level (Subs alongside Notes). Exercises
+     * the record-tree close path when both a deep descendant and a
+     * sibling close at the same scope.
+     */
+    @Test
+    void roundTrip_threeDepthWithSibling() throws Exception {
+        File file = tempDir.resolve("three-depth-sibling.xlsx").toFile();
+        SpreadsheetMapper mapper = new SpreadsheetMapper();
+
+        // Sibling lists must share row span (write-side invariant):
+        // M1.subs leaves total 3 -> M1.notes also 3 items.
+        // M2.subs leaves total 1 -> M2.notes also 1 item.
+        ComplexTop expected = new ComplexTop(1, Arrays.asList(
+                new ComplexMid("M1",
+                        Arrays.asList(
+                                new SubNode("S1A", Arrays.asList(new Inner(1, 2), new Inner(3, 4))),
+                                new SubNode("S1B", Arrays.asList(new Inner(5, 6)))),
+                        Arrays.asList(new Inner(10, 20), new Inner(30, 40), new Inner(50, 60))),
+                new ComplexMid("M2",
+                        Arrays.asList(
+                                new SubNode("S2A", Arrays.asList(new Inner(7, 8)))),
+                        Arrays.asList(new Inner(70, 80)))));
+
+        mapper.writeValue(file, expected);
+
+        List<ComplexTop> read = mapper.readValues(file, ComplexTop.class);
+        assertThat(read).hasSize(1);
+        assertThat(read.get(0)).isEqualTo(expected);
+    }
+
+    interface Views {
+        interface Summary {}
+        interface Detail extends Summary {}
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class ViewItem {
+        @DataColumn("sku") @JsonView(Views.Summary.class) String sku;
+        @DataColumn("qty") @JsonView(Views.Detail.class) Integer qty;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class ViewOrder {
+        @DataColumn(value = "id", anchor = true, merge = OptBoolean.TRUE)
+        @JsonView(Views.Summary.class) Integer id;
+        @DataColumnGroup("Items")
+        @JsonView(Views.Summary.class) List<ViewItem> items;
+        @DataColumn("total")
+        @JsonView(Views.Detail.class) Integer total;
+    }
+
+    /**
+     * {@code @JsonView} + nested round-trip. Summary view writes
+     * anchor + items.sku only; Detail-only fields (items.qty, total)
+     * are absent from the sheet, so the subsequent default read sees
+     * them as {@code null}.
+     */
+    @Test
+    void roundTrip_jsonView_nested_summary() throws Exception {
+        SpreadsheetMapper viewMapper = SpreadsheetMapper.builder()
+                .configure(MapperFeature.DEFAULT_VIEW_INCLUSION, false)
+                .build();
+        File file = tempDir.resolve("nested-view-summary.xlsx").toFile();
+
+        ViewOrder data = new ViewOrder(1,
+                Arrays.asList(new ViewItem("A", 10), new ViewItem("B", 20)), 100);
+        viewMapper.sheetWriterForWithView(ViewOrder.class, Views.Summary.class)
+                .writeValue(file, Arrays.asList(data));
+
+        List<ViewOrder> read = viewMapper.readValues(file, ViewOrder.class);
+        assertThat(read).hasSize(1);
+        assertThat(read.get(0).getId()).isEqualTo(1);
+        assertThat(read.get(0).getItems()).hasSize(2);
+        assertThat(read.get(0).getItems()).extracting(ViewItem::getSku)
+                .containsExactly("A", "B");
+        // Detail-only fields not written under Summary view
+        assertThat(read.get(0).getItems()).extracting(ViewItem::getQty)
+                .containsExactly(null, null);
+        assertThat(read.get(0).getTotal()).isNull();
     }
 }
