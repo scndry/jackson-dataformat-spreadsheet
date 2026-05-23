@@ -55,15 +55,7 @@ public @interface DataColumn {
 
     /**
      * Marks this column as the row anchor for nested-list records.
-     * Read-side semantic only — the write path does not consult this
-     * attribute (only the read path's record-tree buffer uses it to
-     * detect record boundaries).
-     *
-     * <p>Plain {@code boolean} (not {@link OptBoolean}) because anchor
-     * has no cascading source — a {@code DataGrid} cannot supply an
-     * anchor default the way it does for {@link #merge} or
-     * {@link #autoSize}, so a 3-state value would always collapse to
-     * 2-state.
+     * Read-side only — the write path ignores this attribute.
      */
     boolean anchor() default false;
 

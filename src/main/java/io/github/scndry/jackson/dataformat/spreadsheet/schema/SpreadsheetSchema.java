@@ -96,12 +96,8 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     }
 
     /**
-     * Internal hot-path cache for the per-cell pointer chain used by
-     * {@code SheetStreamContext.ObjectContext.currentPointer()}; returns
-     * the cached {@link ColumnPointer} when {@code (parent, name)} maps
-     * to a known schema column prefix, falling back to
-     * {@link ColumnPointer#resolve(String)} otherwise. External callers
-     * should invoke {@link ColumnPointer#resolve(String)} directly.
+     * Internal hot-path cache for per-cell pointer chains; external
+     * callers should use {@link ColumnPointer#resolve(String)}.
      */
     public ColumnPointer resolve(final ColumnPointer parent, final String name) {
         final Map<String, ColumnPointer> nameMap = _resolveTable.get(parent);
@@ -113,12 +109,8 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     }
 
     /**
-     * Internal hot-path cache for the per-cell pointer chain used by
-     * {@code SheetStreamContext.ArrayContext.currentPointer()}; returns
-     * the cached array-scope {@link ColumnPointer} when {@code parent}
-     * maps to a known schema array prefix, falling back to
-     * {@link ColumnPointer#resolveArray()} otherwise. External callers
-     * should invoke {@link ColumnPointer#resolveArray()} directly.
+     * Internal hot-path cache for per-cell pointer chains; external
+     * callers should use {@link ColumnPointer#resolveArray()}.
      */
     public ColumnPointer resolveArray(final ColumnPointer parent) {
         final ColumnPointer cached = _resolveArrayTable.get(parent);
