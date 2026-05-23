@@ -104,7 +104,7 @@ mapper.writeValue(output, products, Product.class);
 
 ### Complex Objects
 
-Nested objects flatten into columns. Lists of nested objects expand into multiple rows.
+Nested objects flatten into columns. Lists of nested objects expand into multiple rows — and round-trip back into the same shape when the outer record carries an anchor column (see the [GUIDE](GUIDE.md#reading-nested-lists)).
 
 ```java
 @DataGrid(mergeColumn = OptBoolean.TRUE)
@@ -267,7 +267,7 @@ POI gives you cells. This gives you POJOs. You define a class with `@DataGrid`, 
 Apache Fesod has its own API. This extends Jackson's `ObjectMapper`, so you get the full Jackson ecosystem — custom deserializers, mix-ins, modules, polymorphic types.
 
 **Q: Does it support nested objects?**
-Yes. Nested POJOs automatically flatten to columns on write and reconstruct on read. No configuration needed.
+Yes. Nested POJOs automatically flatten to columns on write and reconstruct on read. No configuration needed. Nested `List<T>` fields round-trip too — write expands to multi-row blocks, read collapses them back into the same outer record when one column per record level is marked with `@DataColumn(anchor = true)`.
 
 **Q: How does performance compare?**
 Throughput close to FastExcel at 100K rows (writer slightly faster), with ~20% less allocation in both read and write. ~7x faster than Apache POI on read. See [BENCHMARK.md](BENCHMARK.md).
