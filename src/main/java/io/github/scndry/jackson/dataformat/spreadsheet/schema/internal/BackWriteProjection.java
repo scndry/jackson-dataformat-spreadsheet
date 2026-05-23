@@ -24,6 +24,14 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
  * {@code SheetDataBuffer} (per-cell memory) and {@code SheetGenerator}
  * (pre-list fail-fast check on {@code writeStartArray}).
  *
+ * <p>The {@link #backWriteBufferLimit()} budget and
+ * {@link #CELL_MEMORY_BYTES} are also reused by {@code RecordTreeBuffer} as a
+ * ballpark on the read side. Read-side cells are object references
+ * (Cell + List/Map overhead), not the SoA records — actual per-cell heap
+ * is roughly 1.5–2× the SoA figure, so the limit triggers a little later
+ * in bytes-of-heap but still serves the same OOM-protection role with
+ * the same guidance (USE_POI_USER_MODEL bypass / split the outer record).
+ *
  * <p>Not part of the public API. Classes under
  * {@code io.github.scndry.jackson.dataformat.spreadsheet.schema.internal}
  * may change without notice between releases — do not invoke directly

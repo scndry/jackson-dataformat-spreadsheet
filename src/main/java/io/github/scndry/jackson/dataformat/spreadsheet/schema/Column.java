@@ -100,6 +100,10 @@ public final class Column {
         return _value.isMerge();
     }
 
+    public boolean isAnchor() {
+        return _value.isAnchor();
+    }
+
     public JavaType getType() {
         if (isArray()) {
             return _type.getContentType();

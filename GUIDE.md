@@ -415,7 +415,7 @@ By default, nested field headers use the path from the parent (e.g., `address/zi
 
 ### Nested Lists
 
-Nested lists are serialized into multi-row output. *Deserialization is not currently supported.*
+Nested lists are serialized into multi-row output. The reverse — reading multi-row blocks back into nested lists — is supported when the outer record carries an anchor column (see [Reading Nested Lists](#reading-nested-lists)).
 
 ```java
 @DataGrid(mergeColumn = OptBoolean.TRUE)
@@ -457,6 +457,38 @@ SpreadsheetMapper mapper = new SpreadsheetMapper(
     new SpreadsheetFactory(() -> new SXSSFWorkbook(500),
         SpreadsheetFactory.DEFAULT_SHEET_PARSER_FEATURE_FLAGS));
 ```
+
+#### Reading Nested Lists
+
+Mark one column per nested-list-bearing record level with `@DataColumn(anchor = true)`. The reader watches that column for value changes to detect record boundaries — a sequence of rows sharing the same anchor value collapses into one outer record with the inner rows as its list.
+
+```java
+@DataGrid(mergeColumn = OptBoolean.TRUE)
+class Order {
+    @DataColumn(value = "Order ID", anchor = true) int orderId;
+    List<Item> items;
+    @DataColumn("Total") int total;
+}
+```
+
+```java
+List<Order> orders = mapper.readValues(file, Order.class);
+// One Order per distinct Order ID, items[] holds the inner rows.
+```
+
+Anchor invariants are checked at `setSchema` time and surface as `IllegalStateException`:
+
+- Each nested-list-bearing record level needs exactly one anchor column at its immediate scope.
+- Anchor columns on records without a nested list are rejected.
+- Multiple anchors at the same scope are rejected.
+
+The read path buffers cells into a record tree keyed by array scope and emits each outer record once its boundary closes (anchor change, blank row, or end of sheet). Buffer growth is capped by the same heap-aware bound used on the write side — split large outer records or switch to `USE_POI_USER_MODEL` if a single record cannot fit.
+
+`BLANK_ROW_AS_NULL` and `BREAK_ON_BLANK_ROW` carry the same semantics as in the flat path: a fully blank row closes the currently open outer record, then either inserts a `null` entry into the result list or terminates iteration.
+
+`FEATURE_COLUMN_REORDERING` is incompatible with nested-list schemas (every nested-list schema uses `@DataColumnGroup`, which forces multi-row headers); enabling both raises `IllegalStateException` at `setSchema`.
+
+ERROR cells (`#N/A`, `#DIV/0!`, etc.) in nested reads raise `SheetStreamReadException` at cell-arrival time — matching the flat path. The reader does not silently substitute `null` for an ERROR cell.
 
 ## Annotations
 

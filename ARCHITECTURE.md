@@ -189,9 +189,12 @@ mapper.readValue(file, Employee.class)
        ├─ SheetReader.next() → SheetToken
        ├─ row/column bounds check against schema
        ├─ ColumnPointer scope tracking
-       ├─ JsonToken emission (with nesting)
+       ├─ Flat path → JsonToken emission (with nesting)
+       ├─ Anchor path → RecordTreeBuffer assembles record tree, emits per outer
        └─ Jackson BeanDeserializer consumes tokens → Employee
 ```
+
+The anchor path engages when the schema declares any `@DataColumn(anchor = true)`. `RecordTreeBuffer` buffers cells row-by-row into a record tree keyed by array scope and emits each outer record (with its nested lists attached) once an anchor change, blank row, or end of sheet closes the boundary. Flat schemas bypass the buffer — the read path stays a single-pass StAX consume.
 
 ### Dual Reader Strategy
 

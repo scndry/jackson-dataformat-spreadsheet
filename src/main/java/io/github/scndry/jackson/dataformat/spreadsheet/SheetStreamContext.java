@@ -186,7 +186,7 @@ public abstract class SheetStreamContext extends JsonStreamContext {
         @Override
         public ColumnPointer currentPointer() {
             if (_parent.inRoot()) return _parent.currentPointer();
-            return _parent.currentPointer().resolveArray();
+            return _schema.resolveArray(_parent.currentPointer());
         }
 
         @Override
@@ -252,7 +252,7 @@ public abstract class SheetStreamContext extends JsonStreamContext {
 
         @Override
         public ColumnPointer currentPointer() {
-            return _parent.currentPointer().resolve(_name);
+            return _schema.resolve(_parent.currentPointer(), _name);
         }
 
         @Override
