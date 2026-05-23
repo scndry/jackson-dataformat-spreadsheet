@@ -37,6 +37,7 @@ final class RecordTreeBuffer {
     private final Set<ColumnPointer> _leafArrayScopes;
     private final Map<ColumnPointer, ColumnPointer> _parentArrayScopeOf;
     private final Map<Column, ColumnPointer> _immediateScopeByColumn;
+    private final Map<Column, Integer> _columnPositionByColumn;
     private final long _bufferLimitBytes;
     private final boolean _blankRowAsNull;
     private final boolean _breakOnBlankRow;
@@ -61,6 +62,7 @@ final class RecordTreeBuffer {
         _leafArrayScopes = _findLeafArrayScopes(schema);
         _parentArrayScopeOf = _computeParentScopeMap(schema);
         _immediateScopeByColumn = _computeImmediateScopeByColumn(schema);
+        _columnPositionByColumn = _computeColumnPositionByColumn(schema);
         _bufferLimitBytes = bufferLimitBytes;
         _blankRowAsNull = blankRowAsNull;
         _breakOnBlankRow = breakOnBlankRow;
@@ -72,6 +74,17 @@ final class RecordTreeBuffer {
         for (final Column c : schema) {
             if (c == null) continue;
             result.put(c, SpreadsheetSchema.immediateScope(c.getPointer()));
+        }
+        return result;
+    }
+
+    private static Map<Column, Integer> _computeColumnPositionByColumn(
+            final SpreadsheetSchema schema) {
+        final Map<Column, Integer> result = new HashMap<>();
+        int i = 0;
+        for (final Column c : schema) {
+            if (c != null) result.put(c, i);
+            i++;
         }
         return result;
     }
@@ -134,7 +147,7 @@ final class RecordTreeBuffer {
             for (final Cell c : _rowBuffer) {
                 if (c.value == null || c.value.getCellType() == CellType.BLANK) continue;
                 if (_immediateScopeByColumn.get(c.column).equals(scope)) {
-                    openRecord.outerCells.add(c);
+                    _addSortedByColumn(openRecord.outerCells, c);
                     _bufferedCells++;
                 }
             }
@@ -143,18 +156,15 @@ final class RecordTreeBuffer {
         }
 
         for (final ColumnPointer leafScope : _leafArrayScopes) {
-            final List<Cell> leafCells = new ArrayList<>();
+            final RecordNode leafRecord = new RecordNode(leafScope);
             for (final Cell c : _rowBuffer) {
                 if (c.value == null || c.value.getCellType() == CellType.BLANK) continue;
                 if (_immediateScopeByColumn.get(c.column).equals(leafScope)) {
-                    leafCells.add(c);
+                    _addSortedByColumn(leafRecord.outerCells, c);
                 }
             }
-            if (leafCells.isEmpty()) continue;
-
-            final RecordNode leafRecord = new RecordNode(leafScope);
-            leafRecord.outerCells.addAll(leafCells);
-            _bufferedCells += leafCells.size();
+            if (leafRecord.outerCells.isEmpty()) continue;
+            _bufferedCells += leafRecord.outerCells.size();
 
             final ColumnPointer parentScope = _parentArrayScopeOf.get(leafScope);
             final RecordNode parentRecord = _openRecords.get(parentScope);
@@ -223,6 +233,16 @@ final class RecordTreeBuffer {
             out.token(JsonToken.END_ARRAY);
         }
         out.token(JsonToken.END_OBJECT);
+    }
+
+    private void _addSortedByColumn(final List<Cell> cells, final Cell c) {
+        final int pos = _columnPositionByColumn.get(c.column);
+        int i = 0;
+        while (i < cells.size()
+                && _columnPositionByColumn.get(cells.get(i).column) < pos) {
+            i++;
+        }
+        cells.add(i, c);
     }
 
     private Cell _findCell(final Column column) {
