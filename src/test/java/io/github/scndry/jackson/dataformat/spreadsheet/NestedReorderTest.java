@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * SheetParser.setSchema rejects the combination of {@code
  * columnReordering=true} and any schema carrying
  * {@code @DataColumnGroup} (multi-row headers) — which all nested-list
- * schemas necessarily do. The check fires before NestedReadAlg is
+ * schemas necessarily do. The check fires before RecordTreeBuffer is
  * created, so the algorithm never sees a reordered schema and the
  * snapshot it holds at construction stays authoritative.
  */

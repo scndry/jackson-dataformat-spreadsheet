@@ -54,8 +54,8 @@ public final class SheetParser extends ParserMinimalBase {
     private ObjectCodec _objectCodec;
     private SpreadsheetSchema _schema;
     private SheetStreamContext _parsingContext;
-    private NestedReadAlg _nestedAlg;
-    private NestedReadAlg.Emitter _nestedEmitter;
+    private RecordTreeBuffer _recordBuffer;
+    private RecordTreeBuffer.Emitter _recordEmitter;
     private int _referenceRow = -1;
     private int _referenceColumn = -1;
     private CellValue _value;
@@ -108,11 +108,11 @@ public final class SheetParser extends ParserMinimalBase {
             NestedAnchorValidator.validate(_schema);
         }
         if (_schema.hasAnchor()) {
-            _nestedAlg = new NestedReadAlg(_schema,
+            _recordBuffer = new RecordTreeBuffer(_schema,
                     BackWriteProjection.backWriteBufferLimit(),
                     isEnabled(Feature.BLANK_ROW_AS_NULL),
                     isEnabled(Feature.BREAK_ON_BLANK_ROW));
-            _nestedEmitter = new NestedReadAlg.Emitter() {
+            _recordEmitter = new RecordTreeBuffer.Emitter() {
                 @Override
                 public void token(final JsonToken t) {
                     _nextTokens.add(t);
@@ -165,7 +165,7 @@ public final class SheetParser extends ParserMinimalBase {
                 _parsingContext = _parsingContext.clearAndGetParent();
                 break;
             case FIELD_NAME:
-                if (_nestedAlg != null) {
+                if (_recordBuffer != null) {
                     _parsingContext.setCurrentName(_nextNames.removeFirst());
                 } else {
                     final Column column = _schema.getColumn(_referenceColumn);
@@ -180,7 +180,7 @@ public final class SheetParser extends ParserMinimalBase {
             case VALUE_TRUE:
             case VALUE_FALSE:
             case VALUE_NULL:
-                if (_nestedAlg != null && !_nextValues.isEmpty()) {
+                if (_recordBuffer != null && !_nextValues.isEmpty()) {
                     _value = _nextValues.removeFirst();
                 }
                 break;
@@ -203,7 +203,7 @@ public final class SheetParser extends ParserMinimalBase {
     }
 
     private void _prepareNext() throws StreamReadException {
-        if (_nestedAlg != null) {
+        if (_recordBuffer != null) {
             _prepareNextNested();
         } else {
             _prepareNextFlat();
@@ -255,12 +255,12 @@ public final class SheetParser extends ParserMinimalBase {
         }
         switch (token) {
             case SHEET_DATA_START:
-                _nestedAlg.onSheetDataStart(_nestedEmitter);
+                _recordBuffer.onSheetDataStart(_recordEmitter);
                 break;
             case ROW_START:
                 _referenceRow = _reader.getRow();
                 _referenceColumn = -1;
-                _nestedAlg.onRowStart();
+                _recordBuffer.onRowStart();
                 break;
             case CELL_VALUE:
                 _referenceRow = _reader.getRow();
@@ -269,14 +269,14 @@ public final class SheetParser extends ParserMinimalBase {
                 final Column column = _schema.findColumn(_referenceColumn);
                 if (column == null) break;
                 try {
-                    _nestedAlg.onCellValue(column, value);
+                    _recordBuffer.onCellValue(column, value);
                 } catch (final SheetStreamReadException e) {
                     throw e.withParser(this);
                 }
                 break;
             case ROW_END:
                 try {
-                    if (!_nestedAlg.onRowEnd(_nestedEmitter)) {
+                    if (!_recordBuffer.onRowEnd(_recordEmitter)) {
                         _ended = true;
                     }
                 } catch (final SheetStreamReadException e) {
@@ -284,7 +284,7 @@ public final class SheetParser extends ParserMinimalBase {
                 }
                 break;
             case SHEET_DATA_END:
-                _nestedAlg.onSheetDataEnd(_nestedEmitter);
+                _recordBuffer.onSheetDataEnd(_recordEmitter);
                 break;
         }
     }

@@ -271,7 +271,7 @@ class NestedListReadTest {
         assertThat(read.get(0)).isEqualTo(expected);
     }
 
-    // POI User Model parity — NestedReadAlg sits at the parser level so the
+    // POI User Model parity — RecordTreeBuffer sits at the parser level so the
     // read path (SSML vs POI object model) should be transparent. Spot-check
     // one case per shape (single-record, 2-depth + outer-after-list, sibling).
 

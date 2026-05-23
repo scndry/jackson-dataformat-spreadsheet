@@ -20,17 +20,17 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
 
 /**
- * Read algorithm — record-tree buffer keyed by array scope. Each
- * anchored record (root or nested) carries its outer cells plus
- * sibling-grouped child records; close walks the tree depth-first to
- * emit JSON in {outer, child1[], child2[], ...} order. Sibling lists,
+ * Record-tree buffer keyed by array scope. Each anchored record
+ * (root or nested) carries its outer cells plus sibling-grouped
+ * child records; close walks the tree depth-first to emit JSON in
+ * {outer, child1[], child2[], ...} order. Sibling lists,
  * outer-after-list, and N-depth all fall out of the recursion.
  *
  * <p>Buffer footprint per record: outer Cell refs + LinkedHashMap of
  * child lists. Cells hold Column/CellValue refs only — no token
  * serialization overhead.
  */
-final class NestedReadAlg {
+final class RecordTreeBuffer {
 
     private final SpreadsheetSchema _schema;
     private final List<ColumnPointer> _anchorScopesByDepth;
@@ -46,15 +46,15 @@ final class NestedReadAlg {
     private final Map<ColumnPointer, Object> _lastAnchorByScope = new HashMap<>();
     private long _bufferedCells;
 
-    NestedReadAlg(final SpreadsheetSchema schema) {
+    RecordTreeBuffer(final SpreadsheetSchema schema) {
         this(schema, BackWriteProjection.backWriteBufferLimit(), true, false);
     }
 
-    NestedReadAlg(final SpreadsheetSchema schema, final long bufferLimitBytes) {
+    RecordTreeBuffer(final SpreadsheetSchema schema, final long bufferLimitBytes) {
         this(schema, bufferLimitBytes, true, false);
     }
 
-    NestedReadAlg(final SpreadsheetSchema schema, final long bufferLimitBytes,
+    RecordTreeBuffer(final SpreadsheetSchema schema, final long bufferLimitBytes,
                   final boolean blankRowAsNull, final boolean breakOnBlankRow) {
         _schema = schema;
         _anchorScopesByDepth = _collectAnchorScopes(schema);
@@ -187,7 +187,7 @@ final class NestedReadAlg {
         for (final ColumnPointer s : _openRecords.keySet()) {
             if (s.equals(scope) || s.startsWith(scope)) toClose.add(s);
         }
-        toClose.sort(Comparator.comparingInt(NestedReadAlg::_scopeDepth).reversed());
+        toClose.sort(Comparator.comparingInt(RecordTreeBuffer::_scopeDepth).reversed());
         for (final ColumnPointer s : toClose) {
             final RecordNode record = _openRecords.remove(s);
             _lastAnchorByScope.remove(s);
@@ -238,7 +238,7 @@ final class NestedReadAlg {
             scopes.add(ColumnPointer.empty());
         }
         final List<ColumnPointer> arrayScopes = new ArrayList<>(schema.allArrayScopes());
-        arrayScopes.sort(Comparator.comparingInt(NestedReadAlg::_scopeDepth));
+        arrayScopes.sort(Comparator.comparingInt(RecordTreeBuffer::_scopeDepth));
         for (final ColumnPointer s : arrayScopes) {
             if (schema.findAnchorColumn(s) != null) scopes.add(s);
         }

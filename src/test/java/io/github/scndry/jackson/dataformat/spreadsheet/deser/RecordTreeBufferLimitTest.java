@@ -21,11 +21,11 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Direct unit checks on the buffer fail-fast — exercises NestedReadAlg
+ * Direct unit checks on the buffer fail-fast — exercises RecordTreeBuffer
  * with a small bufferLimitBytes so the per-cell footprint quickly trips
  * the limit. Bypasses SheetParser to keep the test boilerplate-free.
  */
-class NestedReadAlgBufferLimitTest {
+class RecordTreeBufferLimitTest {
 
     @Data @NoArgsConstructor @AllArgsConstructor
     static class Inner {
@@ -63,7 +63,7 @@ class NestedReadAlgBufferLimitTest {
         final Column yCol = _findColumn(schema, "y");
 
         return () -> {
-            final NestedReadAlg alg = new NestedReadAlg(schema, bufferLimitBytes);
+            final RecordTreeBuffer alg = new RecordTreeBuffer(schema, bufferLimitBytes);
             final CountingEmitter out = new CountingEmitter();
             alg.onSheetDataStart(out);
             // anchor row carries id + first inner cells
@@ -95,7 +95,7 @@ class NestedReadAlgBufferLimitTest {
         @Override default void call() throws Throwable { run(); }
     }
 
-    private static final class CountingEmitter implements NestedReadAlg.Emitter {
+    private static final class CountingEmitter implements RecordTreeBuffer.Emitter {
         @Override public void token(final JsonToken t) { /* ignore */ }
         @Override public void fieldName(final String n) { /* ignore */ }
         @Override public void scalar(final CellValue v, final JsonToken s) { /* ignore */ }
