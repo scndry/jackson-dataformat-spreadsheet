@@ -95,7 +95,7 @@ POJO:         Employee { name="Alice", address=Address { city="Seoul", zip="1234
 
 Why automate this? Because nested objects are the norm in Java, but spreadsheets are flat. Every other Excel library forces you to manually bridge this gap — either flattening on write or reconstructing on read. This library does both directions automatically via Jackson's token model.
 
-Nested `List<T>` fields extend the same idea across rows: write expands the list into a multi-row block; read collapses the block back into the outer record when one column per record level is marked as the anchor. The anchor is the only explicit declaration the read side needs — the buffering, record-tree assembly, and back-write boundaries fall out of the same token model.
+Nested `List<T>` fields extend the same idea across rows: write expands the list into a multi-row block; read collapses the block back into the outer record when one column per record level is marked as the anchor. The anchor is the only explicit declaration the read side needs — the rest falls out of the same token model.
 
 ### Format I/O → Format detection
 
