@@ -17,9 +17,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Read-time anchor invariant checks — exactly one
- * {@code @DataColumn(anchor = true)} at each nested-list-bearing record
- * level, none elsewhere. Driven from {@code SheetParser.setSchema}
- * when the schema has any anchor; the write path is untouched.
+ * {@code @DataColumn(anchor = true)} per nested-list-bearing record
+ * level, none elsewhere.
  */
 class NestedAnchorValidatorTest {
 
