@@ -20,11 +20,12 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGrou
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 
 /**
- * Internal profiling benchmark — measures the back-write scenario
- * (outer field declared after a nested list). Exercises the
- * SheetDataBuffer row-linked window: the {@code total} field lands
- * at the row already emitted for {@code items[0]}. Used for
- * optimization work; not documented in BENCHMARK.md.
+ * Internal profiling benchmark — single outer record with a large
+ * inner list. Exercises the write-side back-write buffer (outer
+ * field after the list, back-written into the row already emitted
+ * for {@code items[0]}) and the read-side record-tree assembly
+ * (single outer absorbs N inner rows). Used for optimization work;
+ * not documented in BENCHMARK.md.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -32,17 +33,18 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 5, time = 1)
 @Fork(value = 1, jvmArgs = {"-Xmx4g"})
-public class BackWriteBenchmark {
+public class LargeInnerListBenchmark {
 
     @Param({"1000", "10000", "100000"})
     int innerCount;
 
     Order order;
-    File file;
+    File readFixture;
+    File writeTarget;
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid(mergeColumn = OptBoolean.TRUE)
     public static class Order {
-        @DataColumn("id") int id;
+        @DataColumn(value = "id", anchor = true) int id;
         @DataColumn("customer") String customer;
         @DataColumnGroup("items") List<Item> items;
         @DataColumn("total") double total;
@@ -56,29 +58,44 @@ public class BackWriteBenchmark {
     }
 
     @Setup(Level.Trial)
-    public void setUp() {
+    public void setUp() throws IOException {
         final List<Item> items = new ArrayList<>(innerCount);
         for (int i = 0; i < innerCount; i++) {
             items.add(new Item("sku-" + i, i, i * 1.5));
         }
         order = new Order(1, "Alice", items, 99_999.99);
+        readFixture = File.createTempFile("bench-large-inner-list-read-", ".xlsx");
+        readFixture.deleteOnExit();
+        new SpreadsheetMapper().writeValue(readFixture, order, Order.class);
+    }
+
+    @TearDown(Level.Trial)
+    public void tearDownTrial() {
+        readFixture.delete();
     }
 
     @Setup(Level.Invocation)
     public void setUpFile() throws IOException {
-        file = File.createTempFile("bench-backwrite-", ".xlsx");
-        file.deleteOnExit();
+        writeTarget = File.createTempFile("bench-large-inner-list-write-", ".xlsx");
+        writeTarget.deleteOnExit();
     }
 
     @TearDown(Level.Invocation)
     public void tearDown() {
-        file.delete();
+        writeTarget.delete();
     }
 
     @Benchmark
-    public void jacksonSpreadsheet(Blackhole bh) throws IOException {
+    public void write(Blackhole bh) throws IOException {
         SpreadsheetMapper mapper = new SpreadsheetMapper();
-        mapper.writeValue(file, order, Order.class);
-        bh.consume(file);
+        mapper.writeValue(writeTarget, order, Order.class);
+        bh.consume(writeTarget);
+    }
+
+    @Benchmark
+    public void read(Blackhole bh) throws IOException {
+        SpreadsheetMapper mapper = new SpreadsheetMapper();
+        Order result = mapper.readValue(readFixture, Order.class);
+        bh.consume(result);
     }
 }

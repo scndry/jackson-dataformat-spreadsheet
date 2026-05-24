@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 @Fork(1)
 public class SharedStringsBenchmark {
 
-    @Param({"10000", "50000", "100000", "500000"})
+    @Param({"10000", "50000", "100000"})
     int rowCount;
 
     File readFile;

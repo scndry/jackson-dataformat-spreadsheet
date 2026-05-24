@@ -25,13 +25,10 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGrou
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 
 /**
- * Type-controlled cell-count-parity probe — flat 10 String columns vs
- * nested 6 String outer + 4 String inner. Mirrors
- * {@link NestedIntParityBenchmark}'s structure with {@code String}
- * everywhere so the shared-strings lookup path (SST cache hits) is the
- * dominant per-cell cost on the flat side. The remaining gap to the
- * nested path measures the record-tree algorithm's fixed overhead
- * against a cheaper-per-cell baseline than the int probe.
+ * Internal profiling benchmark — {@code List<T>} read / write, flat
+ * 10 int columns vs nested 6 int outer + 4 int inner at the same
+ * inner-row count. Used for optimization work; not documented in
+ * BENCHMARK.md.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -39,52 +36,52 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 5, time = 1)
 @Fork(1)
-public class NestedStringParityBenchmark {
+public class NestedListBenchmark {
 
     static final int ITEMS_PER_OUTER = 10;
 
-    @Param({"100000", "1000000"})
+    @Param({"100000", "500000", "1000000"})
     int targetCells;
 
     File flatFile;
     File nestedFile;
-    List<StringRow> flatData;
-    List<StringOuter> nestedData;
+    List<IntRow> flatData;
+    List<IntOuter> nestedData;
     SpreadsheetMapper mapper;
     SpreadsheetMapper mapperPoiRead;
     SpreadsheetMapper mapperPoiWrite;
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
-    public static class StringRow {
-        @DataColumn private String c0;
-        @DataColumn private String c1;
-        @DataColumn private String c2;
-        @DataColumn private String c3;
-        @DataColumn private String c4;
-        @DataColumn private String c5;
-        @DataColumn private String c6;
-        @DataColumn private String c7;
-        @DataColumn private String c8;
-        @DataColumn private String c9;
+    public static class IntRow {
+        @DataColumn private int c0;
+        @DataColumn private int c1;
+        @DataColumn private int c2;
+        @DataColumn private int c3;
+        @DataColumn private int c4;
+        @DataColumn private int c5;
+        @DataColumn private int c6;
+        @DataColumn private int c7;
+        @DataColumn private int c8;
+        @DataColumn private int c9;
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor
-    public static class StringItem {
-        @DataColumn private String i0;
-        @DataColumn private String i1;
-        @DataColumn private String i2;
-        @DataColumn private String i3;
+    public static class IntItem {
+        @DataColumn private int i0;
+        @DataColumn private int i1;
+        @DataColumn private int i2;
+        @DataColumn private int i3;
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
-    public static class StringOuter {
-        @DataColumn(anchor = true) private String id;
-        @DataColumn private String o1;
-        @DataColumn private String o2;
-        @DataColumn private String o3;
-        @DataColumn private String o4;
-        @DataColumn private String o5;
-        @DataColumnGroup("Items") private List<StringItem> items;
+    public static class IntOuter {
+        @DataColumn(anchor = true) private int id;
+        @DataColumn private int o1;
+        @DataColumn private int o2;
+        @DataColumn private int o3;
+        @DataColumn private int o4;
+        @DataColumn private int o5;
+        @DataColumnGroup("Items") private List<IntItem> items;
     }
 
     @Setup(Level.Trial)
@@ -105,21 +102,16 @@ public class NestedStringParityBenchmark {
 
         flatData = new ArrayList<>(flatRows);
         for (int i = 0; i < flatRows; i++) {
-            flatData.add(new StringRow(
-                    "c0-" + i, "c1-" + i, "c2-" + i, "c3-" + i, "c4-" + i,
-                    "c5-" + i, "c6-" + i, "c7-" + i, "c8-" + i, "c9-" + i));
+            flatData.add(new IntRow(i, i + 1, i + 2, i + 3, i + 4, i + 5, i + 6, i + 7, i + 8, i + 9));
         }
         nestedData = new ArrayList<>(outerCount);
         for (int i = 0; i < outerCount; i++) {
-            List<StringItem> items = new ArrayList<>(ITEMS_PER_OUTER);
+            List<IntItem> items = new ArrayList<>(ITEMS_PER_OUTER);
             final int base = i * ITEMS_PER_OUTER;
             for (int j = 0; j < ITEMS_PER_OUTER; j++) {
-                items.add(new StringItem(
-                        "i0-" + (base + j), "i1-" + (base + j),
-                        "i2-" + (base + j), "i3-" + (base + j)));
+                items.add(new IntItem(base + j, base + j + 1, base + j + 2, base + j + 3));
             }
-            nestedData.add(new StringOuter(
-                    "id-" + i, "o1-" + i, "o2-" + i, "o3-" + i, "o4-" + i, "o5-" + i, items));
+            nestedData.add(new IntOuter(i, i + 1, i + 2, i + 3, i + 4, i + 5, items));
         }
 
         flatFile = _writeFlatFile(flatData);
@@ -132,15 +124,15 @@ public class NestedStringParityBenchmark {
         nestedFile.delete();
     }
 
-    private File _writeFlatFile(final List<StringRow> data) throws IOException {
-        File file = File.createTempFile("bench-string-parity-flat-", ".xlsx");
+    private File _writeFlatFile(final List<IntRow> data) throws IOException {
+        File file = File.createTempFile("bench-nested-list-flat-", ".xlsx");
         file.deleteOnExit();
         try (SXSSFWorkbook wb = new SXSSFWorkbook(new XSSFWorkbook(), 100, false, true)) {
             Sheet sheet = wb.createSheet("Sheet1");
             Row header = sheet.createRow(0);
             for (int c = 0; c < 10; c++) header.createCell(c).setCellValue("c" + c);
             for (int i = 0; i < data.size(); i++) {
-                StringRow r = data.get(i);
+                IntRow r = data.get(i);
                 Row row = sheet.createRow(i + 1);
                 row.createCell(0).setCellValue(r.getC0());
                 row.createCell(1).setCellValue(r.getC1());
@@ -161,65 +153,66 @@ public class NestedStringParityBenchmark {
         return file;
     }
 
-    private File _writeNestedFile(final List<StringOuter> data) throws IOException {
-        File file = File.createTempFile("bench-string-parity-nested-", ".xlsx");
+    private File _writeNestedFile(final List<IntOuter> data) throws IOException {
+        File file = File.createTempFile("bench-nested-list-nested-", ".xlsx");
         file.deleteOnExit();
+        // Use the library writer for nested layout — column ordering is authoritative.
         SpreadsheetMapper writer = new SpreadsheetMapper(
                 new SpreadsheetFactory(SXSSFWorkbook::new,
                         SpreadsheetFactory.DEFAULT_SHEET_PARSER_FEATURE_FLAGS));
-        writer.writeValue(file, data, StringOuter.class);
+        writer.writeValue(file, data, IntOuter.class);
         return file;
     }
 
     @Benchmark
     public void flatRead(Blackhole bh) throws IOException {
-        List<StringRow> values = mapper.readValues(flatFile, StringRow.class);
+        List<IntRow> values = mapper.readValues(flatFile, IntRow.class);
         bh.consume(values);
     }
 
     @Benchmark
     public void flatReadPoi(Blackhole bh) throws IOException {
-        List<StringRow> values = mapperPoiRead.readValues(flatFile, StringRow.class);
+        List<IntRow> values = mapperPoiRead.readValues(flatFile, IntRow.class);
         bh.consume(values);
     }
 
     @Benchmark
     public void flatWrite(Blackhole bh) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        mapper.writeValue(out, flatData, StringRow.class);
+        mapper.writeValue(out, flatData, IntRow.class);
         bh.consume(out);
     }
 
     @Benchmark
     public void flatWritePoi(Blackhole bh) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        mapperPoiWrite.writeValue(out, flatData, StringRow.class);
+        mapperPoiWrite.writeValue(out, flatData, IntRow.class);
         bh.consume(out);
     }
 
     @Benchmark
     public void nestedRead(Blackhole bh) throws IOException {
-        List<StringOuter> values = mapper.readValues(nestedFile, StringOuter.class);
+        List<IntOuter> values = mapper.readValues(nestedFile, IntOuter.class);
         bh.consume(values);
     }
 
     @Benchmark
     public void nestedReadPoi(Blackhole bh) throws IOException {
-        List<StringOuter> values = mapperPoiRead.readValues(nestedFile, StringOuter.class);
+        List<IntOuter> values = mapperPoiRead.readValues(nestedFile, IntOuter.class);
         bh.consume(values);
     }
 
     @Benchmark
     public void nestedWrite(Blackhole bh) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        mapper.writeValue(out, nestedData, StringOuter.class);
+        mapper.writeValue(out, nestedData, IntOuter.class);
         bh.consume(out);
     }
 
     @Benchmark
     public void nestedWritePoi(Blackhole bh) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        mapperPoiWrite.writeValue(out, nestedData, StringOuter.class);
+        mapperPoiWrite.writeValue(out, nestedData, IntOuter.class);
         bh.consume(out);
     }
 }
