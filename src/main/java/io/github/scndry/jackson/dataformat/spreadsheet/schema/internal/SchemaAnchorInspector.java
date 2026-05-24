@@ -12,11 +12,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 /**
  * Schema queries that support nested-list reads — anchor lookup,
  * array-scope enumeration, and the {@code immediateScope} /
- * {@code allArrayScopes} pointer helpers. Extracted from
- * {@link SpreadsheetSchema} so the schema retains only its core
- * column data plus the hot-path resolve cache; nested-list-specific
- * lookups live next to {@link BackWriteProjection} and
- * {@link NestedAnchorValidator}.
+ * {@code allArrayScopes} pointer helpers.
  *
  * <p>Not part of the public API. Classes under
  * {@code io.github.scndry.jackson.dataformat.spreadsheet.schema.internal}
