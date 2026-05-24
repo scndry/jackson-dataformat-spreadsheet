@@ -25,7 +25,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SchemaAnc
  * (root or nested) carries its outer cells plus sibling-grouped
  * child records; close walks the tree depth-first to emit JSON in
  * {outer, child1[], child2[], ...} order. Sibling lists,
- * outer-after-list, and N-depth all fall out of the recursion.
+ * outer-after-list, and N-depth all fall out of the tree.
  *
  * <p>Buffer footprint per record: outer Cell refs + LinkedHashMap of
  * child lists. Cells hold Column/CellValue refs only — no token
