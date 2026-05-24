@@ -10,7 +10,7 @@
 
 | Library | Version |
 |---------|---------|
-| jackson-dataformat-spreadsheet | 1.7.0-SNAPSHOT |
+| jackson-dataformat-spreadsheet | 1.7.0 |
 | FastExcel | 0.20.0 |
 | Apache Fesod | 2.0.1-incubating |
 | Apache POI | 5.5.1 |
