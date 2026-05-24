@@ -28,7 +28,7 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(1)
 public class ReadBenchmark {
 
-    @Param({"1000", "10000", "50000", "100000", "500000"})
+    @Param({"1000", "10000", "50000", "100000"})
     int rowCount;
 
     File file;
