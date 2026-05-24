@@ -104,7 +104,7 @@ mapper.writeValue(output, products, Product.class);
 
 ### Complex Objects
 
-Nested objects flatten into columns. Lists of nested objects expand into multiple rows — and round-trip back into the same shape when the outer record carries an anchor column (see the [GUIDE](GUIDE.md#reading-nested-lists)).
+Nested objects flatten into columns. Lists of nested objects expand into multiple rows — and round-trip back into the same shape when the outer record carries an anchor column (see the [GUIDE](GUIDE.md#nested-lists)).
 
 ```java
 @DataGrid(mergeColumn = OptBoolean.TRUE)
@@ -142,21 +142,21 @@ class LineItem {
 
 | Library | Time | Memory |
 |---------|------|--------|
-| jackson-spreadsheet | 287 ms | **579 MB** |
-| FastExcel | **265 ms** | 722 MB |
-| Apache Fesod | 537 ms | 882 MB |
-| Apache POI | 1998 ms | 4287 MB |
+| jackson-spreadsheet | 278 ms | **548 MB** |
+| FastExcel | **263 ms** | 675 MB |
+| Apache Fesod | 554 ms | 841 MB |
+| Apache POI | 2072 ms | 4086 MB |
 
 **Write:**
 
 | Library | Time | Memory |
 |---------|------|--------|
-| jackson-spreadsheet | **327 ms** | **271 MB** |
-| FastExcel | 353 ms | 329 MB |
-| Apache POI (SXSSF) | 664 ms | 520 MB |
-| Apache Fesod | 791 ms | 1096 MB |
+| jackson-spreadsheet | **334 ms** | **237 MB** |
+| FastExcel | 353 ms | 313 MB |
+| Apache Fesod | 783 ms | 1046 MB |
+| Apache POI (SXSSF) | 644 ms | 497 MB |
 
-See [BENCHMARK.md](BENCHMARK.md) for the full per-scale tables (1K – 500K), sustained 60-second throughput, and shared-strings strategies.
+See [BENCHMARK.md](BENCHMARK.md) for the full per-scale tables (1K – 100K), sustained 60-second throughput, and shared-strings strategies.
 
 ### Feature Comparison
 

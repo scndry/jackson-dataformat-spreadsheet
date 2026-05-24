@@ -287,6 +287,6 @@ By default, both XLSX read and write paths bypass POI's User Model — the read 
 
 ---
 
-Public API surface (types users typically import): `SpreadsheetMapper`, `SpreadsheetReader`, `SpreadsheetWriter`, `@DataGrid`, `@DataColumn`, `@DataColumnGroup`, `SheetInput`, `SheetOutput`, `SpreadsheetSchema`, `StylesBuilder`, `GridConfigurer`, `SheetMappingIterator`, `SheetLocation`, `SheetParser.Feature`, `SpreadsheetFactory.Feature`.
+Public API surface (types users typically import): `SpreadsheetMapper`, `SpreadsheetReader`, `SpreadsheetWriter`, `@DataGrid`, `@DataColumn`, `@DataColumnGroup`, `SheetInput`, `SheetOutput`, `SpreadsheetSchema`, `SchemaGenerator`, `StylesBuilder`, `GridConfigurer`, `SheetMappingIterator`, `SheetLocation`, `SheetParser.Feature`, `SpreadsheetFactory.Feature`.
 
 Everything under `poi/` is implementation detail — swappable without affecting the streaming contract.
