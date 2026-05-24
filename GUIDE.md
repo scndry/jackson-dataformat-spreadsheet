@@ -257,7 +257,7 @@ Use `SheetOutput` when you need to specify a sheet name:
 mapper.writeValue(SheetOutput.target(file, "Products"), products, Product.class);
 ```
 
-Sheet names must satisfy Excel constraints: 1–31 characters, no `/ \ ? * ] [`, and no leading or trailing apostrophe. Invalid names throw `IllegalArgumentException` at `SheetOutput.target(..., name)`.
+Invalid sheet names throw `IllegalArgumentException` at `SheetOutput.target(..., name)` per Excel constraints.
 
 ### Streaming (Default)
 
@@ -372,7 +372,7 @@ try (SXSSFWorkbook wb = new SXSSFWorkbook()) {
 
 ## Nested Objects
 
-Flat spreadsheets map to nested POJOs automatically. This is a unique feature — no other Excel library supports bidirectional nested object mapping.
+Flat spreadsheets map to nested POJOs automatically.
 
 | id | name | address/zipcode | address/city | employment/title | employment/salary |
 |----|------|-----------------|--------------|------------------|-------------------|
@@ -415,7 +415,7 @@ By default, nested field headers use the path from the parent (e.g., `address/zi
 
 ### Nested Lists
 
-Nested lists are serialized into multi-row output. The reverse — reading multi-row blocks back into nested lists — is supported when the outer record carries an anchor column (see [Reading Nested Lists](#reading-nested-lists)).
+Nested lists are serialized into multi-row output. The reverse — reading multi-row blocks back into nested lists — is supported when the outer record carries an anchor column.
 
 ```java
 @DataGrid(mergeColumn = OptBoolean.TRUE)
@@ -448,22 +448,10 @@ mapper.writeValue(output, order);
 +----------+---------+-----+-------+
 ```
 
-In the default streaming write path, outer fields declared after a nested list are buffered and back-written into earlier rows. The buffer is heap-aware — `max(1 MB, heap/128)`. The library logs a warning at schema build time if the projected inner-row XML would exceed this bound; raise the JVM heap (`-Xmx`) for larger lists.
-
-The [SXSSFWorkbook row access window](https://poi.apache.org/apidocs/4.1/org/apache/poi/xssf/streaming/SXSSFWorkbook.html#SXSSFWorkbook-int-) is adjusted automatically to fit the list size. If you see `"Cannot write to row N (already flushed)"`, the nested list expanded beyond the window. Increase it:
+Reading the same multi-row layout back into a `List<Order>` requires marking one column per record level with `@DataColumn(anchor = true)`. Rows sharing the anchor value collapse into one outer record.
 
 ```java
-SpreadsheetMapper mapper = new SpreadsheetMapper(
-    new SpreadsheetFactory(() -> new SXSSFWorkbook(500),
-        SpreadsheetFactory.DEFAULT_SHEET_PARSER_FEATURE_FLAGS));
-```
-
-#### Reading Nested Lists
-
-Mark one column per record level with `@DataColumn(anchor = true)`. Rows sharing the anchor value collapse into one outer record.
-
-```java
-@DataGrid(mergeColumn = OptBoolean.TRUE)
+@DataGrid
 class Order {
     @DataColumn(value = "Order ID", anchor = true) int orderId;
     List<Item> items;
@@ -508,9 +496,9 @@ Customizes individual column properties. Unset attributes inherit from the enclo
 
 `autoSize` may not be accurate for [fullwidth forms](https://en.wikipedia.org/wiki/Halfwidth_and_fullwidth_forms) like [CJK characters](https://en.wikipedia.org/wiki/CJK_characters).
 
-`autoSize` is not supported in the default streaming write path because the worksheet XML is emitted directly and no POI `Cell` objects exist to measure. Enable `SpreadsheetFactory.Feature.USE_POI_USER_MODEL` to use `autoSize`, or set `width` explicitly. A warning is logged when `autoSize` is set in the default path.
+`autoSize` is not supported in the default streaming write path — enable `USE_POI_USER_MODEL` or set `width` explicitly.
 
-When `USE_POI_USER_MODEL` is enabled, `autoSize` measures the first 100 data rows in full, then samples every 100th data row thereafter. Sampling is anchored to the data start row, so a high `origin` does not skip the early data. This keeps overhead bounded for large workbooks (~1.5× write time at 100K rows). Outlier-long values that fall between sample rows after the first 100 may not influence the final width — pin a known column with `width` if exact fit matters more than sampling speed.
+When `USE_POI_USER_MODEL` is enabled, `autoSize` samples rows for bounded overhead (~1.5× write time at 100K rows) and may miss outliers between sample rows — pin a known column with `width` if exact fit matters.
 
 ### @DataColumnGroup
 
@@ -587,7 +575,7 @@ class QuarterMetrics {
 +------+-------+--------+-------+--------+-------+--------+-------+--------+
 ```
 
-Depth 3 is the practical limit; readability degrades beyond that. `setColumnReordering(true)` combined with `@DataColumnGroup` fails fast with `IllegalStateException` — disable reordering or remove the annotations.
+Depth 3 is the practical limit; readability degrades beyond that. `setColumnReordering(true)` combined with `@DataColumnGroup` throws `IllegalStateException` at schema load.
 
 ### Attribute Resolution Order
 
@@ -658,7 +646,7 @@ class Bar {
 
 ```java
 // sheetWriterForWithView(type, view) generates view-filtered schema
-mapper.sheetWriterFor(Report.class, Views.Summary.class)
+mapper.sheetWriterForWithView(Report.class, Views.Summary.class)
     .writeValue(file, reports);
 ```
 
@@ -749,7 +737,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.ConditionalFormats.*;
 ```
 
-Column names resolve against `@DataColumn(value)`, the field name, or `@JsonAlias`. Style names resolve against `cellStyle(name)` in `StylesBuilder`. Both resolve at write time — typos throw `IllegalArgumentException` listing the available names. Alignment and wrap-text on a referenced style are silently dropped — DXF limitation.
+Column names resolve against `@DataColumn(value)`, the field name, or `@JsonAlias`. Style names resolve against `cellStyle(name)` in `StylesBuilder`. Both resolve at write time. Alignment and wrap-text on a referenced style are silently dropped — DXF limitation.
 
 Comparison factories (`greaterThan`, `between`, `equalTo`, ...) accept typed values (numeric, boolean, string, date) or `Formula` for cell references and Excel expressions. String operands are auto-quoted; dates emit as `DATE(y,m,d)+TIME(h,m,s)`. The factory returns a `FormatCondition`; `.style(name)` finishes it as a `ConditionalFormatRule`.
 
@@ -823,7 +811,7 @@ A 3-color gradient based on cell values. `colorScale` returns `ConditionalFormat
 | `colorScale()` | Excel defaults — MIN / PERCENTILE 50 / MAX | red → yellow → green |
 | `colorScale(min, mid, max)` | Explicit NUMBER values | red → yellow → green |
 
-Color customization, threshold types other than `NUMBER` (PERCENT / PERCENTILE / FORMULA), the 2-color variant, and other visualization types (`dataBar`, `iconSet`) are deferred to a later 1.6.x release.
+Color customization, threshold types other than `NUMBER` (PERCENT / PERCENTILE / FORMULA), the 2-color variant, and other visualization types (`dataBar`, `iconSet`) are deferred to a later release.
 
 ## Configuration
 
@@ -847,9 +835,10 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .useHeader(false)
     .build();
 
-// Per-schema toggle
-SpreadsheetSchema schema = mapper.sheetSchemaFor(Entry.class)
-    .withUseHeader(false);
+// Per-schema toggle (using SchemaGenerator)
+SpreadsheetSchema schema = new SchemaGenerator()
+    .withUseHeader(false)
+    .generate(Entry.class);
 ```
 
 ### Column Reordering

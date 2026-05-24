@@ -23,10 +23,14 @@ A POI wrapper would still expose the grid mental model — rows, columns, cell t
 This library doesn't wrap POI. It sits **above** POI at the streaming layer:
 
 ```
-Your code → ObjectMapper (Jackson) → SheetParser/SheetGenerator (this library) → SheetReader/SheetWriter → POI or StAX
+Your code
+ → ObjectMapper (Jackson)
+ → SheetParser/SheetGenerator (this library)
+ → SheetReader/SheetWriter
+ → POI or direct XML I/O
 ```
 
-POI is one of two I/O backends — the other being direct StAX. The default XLSX path bypasses POI's User Model: StAX for read, StringBuilder + POI scaffold for write. POI remains a dependency for scaffold generation, XLS support, style API, and opt-in modes (`Sheet` direct access or `USE_POI_USER_MODEL`).
+POI is one of two I/O backends — the other being direct XML I/O. The default XLSX path bypasses POI's User Model: StAX for read, StringBuilder + POI scaffold for write. POI remains a dependency for scaffold generation, XLS support, style API, and opt-in modes (`Sheet` direct access or `USE_POI_USER_MODEL`).
 
 This is why the library can outperform POI for reading and writing — the default XLSX path avoids POI's Sheet/Row/Cell overhead at runtime.
 
