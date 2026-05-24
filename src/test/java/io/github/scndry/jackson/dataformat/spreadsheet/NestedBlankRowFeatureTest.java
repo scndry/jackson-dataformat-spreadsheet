@@ -21,12 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * BLANK_ROW_AS_NULL and BREAK_ON_BLANK_ROW carry the same semantics in
- * nested mode as in the flat path: a completely blank row closes the
- * currently-open outer record, then BLANK_ROW_AS_NULL inserts a null
- * entry into the result list and BREAK_ON_BLANK_ROW terminates the
- * iteration. With both flags off the blank row is silently dropped and
- * reading continues — matching the flat path's _handleEmptyObject
- * clear-and-continue behaviour.
+ * nested mode as in the flat path.
  */
 class NestedBlankRowFeatureTest {
 

@@ -15,8 +15,6 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
  * Read-time validation for the depth-aware nested-list contract:
  * each nested-list-bearing record level must declare exactly one
  * {@code @DataColumn(anchor = true)} column at its immediate scope.
- * Called from {@code SheetParser.setSchema} only when the schema has
- * at least one anchor — the write path is unaffected.
  *
  * <p>Not part of the public API. Classes under
  * {@code io.github.scndry.jackson.dataformat.spreadsheet.schema.internal}

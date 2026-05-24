@@ -21,11 +21,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Confirms that ERROR (and other unsupported) cells in nested reads
- * fail the same way as in the flat path — both raise
- * {@link SheetStreamReadException} so silent data loss cannot occur.
- * RecordTreeBuffer rejects unsupported cell types at cell-arrival time
- * (onCellValue), matching the flat path's _scalarValueToken throw.
+ * ERROR (and other unsupported) cells in nested reads raise
+ * {@link SheetStreamReadException} — same as the flat path.
  */
 class NestedErrorCellTest {
 
