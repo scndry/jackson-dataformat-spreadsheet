@@ -271,6 +271,7 @@ public final class POISheetWriter implements SheetWriter {
     @Override
     public void adjustColumnWidth() {
         for (final Column column : _schema) {
+            if (column == null) continue;
             final int col = _schema.columnIndexOf(column);
             final DataColumn.Value value = column.getValue();
             double width;

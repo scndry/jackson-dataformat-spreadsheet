@@ -134,6 +134,7 @@ public final class SSMLSheetWriter implements SheetWriter {
 
     private void _warnIfAutoSizeUsed() {
         for (final Column column : _schema) {
+            if (column == null) continue;
             if (column.getValue().isAutoSize()) {
                 log.warn("autoSize on column '{}' is ignored in default streaming mode."
                         + " Enable USE_POI_USER_MODEL or set an explicit width to apply autoSize.",
@@ -269,6 +270,7 @@ public final class SSMLSheetWriter implements SheetWriter {
         if (size <= 1) return;
         final List<Column> columns = _schema.getColumns(pointer);
         for (final Column column : columns) {
+            if (column == null) continue;
             if (!column.isMerge()) continue;
             if (pointer.relativize(column.getPointer()).contains(ColumnPointer.array())) continue;
             final int col = _schema.columnIndexOf(column);
@@ -491,6 +493,7 @@ public final class SSMLSheetWriter implements SheetWriter {
         final int[] columnStyleIndex = new int[columns.size()];
         for (int i = 0; i < columns.size(); i++) {
             final Column column = columns.get(i);
+            if (column == null) continue;
             final String name = header
                     ? column.getValue().getHeaderStyle()
                     : column.getValue().getStyle();

@@ -294,7 +294,7 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         }
         return _columns
                 .stream()
-                .filter(c -> c
+                .filter(c -> c != null && c
                 .getPointer()
                 .startsWith(filter)).collect(Collectors
                 .toList());
