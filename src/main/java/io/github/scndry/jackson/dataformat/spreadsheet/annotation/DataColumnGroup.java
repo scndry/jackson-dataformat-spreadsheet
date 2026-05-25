@@ -79,6 +79,9 @@ public @interface DataColumnGroup {
     /** Whether to merge child cells vertically for repeated values. */
     OptBoolean mergeColumn() default OptBoolean.DEFAULT;
 
+    /** Number of blank columns to leave before this group. */
+    int shift() default 0;
+
     @EqualsAndHashCode
     final class Value implements JacksonAnnotationValue<DataColumnGroup> {
 
@@ -94,12 +97,23 @@ public @interface DataColumnGroup {
         private final int _minColumnWidth;
         private final int _maxColumnWidth;
         private final OptBoolean _mergeColumn;
+        private final int _shift;
 
         public Value(final String name, final String comment, final String headerStyle,
                      final String columnStyle, final String columnHeaderStyle,
                      final int columnWidth, final OptBoolean autoSizeColumn,
                      final int minColumnWidth, final int maxColumnWidth,
                      final OptBoolean mergeColumn) {
+            this(name, comment, headerStyle, columnStyle, columnHeaderStyle,
+                    columnWidth, autoSizeColumn,
+                    minColumnWidth, maxColumnWidth, mergeColumn, 0);
+        }
+
+        public Value(final String name, final String comment, final String headerStyle,
+                     final String columnStyle, final String columnHeaderStyle,
+                     final int columnWidth, final OptBoolean autoSizeColumn,
+                     final int minColumnWidth, final int maxColumnWidth,
+                     final OptBoolean mergeColumn, final int shift) {
             _name = name;
             _comment = comment;
             _headerStyle = headerStyle;
@@ -110,19 +124,21 @@ public @interface DataColumnGroup {
             _minColumnWidth = minColumnWidth;
             _maxColumnWidth = maxColumnWidth;
             _mergeColumn = mergeColumn;
+            _shift = shift;
         }
 
         private Value() {
             this("", "", "", "", "", DataGrid.DEFAULT_COLUMN_WIDTH, OptBoolean.DEFAULT,
                     DataGrid.DEFAULT_MIN_COLUMN_WIDTH, DataGrid.DEFAULT_MAX_COLUMN_WIDTH,
-                    OptBoolean.DEFAULT);
+                    OptBoolean.DEFAULT, 0);
         }
 
         private Value(final DataColumnGroup ann) {
             this(ann.value(), ann.comment(), ann.headerStyle(),
                     ann.columnStyle(), ann.columnHeaderStyle(),
                     ann.columnWidth(), ann.autoSizeColumn(),
-                    ann.minColumnWidth(), ann.maxColumnWidth(), ann.mergeColumn());
+                    ann.minColumnWidth(), ann.maxColumnWidth(), ann.mergeColumn(),
+                    ann.shift());
         }
 
         public static Value empty() { return EMPTY; }
@@ -141,6 +157,7 @@ public @interface DataColumnGroup {
         public int getMinColumnWidth() { return _minColumnWidth; }
         public int getMaxColumnWidth() { return _maxColumnWidth; }
         public OptBoolean getMergeColumn() { return _mergeColumn; }
+        public int getShift() { return _shift; }
 
         public boolean isEmpty() { return _name.isEmpty(); }
 
@@ -150,7 +167,7 @@ public @interface DataColumnGroup {
                     _headerStyle.isEmpty() ? defaults.getGroupHeaderStyle() : _headerStyle,
                     _columnStyle, _columnHeaderStyle,
                     _columnWidth, _autoSizeColumn,
-                    _minColumnWidth, _maxColumnWidth, _mergeColumn);
+                    _minColumnWidth, _maxColumnWidth, _mergeColumn, _shift);
         }
 
         /** Returns this group's child-column defaults as a
@@ -176,7 +193,8 @@ public @interface DataColumnGroup {
                     + ", autoSizeColumn=" + _autoSizeColumn
                     + ", minColumnWidth=" + _minColumnWidth
                     + ", maxColumnWidth=" + _maxColumnWidth
-                    + ", mergeColumn=" + _mergeColumn + ")";
+                    + ", mergeColumn=" + _mergeColumn
+                    + ", shift=" + _shift + ")";
         }
     }
 
