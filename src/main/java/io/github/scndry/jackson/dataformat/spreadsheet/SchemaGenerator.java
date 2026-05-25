@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.util.ClassUtil;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SchemaShiftValidator;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.GridConfigurer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.ColumnNameResolver;
@@ -82,7 +83,7 @@ public final class SchemaGenerator {
         final List<Column> columns = new ArrayList<>();
         for (final Column column : visitor) {
             columns.add(column);
-            if (log.isTraceEnabled()) {
+            if (column != null && log.isTraceEnabled()) {
                 log.trace(column.toString());
             }
         }
@@ -97,6 +98,7 @@ public final class SchemaGenerator {
                 _generatorSettings._stylesBuilder,
                 _generatorSettings._gridConfigurer);
         BackWriteProjection.warnIfScenario(schema);
+        SchemaShiftValidator.validate(schema);
         return schema;
     }
 
