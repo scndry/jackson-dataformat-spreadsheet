@@ -162,17 +162,37 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     }
 
     public int getDataRow() {
-        return _origin.getRow() + (usesHeader() ? _headerRowCount : 0);
+        return _origin.getRow() + (usesHeader() ? effectiveHeaderRowCount() : 0);
     }
 
     public int getHeaderRowCount() {
-        return _headerRowCount;
+        return effectiveHeaderRowCount();
     }
 
     /** Row index of the leaf header row (the row carrying column names).
      *  Collapses to the origin row when {@link #usesHeader()} is disabled. */
     public int getLeafHeaderRow() {
-        return _origin.getRow() + (usesHeader() ? _headerRowCount - 1 : 0);
+        return _origin.getRow() + (usesHeader() ? effectiveHeaderRowCount() - 1 : 0);
+    }
+
+    /** Effective header rows: shift collapses the layout to a single leaf row
+     *  (group label rows are skipped; cascade attributes still apply per-column). */
+    private int effectiveHeaderRowCount() {
+        return anyNestedShift() ? 1 : _headerRowCount;
+    }
+
+    /** Whether any column inside a {@code @DataColumnGroup} carries a positive
+     *  shift — the only case that collapses the multi-row header to a single
+     *  leaf row (the gap would otherwise leave a torn-tooth slot inside a
+     *  group label span). Flat shift and group-level shift leave the header
+     *  layout intact (sparse cells or external blank gaps). */
+    public boolean anyNestedShift() {
+        for (final Column column : _columns) {
+            if (column == null) continue;
+            if (column.getValue().getShift() > 0
+                    && column.getGroupHierarchy().depth() > 0) return true;
+        }
+        return false;
     }
 
     /** Walks the header region (leaf headers, group cells, vertical merges)
@@ -181,6 +201,16 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
     public void forEachHeaderCell(final HeaderLayoutVisitor visitor) {
         if (!usesHeader()) return;
         final int originRow = _origin.getRow();
+        if (anyNestedShift()) {
+            // Single leaf row: emit every column header (flat + grouped leaves)
+            // on the origin row. Group label rows and vertical merges are skipped;
+            // cascade attributes still apply per-column.
+            for (final Column column : _columns) {
+                if (column == null) continue;
+                visitor.visitColumnHeader(originRow, columnIndexOf(column), column);
+            }
+            return;
+        }
         for (int depth = 0; depth < _headerRowCount; depth++) {
             _visitHeaderRow(originRow + depth, depth, visitor);
         }
