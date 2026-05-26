@@ -1,0 +1,209 @@
+package io.github.scndry.jackson.dataformat.spreadsheet;
+
+import java.io.File;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGroup;
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
+import io.github.scndry.jackson.dataformat.spreadsheet.SpreadsheetFactory;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+
+/**
+ * Integration tests for {@code @DataColumn(shift)} and
+ * {@code @DataColumnGroup(shift)} — verifies blank columns on write,
+ * column skip on read, and round-trip equivalence under
+ * {@code useHeader=false}.
+ */
+class DataColumnShiftTest {
+
+    SpreadsheetMapper mapper;
+
+    @TempDir
+    Path tempDir;
+
+    @BeforeEach
+    void setUp() {
+        mapper = SpreadsheetMapper.builder().useHeader(false).build();
+    }
+
+    // -- Fixture types --
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class FlatShift {
+        @DataColumn String name;
+        @DataColumn int qty;
+        @DataColumn(shift = 1) double total;  // col 3 (col 2 = blank)
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class Item {
+        @DataColumn String product;
+        @DataColumn int qty;
+        @DataColumn(shift = 1) double amount;  // group col 3 (group col 2 = blank)
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class GroupShift {
+        @DataColumn(anchor = true) String orderId;
+        @DataColumnGroup(value = "Items", shift = 1) List<Item> items;  // col 2 = blank, items col 3-
+        @DataColumn double total;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class ItemShiftFirst {
+        @DataColumn(shift = 2) String product;
+        @DataColumn int qty;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class GroupShiftPlusInnerShift {
+        @DataColumn(anchor = true) String orderId;
+        @DataColumnGroup(value = "Items", shift = 1) List<ItemShiftFirst> items;
+        @DataColumn double total;
+    }
+
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "kind")
+    @JsonSubTypes({@JsonSubTypes.Type(value = Cash.class, name = "cash")})
+    interface Payment {}
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class Cash implements Payment {
+        @DataColumn String name;
+        @DataColumn(shift = 1) double amount;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class PolymorphicShift {
+        @DataColumn(shift = 1) Payment payment;
+    }
+
+    // -- Round-trip tests --
+
+    @Test
+    void flatShift_roundTrip() throws Exception {
+        File file = tempFile("flat-shift.xlsx");
+        List<FlatShift> input = Arrays.asList(
+                new FlatShift("Apple", 10, 15.50),
+                new FlatShift("Banana", 20, 8.00));
+
+        mapper.writeValue(file, input, FlatShift.class);
+        List<FlatShift> output = mapper.readValues(file, FlatShift.class);
+
+        assertThat(output).isEqualTo(input);
+    }
+
+    @Test
+    void flatShift_writeBlanksColumn() throws Exception {
+        File file = tempFile("flat-shift-write.xlsx");
+        mapper.writeValue(file,
+                Arrays.asList(new FlatShift("Apple", 10, 15.50)),
+                FlatShift.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            Row row = sheet.getRow(0);  // useHeader=false → data starts at row 0
+            assertThat(row.getCell(0).getStringCellValue()).isEqualTo("Apple");
+            assertThat((int) row.getCell(1).getNumericCellValue()).isEqualTo(10);
+            // col 2 = shifted blank
+            Cell blank = row.getCell(2);
+            assertThat(blank == null || blank.toString().isEmpty()).isTrue();
+            assertThat(row.getCell(3).getNumericCellValue()).isEqualTo(15.50);
+        }
+    }
+
+    @Test
+    void flatShift_poiUserModel_roundTrip() throws Exception {
+        SpreadsheetMapper poiMapper = SpreadsheetMapper.builder()
+                .useHeader(false)
+                .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+                .build();
+        File file = tempFile("flat-shift-poi.xlsx");
+        List<FlatShift> input = Arrays.asList(
+                new FlatShift("Apple", 10, 15.50),
+                new FlatShift("Banana", 20, 8.00));
+
+        poiMapper.writeValue(file, input, FlatShift.class);
+        List<FlatShift> output = poiMapper.readValues(file, FlatShift.class);
+
+        assertThat(output).isEqualTo(input);
+    }
+
+    @Test
+    void nestedGroupShift_roundTrip() throws Exception {
+        File file = tempFile("group-shift.xlsx");
+        List<GroupShift> input = Arrays.asList(
+                new GroupShift("ORD-1", Arrays.asList(
+                        new Item("Apple", 3, 9.0),
+                        new Item("Banana", 5, 5.0)), 14.0));
+
+        mapper.writeValue(file, input, GroupShift.class);
+        List<GroupShift> output = mapper.readValues(file, GroupShift.class);
+
+        assertThat(output).isEqualTo(input);
+    }
+
+    @Test
+    void groupShift_plus_innerFirstShift_accumulates() throws Exception {
+        // Group shift (outer space) + inner first field shift (inner space) accumulate.
+        // outer: col 0 orderId, col 1 blank (group shift 1),
+        //        col 2-3 blank (inner shift 2), col 4 product, col 5 qty,
+        //        col 6 total
+        File file = tempFile("group-plus-inner-shift.xlsx");
+        List<GroupShiftPlusInnerShift> input = Arrays.asList(
+                new GroupShiftPlusInnerShift("ORD-1", Arrays.asList(
+                        new ItemShiftFirst("Apple", 3),
+                        new ItemShiftFirst("Banana", 5)), 14.0));
+
+        mapper.writeValue(file, input, GroupShiftPlusInnerShift.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            Row row0 = sheet.getRow(0);
+            assertThat(row0.getCell(0).getStringCellValue()).isEqualTo("ORD-1");
+            // col 1, 2, 3 = blank (group shift 1 + inner shift 2)
+            for (int c = 1; c <= 3; c++) {
+                Cell blank = row0.getCell(c);
+                assertThat(blank == null || blank.toString().isEmpty()).isTrue();
+            }
+            assertThat(row0.getCell(4).getStringCellValue()).isEqualTo("Apple");
+            assertThat((int) row0.getCell(5).getNumericCellValue()).isEqualTo(3);
+            assertThat(row0.getCell(6).getNumericCellValue()).isEqualTo(14.0);
+        }
+
+        List<GroupShiftPlusInnerShift> output = mapper.readValues(file, GroupShiftPlusInnerShift.class);
+        assertThat(output).isEqualTo(input);
+    }
+
+    @Test
+    void polymorphicShift_schemaBuilds() {
+        // _polymorphicProperty propagates shift on the discriminator column and
+        // preserves null Column placeholders from subtype visitor — regression guard
+        assertThatCode(() -> mapper.sheetSchemaFor(PolymorphicShift.class))
+                .doesNotThrowAnyException();
+    }
+
+    // -- Helpers --
+
+    private File tempFile(String name) {
+        return tempDir.resolve(name).toFile();
+    }
+}
