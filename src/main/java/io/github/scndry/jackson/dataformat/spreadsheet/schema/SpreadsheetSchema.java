@@ -181,12 +181,7 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         return anyNestedShift() ? 1 : _headerRowCount;
     }
 
-    /** Whether any column inside a {@code @DataColumnGroup} carries a positive
-     *  shift — the only case that collapses the multi-row header to a single
-     *  leaf row (the gap would otherwise leave a torn-tooth slot inside a
-     *  group label span). Flat shift and group-level shift leave the header
-     *  layout intact (sparse cells or external blank gaps). */
-    public boolean anyNestedShift() {
+    private boolean anyNestedShift() {
         for (final Column column : _columns) {
             if (column == null) continue;
             if (column.getValue().getShift() > 0

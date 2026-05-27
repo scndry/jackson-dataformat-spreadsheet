@@ -50,7 +50,6 @@ class SchemaShiftValidatorTest {
 
     @Test
     void positiveShift_withHeader_doesNotThrow_rendersSingleLeafRow() {
-        // Option B: shift collapses the header to a single leaf row.
         assertThatCode(() -> new SpreadsheetMapper().sheetSchemaFor(WithShift.class))
                 .doesNotThrowAnyException();
     }
@@ -95,9 +94,6 @@ class SchemaShiftValidatorTest {
 
     @Test
     void groupShift_withHeader_doesNotThrow_rendersSingleLeafRow() {
-        // Option B: shift inside a @DataColumnGroup collapses the header to a
-        // single leaf row; group label rows are skipped while cascade attributes
-        // continue to apply per-column.
         assertThatCode(() -> new SpreadsheetMapper().sheetSchemaFor(GroupWithShift.class))
                 .doesNotThrowAnyException();
     }
