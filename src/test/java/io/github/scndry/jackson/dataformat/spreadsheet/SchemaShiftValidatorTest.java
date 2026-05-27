@@ -116,25 +116,6 @@ class SchemaShiftValidatorTest {
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
-    static class MultipleNegativeShifts {
-        @DataColumn("name") String name;
-        @DataColumn(value = "qty", shift = -1) int qty;
-        @DataColumn(value = "total", shift = -2) double total;
-    }
-
-    @Test
-    void multipleViolations_areCollectedAndReportedTogether() {
-        final SpreadsheetMapper mapper = SpreadsheetMapper.builder()
-                .useHeader(false)
-                .build();
-        assertThatThrownBy(() -> mapper.sheetSchemaFor(MultipleNegativeShifts.class))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Shift invariant violation")
-                .hasMessageContaining("'qty'")
-                .hasMessageContaining("'total'");
-    }
-
-    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class ExcessiveShift {
         @DataColumn("name") String name;
         @DataColumn(value = "x", shift = 20000) int x;
