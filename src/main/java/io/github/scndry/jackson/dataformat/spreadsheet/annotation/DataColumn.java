@@ -56,7 +56,11 @@ public @interface DataColumn {
     /** Row anchor for nested-list records (read-side only; the write path ignores this attribute). */
     boolean anchor() default false;
 
-    /** Number of blank columns to leave before this column. */
+    /**
+     * Number of blank columns to leave before this column. Must be {@code >= 0};
+     * values exceeding the spreadsheet max column count are rejected at schema
+     * build time. Inside a polymorphic subtype, any positive shift is rejected.
+     */
     int shift() default 0;
 
     @EqualsAndHashCode
@@ -76,6 +80,8 @@ public @interface DataColumn {
         private final boolean _anchor;
         private final int _shift;
 
+        /** @deprecated use the constructor that also accepts {@code shift}. */
+        @Deprecated
         public Value(final String name, final String comment,
                      final String style, final String headerStyle,
                      final int width, final OptBoolean autoSize,
