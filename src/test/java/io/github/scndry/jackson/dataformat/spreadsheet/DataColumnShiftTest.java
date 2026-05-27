@@ -210,6 +210,60 @@ class DataColumnShiftTest {
     }
 
     @Test
+    void groupShift_withHeader_collapsesToSingleLeafRow() throws Exception {
+        // useHeader=true + nested-group shift: group label row disappears,
+        // every leaf header lands on the origin row, and data starts at row 1.
+        final SpreadsheetMapper headerMapper = SpreadsheetMapper.builder().useHeader(true).build();
+        File file = tempFile("group-shift-header.xlsx");
+
+        headerMapper.writeValue(file,
+                Arrays.asList(new GroupShift("ORD-1",
+                        Arrays.asList(new Item("Apple", 3, 9.0)), 9.0)),
+                GroupShift.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            Row header = sheet.getRow(0);
+            // Nested leaves render their pointer path because the leaf @DataColumn
+            // has no explicit name — Column.getName() falls back to pointer.toString().
+            assertThat(header.getCell(0).getStringCellValue()).isEqualTo("orderId");
+            assertThat(header.getCell(2).getStringCellValue()).isEqualTo("items/[]/product");
+            assertThat(header.getCell(3).getStringCellValue()).isEqualTo("items/[]/qty");
+            assertThat(header.getCell(5).getStringCellValue()).isEqualTo("items/[]/amount");
+            assertThat(header.getCell(6).getStringCellValue()).isEqualTo("total");
+            // "Items" group label must not appear anywhere in the header region.
+            for (int r = 0; r <= 1; r++) {
+                Row row = sheet.getRow(r);
+                if (row == null) continue;
+                for (Cell cell : row) {
+                    assertThat(cell.toString()).isNotEqualTo("Items");
+                }
+            }
+            // Data begins at row 1 (single header row).
+            assertThat(sheet.getRow(1).getCell(0).getStringCellValue()).isEqualTo("ORD-1");
+        }
+    }
+
+    @Test
+    void flatShift_withColumnReordering_roundTrips() throws Exception {
+        // Gap column has no header text, so column-reordering treats it as
+        // unmatched. Round-trip must still recover the original record.
+        final SpreadsheetMapper reorderMapper = SpreadsheetMapper.builder()
+                .useHeader(true)
+                .columnReordering(true)
+                .build();
+        File file = tempFile("flat-shift-reorder.xlsx");
+
+        List<FlatShift> input = Arrays.asList(
+                new FlatShift("Apple", 10, 15.50),
+                new FlatShift("Banana", 20, 8.00));
+        reorderMapper.writeValue(file, input, FlatShift.class);
+        List<FlatShift> output = reorderMapper.readValues(file, FlatShift.class);
+
+        assertThat(output).isEqualTo(input);
+    }
+
+    @Test
     void polymorphicShift_onPolymorphicField_isAllowed() {
         // Shift on the polymorphic field itself precedes the discriminator
         // column — well-defined (single column-position adjustment, no subtype
