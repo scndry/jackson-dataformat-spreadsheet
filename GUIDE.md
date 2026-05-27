@@ -514,7 +514,7 @@ Customizes individual column properties. Unset attributes inherit from the enclo
 
 When `USE_POI_USER_MODEL` is enabled, `autoSize` samples rows for bounded overhead (~1.5× write time at 100K rows) and may miss outliers between sample rows — pin a known column with `width` if exact fit matters.
 
-`shift` leaves N blank columns before a field on both read and write. Bounds: `0 ≤ shift ≤` Excel max columns; out-of-range values throw at schema build time. With `useHeader(true)`, a shift nested inside a `@DataColumnGroup` collapses the multi-row header to a single leaf row (group labels are skipped while cascade attributes still apply per-column). Shift inside a polymorphic subtype (`@JsonTypeInfo`) is rejected — polymorphic union is pointer-based dedup, incompatible with column-position adjustment. Apply shift on the polymorphic field itself instead.
+`shift` applies on both read and write. With `useHeader(true)`, a shift nested inside a `@DataColumnGroup` collapses the multi-row header to a single leaf row (group labels are skipped while cascade attributes still apply per-column).
 
 ### @DataColumnGroup
 
