@@ -18,10 +18,13 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGroup;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.SpreadsheetFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -110,6 +113,18 @@ class DataColumnShiftTest {
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
     static class PolymorphicSubtypeShift {
         PaymentWithSubtypeShift payment;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class Inner {
+        @DataColumn String city;
+        @DataColumn String zip;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class WithUnwrappedShift {
+        @DataColumn String name;
+        @JsonUnwrapped @DataColumn(shift = 1) Inner inner;
     }
 
     // -- Round-trip tests --
@@ -259,6 +274,19 @@ class DataColumnShiftTest {
     void polymorphicShift_onPolymorphicField_isAllowed() {
         assertThatCode(() -> mapper.sheetSchemaFor(PolymorphicShiftOnField.class))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void unwrapped_shiftOnOuterField_isSilentlyIgnored() throws Exception {
+        SpreadsheetSchema schema = mapper.sheetSchemaFor(WithUnwrappedShift.class);
+        int total = 0;
+        int gaps = 0;
+        for (Column c : schema) {
+            total++;
+            if (c == null) gaps++;
+        }
+        assertThat(total).isEqualTo(3);
+        assertThat(gaps).isZero();
     }
 
     @Test

@@ -17,6 +17,10 @@ import com.fasterxml.jackson.annotation.OptBoolean;
  * Unset attributes inherit defaults from the enclosing
  * {@link DataGrid}.
  *
+ * <p>If combined with {@link com.fasterxml.jackson.annotation.JsonUnwrapped @JsonUnwrapped}
+ * on the same field, the column annotation is silently ignored — only the
+ * unwrapped inner properties contribute to the schema.
+ *
  * @see DataGrid
  * @see io.github.scndry.jackson.dataformat.spreadsheet.schema.Column
  */
