@@ -347,9 +347,9 @@ For columns whose values come from a template formula, leave the slot blank with
 ```java
 @DataGrid
 class Row {
-    @DataColumn String name;
-    @DataColumn int qty;
-    @DataColumn(shift = 1) double total;  // col 2 = template formula, col 3 = total
+    @DataColumn String name;   // column A
+    @DataColumn int qty;       // column B
+    @DataColumn(shift = 1) double total;  // column C left blank for template formula; total written to column D
 }
 ```
 
@@ -514,7 +514,7 @@ Customizes individual column properties. Unset attributes inherit from the enclo
 
 When `USE_POI_USER_MODEL` is enabled, `autoSize` samples rows for bounded overhead (~1.5× write time at 100K rows) and may miss outliers between sample rows — pin a known column with `width` if exact fit matters.
 
-`shift` leaves N blank columns before a field on both read and write. With `useHeader(true)`, a shift nested inside a `@DataColumnGroup` collapses the multi-row header to a single leaf row (group labels are skipped while cascade attributes still apply per-column).
+`shift` leaves N blank columns before a field on both read and write. Bounds: `0 ≤ shift ≤` Excel max columns; out-of-range values throw at schema build time. With `useHeader(true)`, a shift nested inside a `@DataColumnGroup` collapses the multi-row header to a single leaf row (group labels are skipped while cascade attributes still apply per-column). Shift inside a polymorphic subtype (`@JsonTypeInfo`) is rejected — polymorphic union is pointer-based dedup, incompatible with column-position adjustment. Apply shift on the polymorphic field itself instead.
 
 ### @DataColumnGroup
 
@@ -535,6 +535,8 @@ Renders flattened columns from a nested object field under a shared group header
 | `shift` | `0` | Number of blank columns to leave before this group |
 
 The seven cascade attributes mirror `@DataGrid`'s corresponding defaults and act as an intermediate layer between the leaf `@DataColumn` and the enclosing `@DataGrid` — see *Attribute Resolution Order* below.
+
+`shift` on a group leaves N blank columns before the group's first child column. Same bounds as `@DataColumn(shift)`.
 
 ```java
 @DataGrid
