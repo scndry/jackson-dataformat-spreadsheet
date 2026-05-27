@@ -79,11 +79,7 @@ public @interface DataColumnGroup {
     /** Whether to merge child cells vertically for repeated values. */
     OptBoolean mergeColumn() default OptBoolean.DEFAULT;
 
-    /**
-     * Number of blank columns to leave before this group. Must be {@code >= 0};
-     * values exceeding the spreadsheet max column count are rejected at schema
-     * build time.
-     */
+    /** Number of blank columns before this group (must be {@code >= 0}). */
     int shift() default 0;
 
     @EqualsAndHashCode

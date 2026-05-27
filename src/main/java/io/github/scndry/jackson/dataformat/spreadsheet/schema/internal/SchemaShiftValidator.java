@@ -13,16 +13,9 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 
 /**
  * Schema-build-time validation for the {@code shift} attribute on
- * {@code @DataColumn} and {@code @DataColumnGroup}.
- *
- * <p>Rules:
- * <ul>
- *   <li>{@code shift < 0} is rejected.</li>
- *   <li>{@code shift > } {@link SpreadsheetVersion#EXCEL2007 EXCEL2007}
- *       max columns ({@value MAX_SHIFT}) is rejected.</li>
- * </ul>
- *
- * <p>All violations across the schema are collected and reported together.
+ * {@code @DataColumn} and {@code @DataColumnGroup}: rejects negative
+ * values and values exceeding {@link SpreadsheetVersion#EXCEL2007} max
+ * columns. All violations are collected and reported together.
  *
  * <p>Not part of the public API. Classes under
  * {@code io.github.scndry.jackson.dataformat.spreadsheet.schema.internal}

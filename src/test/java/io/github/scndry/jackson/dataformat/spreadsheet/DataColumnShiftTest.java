@@ -211,8 +211,6 @@ class DataColumnShiftTest {
 
     @Test
     void groupShift_withHeader_collapsesToSingleLeafRow() throws Exception {
-        // useHeader=true + nested-group shift: group label row disappears,
-        // every leaf header lands on the origin row, and data starts at row 1.
         final SpreadsheetMapper headerMapper = SpreadsheetMapper.builder().useHeader(true).build();
         File file = tempFile("group-shift-header.xlsx");
 
@@ -224,14 +222,11 @@ class DataColumnShiftTest {
         try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
             Sheet sheet = wb.getSheetAt(0);
             Row header = sheet.getRow(0);
-            // Nested leaves render their pointer path because the leaf @DataColumn
-            // has no explicit name — Column.getName() falls back to pointer.toString().
             assertThat(header.getCell(0).getStringCellValue()).isEqualTo("orderId");
             assertThat(header.getCell(2).getStringCellValue()).isEqualTo("items/[]/product");
             assertThat(header.getCell(3).getStringCellValue()).isEqualTo("items/[]/qty");
             assertThat(header.getCell(5).getStringCellValue()).isEqualTo("items/[]/amount");
             assertThat(header.getCell(6).getStringCellValue()).isEqualTo("total");
-            // "Items" group label must not appear anywhere in the header region.
             for (int r = 0; r <= 1; r++) {
                 Row row = sheet.getRow(r);
                 if (row == null) continue;
@@ -239,15 +234,12 @@ class DataColumnShiftTest {
                     assertThat(cell.toString()).isNotEqualTo("Items");
                 }
             }
-            // Data begins at row 1 (single header row).
             assertThat(sheet.getRow(1).getCell(0).getStringCellValue()).isEqualTo("ORD-1");
         }
     }
 
     @Test
     void flatShift_withColumnReordering_roundTrips() throws Exception {
-        // Gap column has no header text, so column-reordering treats it as
-        // unmatched. Round-trip must still recover the original record.
         final SpreadsheetMapper reorderMapper = SpreadsheetMapper.builder()
                 .useHeader(true)
                 .columnReordering(true)
@@ -265,18 +257,12 @@ class DataColumnShiftTest {
 
     @Test
     void polymorphicShift_onPolymorphicField_isAllowed() {
-        // Shift on the polymorphic field itself precedes the discriminator
-        // column — well-defined (single column-position adjustment, no subtype
-        // ambiguity).
         assertThatCode(() -> mapper.sheetSchemaFor(PolymorphicShiftOnField.class))
                 .doesNotThrowAnyException();
     }
 
     @Test
     void polymorphicShift_insideSubtype_isRejected() {
-        // Shift inside a polymorphic subtype is ill-defined: polymorphic union
-        // is pointer-based dedup, while shift is column-position adjustment —
-        // two different axes that cannot reconcile across subtypes.
         assertThatThrownBy(() -> mapper.sheetSchemaFor(PolymorphicSubtypeShift.class))
                 .isInstanceOf(com.fasterxml.jackson.databind.exc.InvalidDefinitionException.class)
                 .hasMessageContaining("polymorphic subtype")

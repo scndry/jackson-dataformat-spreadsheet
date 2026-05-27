@@ -56,11 +56,7 @@ public @interface DataColumn {
     /** Row anchor for nested-list records (read-side only; the write path ignores this attribute). */
     boolean anchor() default false;
 
-    /**
-     * Number of blank columns to leave before this column. Must be {@code >= 0};
-     * values exceeding the spreadsheet max column count are rejected at schema
-     * build time. Inside a polymorphic subtype, any positive shift is rejected.
-     */
+    /** Number of blank columns before this column (must be {@code >= 0}). */
     int shift() default 0;
 
     @EqualsAndHashCode
