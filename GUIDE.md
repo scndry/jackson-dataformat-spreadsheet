@@ -472,6 +472,8 @@ class Order {
 List<Order> orders = mapper.readValues(file, Order.class);
 ```
 
+The `anchor` flag is read-side only — the write path derives the multi-row layout from the nested list structure and ignores it.
+
 ## Annotations
 
 ### @DataGrid
