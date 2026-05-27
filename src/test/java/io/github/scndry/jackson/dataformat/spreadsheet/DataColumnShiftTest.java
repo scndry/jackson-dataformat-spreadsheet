@@ -2,6 +2,7 @@ package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -162,6 +163,27 @@ class DataColumnShiftTest {
     }
 
     @Test
+    void flatShift_withHeader_keepsLayoutAndLeavesGapHeaderBlank() throws Exception {
+        final SpreadsheetMapper headerMapper = SpreadsheetMapper.builder().useHeader(true).build();
+        File file = tempFile("flat-shift-header.xlsx");
+
+        headerMapper.writeValue(file,
+                Arrays.asList(new FlatShift("Apple", 10, 15.50)),
+                FlatShift.class);
+
+        try (XSSFWorkbook wb = new XSSFWorkbook(file)) {
+            Sheet sheet = wb.getSheetAt(0);
+            Row header = sheet.getRow(0);
+            assertThat(header.getCell(0).getStringCellValue()).isEqualTo("name");
+            assertThat(header.getCell(1).getStringCellValue()).isEqualTo("qty");
+            Cell gapHeader = header.getCell(2);
+            assertThat(gapHeader == null || gapHeader.toString().isEmpty()).isTrue();
+            assertThat(header.getCell(3).getStringCellValue()).isEqualTo("total");
+            assertThat(sheet.getRow(1).getCell(0).getStringCellValue()).isEqualTo("Apple");
+        }
+    }
+
+    @Test
     void flatShift_poiUserModel_roundTrip() throws Exception {
         SpreadsheetMapper poiMapper = SpreadsheetMapper.builder()
                 .useHeader(false)
@@ -271,9 +293,13 @@ class DataColumnShiftTest {
     }
 
     @Test
-    void polymorphicShift_onPolymorphicField_isAllowed() {
-        assertThatCode(() -> mapper.sheetSchemaFor(PolymorphicShiftOnField.class))
-                .doesNotThrowAnyException();
+    void polymorphicShift_onPolymorphicField_isAllowed() throws Exception {
+        SpreadsheetSchema schema = mapper.sheetSchemaFor(PolymorphicShiftOnField.class);
+        List<Column> columns = new ArrayList<>();
+        for (Column c : schema) columns.add(c);
+        assertThat(columns.get(0)).isNull();
+        assertThat(columns.get(1)).isNotNull();
+        assertThat(columns.get(1).getName()).isEqualTo("kind");
     }
 
     @Test

@@ -49,7 +49,7 @@ class SchemaShiftValidatorTest {
     }
 
     @Test
-    void positiveShift_withHeader_doesNotThrow_rendersSingleLeafRow() {
+    void positiveShift_withHeader_doesNotThrow() {
         assertThatCode(() -> new SpreadsheetMapper().sheetSchemaFor(WithShift.class))
                 .doesNotThrowAnyException();
     }
@@ -93,7 +93,7 @@ class SchemaShiftValidatorTest {
     }
 
     @Test
-    void groupShift_withHeader_doesNotThrow_rendersSingleLeafRow() {
+    void groupShift_withHeader_doesNotThrow() {
         assertThatCode(() -> new SpreadsheetMapper().sheetSchemaFor(GroupWithShift.class))
                 .doesNotThrowAnyException();
     }
