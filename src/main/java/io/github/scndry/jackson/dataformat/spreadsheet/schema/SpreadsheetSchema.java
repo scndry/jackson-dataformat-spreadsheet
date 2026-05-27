@@ -197,9 +197,6 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         if (!usesHeader()) return;
         final int originRow = _origin.getRow();
         if (anyNestedShift()) {
-            // Single leaf row: emit every column header (flat + grouped leaves)
-            // on the origin row. Group label rows and vertical merges are skipped;
-            // cascade attributes still apply per-column.
             for (final Column column : _columns) {
                 if (column == null) continue;
                 visitor.visitColumnHeader(originRow, columnIndexOf(column), column);
