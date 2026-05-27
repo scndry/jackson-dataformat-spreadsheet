@@ -133,6 +133,11 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         return SCHEMA_TYPE;
     }
 
+    /**
+     * Iterates the schema's columns in declared order. May yield {@code null}
+     * at sparse gap positions introduced by {@code @DataColumn(shift)} or
+     * {@code @DataColumnGroup(shift)} — callers must null-check each element.
+     */
     @Override
     public Iterator<Column> iterator() {
         return _columns.iterator();
@@ -142,6 +147,11 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         return findColumn(reference.getColumn());
     }
 
+    /**
+     * Returns the column at the given sheet column index, or {@code null} if
+     * the index falls outside the schema range OR lands on a sparse gap
+     * position introduced by shift.
+     */
     public Column findColumn(final int column) {
         if (_columns.isEmpty()) {
             return null;
@@ -157,6 +167,13 @@ public final class SpreadsheetSchema implements FormatSchema, Iterable<Column> {
         return getColumn(reference.getColumn());
     }
 
+    /**
+     * Returns the column at the given sheet column index. Throws
+     * {@link IndexOutOfBoundsException} when out of range; returns {@code null}
+     * at sparse gap positions introduced by shift. The {@code null}-on-gap
+     * behavior diverges from typical {@code get} semantics — callers that
+     * need a strict non-null contract should prefer explicit index checks.
+     */
     public Column getColumn(final int column) {
         return _columns.get(column - getOriginColumn());
     }
