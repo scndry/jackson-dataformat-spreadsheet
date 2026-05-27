@@ -122,8 +122,11 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
             ser.acceptJsonFormatVisitor(visitor, subType);
             for (final Column col : visitor) {
                 if (col == null) {
-                    _wrapper.add(null);
-                    continue;
+                    throw new IllegalStateException(
+                            "Shift inside polymorphic subtype "
+                                    + subType.getRawClass().getSimpleName()
+                                    + " is not supported (polymorphic field at "
+                                    + pointer + "). Place shift outside the polymorphic field.");
                 }
                 if (seen.add(col.getPointer().toString())) {
                     _wrapper.add(col);

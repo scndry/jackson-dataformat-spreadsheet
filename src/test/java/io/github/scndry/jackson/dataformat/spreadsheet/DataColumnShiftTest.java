@@ -26,6 +26,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.SpreadsheetFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Integration tests for {@code @DataColumn(shift)} and
@@ -88,12 +89,27 @@ class DataColumnShiftTest {
     @Data @NoArgsConstructor @AllArgsConstructor
     static class Cash implements Payment {
         @DataColumn String name;
-        @DataColumn(shift = 1) double amount;
+        @DataColumn double amount;
     }
 
     @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
-    static class PolymorphicShift {
+    static class PolymorphicShiftOnField {
         @DataColumn(shift = 1) Payment payment;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class CashWithSubtypeShift implements Payment {
+        @DataColumn String name;
+        @DataColumn(shift = 1) double amount;
+    }
+
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "kind")
+    @JsonSubTypes({@JsonSubTypes.Type(value = CashWithSubtypeShift.class, name = "cash")})
+    interface PaymentWithSubtypeShift {}
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class PolymorphicSubtypeShift {
+        PaymentWithSubtypeShift payment;
     }
 
     // -- Round-trip tests --
@@ -194,11 +210,24 @@ class DataColumnShiftTest {
     }
 
     @Test
-    void polymorphicShift_schemaBuilds() {
-        // _polymorphicProperty propagates shift on the discriminator column and
-        // preserves null Column placeholders from subtype visitor — regression guard
-        assertThatCode(() -> mapper.sheetSchemaFor(PolymorphicShift.class))
+    void polymorphicShift_onPolymorphicField_isAllowed() {
+        // Shift on the polymorphic field itself precedes the discriminator
+        // column — well-defined (single column-position adjustment, no subtype
+        // ambiguity).
+        assertThatCode(() -> mapper.sheetSchemaFor(PolymorphicShiftOnField.class))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void polymorphicShift_insideSubtype_isRejected() {
+        // Shift inside a polymorphic subtype is ill-defined: polymorphic union
+        // is pointer-based dedup, while shift is column-position adjustment —
+        // two different axes that cannot reconcile across subtypes.
+        assertThatThrownBy(() -> mapper.sheetSchemaFor(PolymorphicSubtypeShift.class))
+                .isInstanceOf(com.fasterxml.jackson.databind.exc.InvalidDefinitionException.class)
+                .hasMessageContaining("polymorphic subtype")
+                .hasMessageContaining("CashWithSubtypeShift")
+                .hasMessageContaining("Place shift outside the polymorphic field");
     }
 
     // -- Helpers --
