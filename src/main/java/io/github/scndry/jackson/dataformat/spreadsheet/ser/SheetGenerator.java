@@ -252,7 +252,7 @@ public final class SheetGenerator extends GeneratorBase {
     @Override
     public void writeNumber(final BigInteger v) throws IOException {
         _verifyValueWrite(WRITE_NUMBER);
-        _writer.writeString(v.toString());
+        _writer.writeNumeric(v.doubleValue());
     }
 
     @Override
@@ -270,8 +270,7 @@ public final class SheetGenerator extends GeneratorBase {
     @Override
     public void writeNumber(final BigDecimal v) throws IOException {
         _verifyValueWrite(WRITE_NUMBER);
-        _writer.writeString(isEnabled(StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN)
-                ? v.toPlainString() : v.toString());
+        _writer.writeNumeric(v.doubleValue());
     }
 
     @Override
