@@ -142,19 +142,19 @@ class LineItem {
 
 | Library | Time | Memory |
 |---------|------|--------|
-| jackson-spreadsheet | 278 ms | **548 MB** |
-| FastExcel | **263 ms** | 675 MB |
-| Apache Fesod | 554 ms | 841 MB |
-| Apache POI | 2072 ms | 4086 MB |
+| jackson-spreadsheet | 270 ms | **548 MB** |
+| FastExcel | **257 ms** | 673 MB |
+| Apache Fesod | 538 ms | 841 MB |
+| Apache POI | 1965 ms | 4053 MB |
 
 **Write:**
 
 | Library | Time | Memory |
 |---------|------|--------|
-| jackson-spreadsheet | **334 ms** | **237 MB** |
-| FastExcel | 353 ms | 313 MB |
-| Apache Fesod | 783 ms | 1046 MB |
-| Apache POI (SXSSF) | 644 ms | 497 MB |
+| jackson-spreadsheet | **303 ms** | **224 MB** |
+| FastExcel | 350 ms | 313 MB |
+| Apache Fesod | 782 ms | 1049 MB |
+| Apache POI (SXSSF) | 656 ms | 496 MB |
 
 See [BENCHMARK.md](BENCHMARK.md) for the full per-scale tables (1K – 100K), sustained 60-second throughput, and shared-strings strategies.
 
@@ -270,7 +270,7 @@ Apache Fesod has its own API. This extends Jackson's `ObjectMapper`, so you get 
 Yes. Nested POJOs automatically flatten to columns on write and reconstruct on read. No configuration needed. Nested `List<T>` fields round-trip too — write expands to multi-row blocks, read collapses them back into the same outer record when one column per record level is marked with `@DataColumn(anchor = true)`.
 
 **Q: How does performance compare?**
-Throughput close to FastExcel at 100K rows (writer slightly faster), with ~20% less allocation in both read and write. ~7x faster than Apache POI on read. See [BENCHMARK.md](BENCHMARK.md).
+Throughput close to FastExcel at 100K rows (writer ~13% faster), with ~20–28% less allocation. ~7× faster than Apache POI on read. See [BENCHMARK.md](BENCHMARK.md).
 
 **Q: What Excel formats are supported?**
 XLSX (OOXML) and XLS (legacy). XLSX uses StAX streaming; XLS uses POI object model.
