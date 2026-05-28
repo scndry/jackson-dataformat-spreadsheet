@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.EqualsAndHashCode;
 import org.apache.poi.ss.util.WorkbookUtil;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.EncryptionSpec;
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetContent;
 
 /**
@@ -28,15 +29,18 @@ public final class SheetOutput<T> implements SheetContent<T> {
     private final T _raw;
     private final String _name;
     private final String _password;
+    private final EncryptionSpec _encryption;
 
-    private SheetOutput(final T raw, final String name, final String password) {
+    private SheetOutput(final T raw, final String name, final String password,
+                        final EncryptionSpec encryption) {
         _raw = raw;
         _name = name;
         _password = password;
+        _encryption = encryption;
     }
 
     private SheetOutput(final T raw, final String name) {
-        this(raw, name, null);
+        this(raw, name, null, null);
     }
 
     private static void _validateSheetName(final String name) {
@@ -103,18 +107,28 @@ public final class SheetOutput<T> implements SheetContent<T> {
     }
 
     /**
-     * Returns a copy of this {@code SheetOutput} with the given password for
-     * OOXML file-level encryption. Pass {@code null} to clear.
+     * Returns a copy with the given password for OOXML file-level encryption.
+     * Pass {@code null} to clear. When no {@link #withEncryption} is set,
+     * {@link EncryptionSpec#strong()} (agile AES-256 + SHA-512) is used.
      *
-     * <p>Encryption uses agile mode (AES-256 + SHA-512, PBKDF2 100K). For
-     * {@link java.io.File} targets the encrypted output is written to a
+     * <p>For {@link java.io.File} targets the encrypted output is written to a
      * sibling temp and atomically renamed onto the target on close, so
      * mid-write failures leave the original target untouched. For
-     * {@link java.io.OutputStream} targets the bytes are written directly
-     * and the stream is not closed by this library.
+     * {@link java.io.OutputStream} targets the bytes are written directly and
+     * the stream is not closed by this library.
      */
     public SheetOutput<T> withPassword(final String password) {
-        return new SheetOutput<>(_raw, _name, password);
+        return new SheetOutput<>(_raw, _name, password, _encryption);
+    }
+
+    /**
+     * Returns a copy with the given {@link EncryptionSpec} (strength /
+     * compatibility / cipher trade-off). Pass {@code null} to fall back to the
+     * default {@link EncryptionSpec#strong()}. Effective only when a password
+     * is also set.
+     */
+    public SheetOutput<T> withEncryption(final EncryptionSpec encryption) {
+        return new SheetOutput<>(_raw, _name, _password, encryption);
     }
 
     @Override
@@ -126,10 +140,14 @@ public final class SheetOutput<T> implements SheetContent<T> {
     @JsonIgnore
     public String getPassword() { return _password; }
 
+    @JsonIgnore
+    public EncryptionSpec getEncryption() { return _encryption; }
+
     @Override
     public String toString() {
         return "SheetOutput(raw=" + _raw + ", name=" + _name
-                + ", password=" + (_password == null ? "null" : "***") + ")";
+                + ", password=" + (_password == null ? "null" : "***")
+                + ", encryption=" + (_encryption == null ? "default" : _encryption) + ")";
     }
 
 }

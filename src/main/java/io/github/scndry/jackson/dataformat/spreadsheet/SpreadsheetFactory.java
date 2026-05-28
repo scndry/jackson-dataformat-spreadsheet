@@ -12,13 +12,9 @@ import java.security.GeneralSecurityException;
 import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.openxml4j.opc.PackagePart;
-import org.apache.poi.poifs.crypt.ChainingMode;
-import org.apache.poi.poifs.crypt.CipherAlgorithm;
 import org.apache.poi.poifs.crypt.Decryptor;
 import org.apache.poi.poifs.crypt.EncryptionInfo;
-import org.apache.poi.poifs.crypt.EncryptionMode;
 import org.apache.poi.poifs.crypt.Encryptor;
-import org.apache.poi.poifs.crypt.HashAlgorithm;
 import org.apache.poi.poifs.crypt.temp.EncryptedTempData;
 import org.apache.poi.poifs.filesystem.FileMagic;
 import org.apache.poi.poifs.filesystem.POIFSFileSystem;
@@ -524,6 +520,8 @@ public final class SpreadsheetFactory extends JsonFactory {
     private SheetOutput<OutputStream> _encryptedWrap(final SheetOutput<?> out) throws IOException {
         final EncryptedTempData tempData = new EncryptedTempData();
         final String password = out.getPassword();
+        final EncryptionSpec spec = out.getEncryption() != null
+                ? out.getEncryption() : EncryptionSpec.strong();
         // Captured locals — anonymous FilterOutputStream subclass shadows the
         // protected `out` field, so the SheetOutput must be referenced under a
         // distinct name to avoid the field shadowing.
@@ -538,7 +536,7 @@ public final class SpreadsheetFactory extends JsonFactory {
                     closed = true;
                     super.close();
                     try {
-                        _encryptToTarget(tempData, destination, password);
+                        _encryptToTarget(tempData, destination, password, spec);
                     } finally {
                         tempData.dispose();
                     }
@@ -555,7 +553,7 @@ public final class SpreadsheetFactory extends JsonFactory {
 
     @SuppressWarnings("unchecked")
     private void _encryptToTarget(final EncryptedTempData tempData, final SheetOutput<?> out,
-                                  final String password) throws IOException {
+                                  final String password, final EncryptionSpec spec) throws IOException {
         // SEC-18: for File targets, write encrypted bytes into a sibling temp file
         // and atomically rename onto the final target. Partial encrypted bytes
         // never appear at the target path; mid-write failures leave the original
@@ -575,12 +573,7 @@ public final class SpreadsheetFactory extends JsonFactory {
             try (InputStream plainIn = tempData.getInputStream();
                  POIFSFileSystem fs = new POIFSFileSystem();
                  OPCPackage opc = OPCPackage.open(plainIn)) {
-                // F5: explicit AES-256 + SHA-512 (modern strength); the default
-                // EncryptionInfo(agile) ctor pins AES-128. keyBits in bits,
-                // blockSize in bytes — AES uses a 16-byte block at every key
-                // size (CipherAlgorithm.aes256 declares blockSize=16).
-                final EncryptionInfo info = new EncryptionInfo(EncryptionMode.agile,
-                        CipherAlgorithm.aes256, HashAlgorithm.sha512, 256, 16, ChainingMode.cbc);
+                final EncryptionInfo info = spec.toPoiEncryptionInfo();
                 final Encryptor enc = Encryptor.getInstance(info);
                 try {
                     enc.confirmPassword(password);
