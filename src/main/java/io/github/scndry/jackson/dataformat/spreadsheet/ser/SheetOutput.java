@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.OutputStream;
 import java.nio.file.Path;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import lombok.EqualsAndHashCode;
 import org.apache.poi.ss.util.WorkbookUtil;
 
@@ -104,12 +106,12 @@ public final class SheetOutput<T> implements SheetContent<T> {
      * Returns a copy of this {@code SheetOutput} with the given password for
      * OOXML file-level encryption. Pass {@code null} to clear.
      *
-     * <p>Encryption uses agile mode with AES-256 + SHA-512 (PBKDF2, 100K spin).
-     * The writer streams plain OOXML into an {@code EncryptedTempData}
-     * (AES-128-CBC, in-memory random key) so the intermediate bytes on disk
-     * cannot be decrypted even if the temp survives a crash. The encrypted
-     * output lands on the original target only after the generator closes;
-     * if the write fails mid-flight, the partial target file is deleted.
+     * <p>Encryption uses agile mode (AES-256 + SHA-512, PBKDF2 100K). For
+     * {@link java.io.File} targets the encrypted output is written to a
+     * sibling temp and atomically renamed onto the target on close, so
+     * mid-write failures leave the original target untouched. For
+     * {@link java.io.OutputStream} targets the bytes are written directly
+     * and the stream is not closed by this library.
      */
     public SheetOutput<T> withPassword(final String password) {
         return new SheetOutput<>(_raw, _name, password);
@@ -121,6 +123,7 @@ public final class SheetOutput<T> implements SheetContent<T> {
     @Override
     public String getName() { return _name; }
 
+    @JsonIgnore
     public String getPassword() { return _password; }
 
     @Override

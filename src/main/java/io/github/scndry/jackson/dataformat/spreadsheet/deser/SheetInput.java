@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Path;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import lombok.EqualsAndHashCode;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetContent;
@@ -118,14 +120,9 @@ public final class SheetInput<T> implements SheetContent<T> {
      * Returns a copy of this {@code SheetInput} with the given password for
      * OOXML file-level (agile) decryption. Pass {@code null} to clear.
      *
-     * <p>The decrypted plaintext is materialised in a POSIX owner-only temp
-     * file that is deleted when the resulting {@link SheetParser} closes;
-     * always close the parser (try-with-resources or {@code SheetMappingIterator})
-     * to release it promptly.
-     *
-     * <p>For {@code InputStream} sources, the caller still owns the stream;
-     * this library does not close it. Password verification reads the source
-     * before mapping, so a wrong password fails fast with
+     * <p>Decryption materialises plain OOXML in a POSIX 0600 temp file that is
+     * deleted on {@link SheetParser} close. {@code InputStream} sources are not
+     * closed by this library. A wrong password throws
      * {@link org.apache.poi.EncryptedDocumentException}.
      */
     public SheetInput<T> withPassword(final String password) {
@@ -140,6 +137,7 @@ public final class SheetInput<T> implements SheetContent<T> {
 
     public int getIndex() { return _index; }
 
+    @JsonIgnore
     public String getPassword() { return _password; }
 
     @Override

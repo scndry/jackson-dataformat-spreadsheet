@@ -556,8 +556,18 @@ public final class SpreadsheetFactory extends JsonFactory {
     @SuppressWarnings("unchecked")
     private void _encryptToTarget(final EncryptedTempData tempData, final SheetOutput<?> out,
                                   final String password) throws IOException {
-        final OutputStream target = out.isFile()
-                ? new FileOutputStream(((SheetOutput<File>) out).getRaw())
+        // SEC-18: for File targets, write encrypted bytes into a sibling temp file
+        // and atomically rename onto the final target. Partial encrypted bytes
+        // never appear at the target path; mid-write failures leave the original
+        // target untouched. OutputStream targets cannot be made atomic by this
+        // library — the caller owns the stream and must wrap accordingly.
+        final File finalTarget = out.isFile() ? ((SheetOutput<File>) out).getRaw() : null;
+        final File siblingTemp = finalTarget != null
+                ? new File(finalTarget.getAbsoluteFile().getParentFile(),
+                        finalTarget.getName() + ".enc-" + Long.toUnsignedString(System.nanoTime(), 36) + ".tmp")
+                : null;
+        final OutputStream target = (siblingTemp != null)
+                ? new FileOutputStream(siblingTemp)
                 : ((SheetOutput<OutputStream>) out).getRaw();
         boolean writeFinalized = false;
         IOException primary = null;
@@ -594,18 +604,28 @@ public final class SpreadsheetFactory extends JsonFactory {
             throw e;
         } finally {
             // F3: addSuppressed pattern — preserve primary IOException
-            if (out.isFile()) {
+            if (siblingTemp != null) {
                 try {
                     target.close();
                 } catch (IOException closeEx) {
                     if (primary != null) primary.addSuppressed(closeEx);
                     else throw closeEx;
                 }
-                // F4: mid-write failure — delete partial encrypted output
-                if (!writeFinalized) {
-                    final File partial = ((SheetOutput<File>) out).getRaw();
-                    if (partial.exists() && !partial.delete() && log.isWarnEnabled()) {
-                        log.warn("Failed to delete partial encrypted output: {}", partial);
+                if (writeFinalized) {
+                    try {
+                        Files.move(siblingTemp.toPath(), finalTarget.toPath(),
+                                java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    } catch (java.nio.file.AtomicMoveNotSupportedException ex) {
+                        // Cross-filesystem fallback — non-atomic but the partial
+                        // intermediate state is the sibling, not finalTarget.
+                        Files.move(siblingTemp.toPath(), finalTarget.toPath(),
+                                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    }
+                } else {
+                    // F4: mid-write failure — delete sibling, leave finalTarget untouched.
+                    if (siblingTemp.exists() && !siblingTemp.delete() && log.isWarnEnabled()) {
+                        log.warn("Failed to delete partial encrypted sibling: {}", siblingTemp);
                     }
                 }
             }
