@@ -39,6 +39,7 @@ final class RecordTreeBuffer {
     private final Map<ColumnPointer, ColumnPointer> _parentArrayScopeOf;
     private final Map<Column, ColumnPointer> _immediateScopeByColumn;
     private final Map<Column, Integer> _columnPositionByColumn;
+    private final Map<Column, List<String>> _relativeSegmentsByColumn;
     private final long _bufferLimitBytes;
     private final boolean _blankRowAsNull;
     private final boolean _breakOnBlankRow;
@@ -64,6 +65,7 @@ final class RecordTreeBuffer {
         _parentArrayScopeOf = _computeParentScopeMap(schema);
         _immediateScopeByColumn = _computeImmediateScopeByColumn(schema);
         _columnPositionByColumn = _computeColumnPositionByColumn(schema);
+        _relativeSegmentsByColumn = _computeRelativeSegmentsByColumn(schema);
         _bufferLimitBytes = bufferLimitBytes;
         _blankRowAsNull = blankRowAsNull;
         _breakOnBlankRow = breakOnBlankRow;
@@ -86,6 +88,21 @@ final class RecordTreeBuffer {
         for (final Column c : schema) {
             if (c != null) result.put(c, i);
             i++;
+        }
+        return result;
+    }
+
+    private static Map<Column, List<String>> _computeRelativeSegmentsByColumn(
+            final SpreadsheetSchema schema) {
+        final Map<Column, List<String>> result = new HashMap<>();
+        for (final Column c : schema) {
+            if (c == null) continue;
+            final ColumnPointer scope = SchemaAnchorInspector.immediateScope(c.getPointer());
+            final List<String> segs = new ArrayList<>();
+            for (final ColumnPointer seg : scope.relativize(c.getPointer())) {
+                segs.add(seg.name());
+            }
+            result.put(c, java.util.Collections.unmodifiableList(segs));
         }
         return result;
     }
@@ -222,7 +239,7 @@ final class RecordTreeBuffer {
         out.token(JsonToken.START_OBJECT);
         final List<String> openPath = new ArrayList<>();
         for (final Cell c : record.outerCells) {
-            final List<String> path = _relativeSegments(record.scope, c.column.getPointer());
+            final List<String> path = _relativeSegmentsByColumn.get(c.column);
             final int common = _commonPrefixLength(openPath, path, path.size() - 1);
             for (int i = openPath.size() - common; i > 0; i--) {
                 out.token(JsonToken.END_OBJECT);
@@ -248,14 +265,6 @@ final class RecordTreeBuffer {
             out.token(JsonToken.END_ARRAY);
         }
         out.token(JsonToken.END_OBJECT);
-    }
-
-    private static List<String> _relativeSegments(final ColumnPointer scope, final ColumnPointer pointer) {
-        final List<String> result = new ArrayList<>();
-        for (final ColumnPointer seg : scope.relativize(pointer)) {
-            result.add(seg.name());
-        }
-        return result;
     }
 
     private static int _commonPrefixLength(final List<String> a, final List<String> b, final int bLimit) {
