@@ -107,9 +107,9 @@ public final class SheetOutput<T> implements SheetContent<T> {
     }
 
     /**
-     * Returns a copy with the given password for OOXML file-level encryption.
-     * Pass {@code null} to clear. When no {@link #withEncryption} is set,
-     * {@link EncryptionSpec#strong()} (agile AES-256 + SHA-512) is used.
+     * Returns a copy with the given password for OOXML file-level encryption,
+     * using {@link EncryptionSpec#strong()} (agile AES-256 + SHA-512). Pass
+     * {@code null} to clear.
      *
      * <p>For {@link java.io.File} targets the encrypted output is written to a
      * sibling temp and atomically renamed onto the target on close, so
@@ -118,17 +118,17 @@ public final class SheetOutput<T> implements SheetContent<T> {
      * the stream is not closed by this library.
      */
     public SheetOutput<T> withPassword(final String password) {
-        return new SheetOutput<>(_raw, _name, password, _encryption);
+        return new SheetOutput<>(_raw, _name, password, null);
     }
 
     /**
-     * Returns a copy with the given {@link EncryptionSpec} (strength /
-     * compatibility / cipher trade-off). Pass {@code null} to fall back to the
-     * default {@link EncryptionSpec#strong()}. Effective only when a password
-     * is also set.
+     * Returns a copy with the given password and {@link EncryptionSpec}. The
+     * spec selects the strength / compatibility / cipher trade-off. A
+     * {@code null} spec falls back to {@link EncryptionSpec#strong()}. A
+     * {@code null} password clears both.
      */
-    public SheetOutput<T> withEncryption(final EncryptionSpec encryption) {
-        return new SheetOutput<>(_raw, _name, _password, encryption);
+    public SheetOutput<T> withPassword(final String password, final EncryptionSpec encryption) {
+        return new SheetOutput<>(_raw, _name, password, password == null ? null : encryption);
     }
 
     @Override

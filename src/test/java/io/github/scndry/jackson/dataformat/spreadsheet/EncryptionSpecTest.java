@@ -36,7 +36,7 @@ class EncryptionSpecTest {
         final File file = tempDir.resolve(fileName).toFile();
         final SpreadsheetMapper mapper = new SpreadsheetMapper();
         mapper.writeValue(
-                SheetOutput.target(file).withPassword("secret").withEncryption(spec),
+                SheetOutput.target(file).withPassword("secret", spec),
                 SAMPLE, Row.class);
         final List<Row> back = mapper.readValues(
                 SheetInput.source(file).withPassword("secret"), Row.class);
