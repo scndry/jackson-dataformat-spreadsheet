@@ -120,4 +120,81 @@ class BigNumberCellTypeTest {
             assertThat(wb.getSheetAt(0).getRow(1).getCell(1).getNumericCellValue()).isEqualTo(987.0);
         }
     }
+
+    // -- Round-trip ----------------------------------------------------
+
+    @Test
+    void roundTrip_defaultNumeric_smallScale() throws Exception {
+        final NumericDefault original = new NumericDefault(
+                new BigDecimal("1234.56"), BigInteger.valueOf(987));
+        File file = tempDir.resolve("rt-default-small.xlsx").toFile();
+        SpreadsheetMapper mapper = new SpreadsheetMapper();
+        mapper.writeValue(file, Arrays.asList(original), NumericDefault.class);
+
+        java.util.List<NumericDefault> read = mapper.readValues(file, NumericDefault.class);
+        assertThat(read).singleElement().satisfies(r -> {
+            assertThat(r.getAmount()).isEqualByComparingTo(original.getAmount());
+            assertThat(r.getTicks()).isEqualTo(original.getTicks());
+        });
+    }
+
+    @Test
+    void roundTrip_defaultNumeric_precisionLossOnLargeScale() throws Exception {
+        final BigDecimal original = new BigDecimal("1.234567890123456789");
+        File file = tempDir.resolve("rt-default-large.xlsx").toFile();
+        SpreadsheetMapper mapper = new SpreadsheetMapper();
+        mapper.writeValue(file,
+                Arrays.asList(new NumericDefault(original, BigInteger.ZERO)), NumericDefault.class);
+
+        java.util.List<NumericDefault> read = mapper.readValues(file, NumericDefault.class);
+        BigDecimal roundTripped = read.get(0).getAmount();
+        assertThat(roundTripped).isEqualByComparingTo(BigDecimal.valueOf(original.doubleValue()));
+        assertThat(roundTripped).isNotEqualByComparingTo(original);
+    }
+
+    @Test
+    void roundTrip_defaultNumeric_bigIntegerBeyondDoubleRange() throws Exception {
+        final BigInteger original = BigInteger.valueOf(2).pow(60).add(BigInteger.ONE);
+        File file = tempDir.resolve("rt-default-bigint.xlsx").toFile();
+        SpreadsheetMapper mapper = new SpreadsheetMapper();
+        mapper.writeValue(file,
+                Arrays.asList(new NumericDefault(BigDecimal.ZERO, original)), NumericDefault.class);
+
+        java.util.List<NumericDefault> read = mapper.readValues(file, NumericDefault.class);
+        BigInteger roundTripped = read.get(0).getTicks();
+        assertThat(roundTripped).isEqualTo(BigDecimal.valueOf((double) original.doubleValue()).toBigInteger());
+        assertThat(roundTripped).isNotEqualTo(original);
+    }
+
+    @Test
+    void roundTrip_stringOptIn_preservesPrecision() throws Exception {
+        final BigDecimal amount = new BigDecimal("1.234567890123456789");
+        final BigInteger ticks = BigInteger.valueOf(2).pow(60).add(BigInteger.ONE);
+        File file = tempDir.resolve("rt-optin.xlsx").toFile();
+        SpreadsheetMapper mapper = new SpreadsheetMapper();
+        mapper.writeValue(file, Arrays.asList(new StringOptIn(amount, ticks)), StringOptIn.class);
+
+        java.util.List<StringOptIn> read = mapper.readValues(file, StringOptIn.class);
+        assertThat(read).singleElement().satisfies(r -> {
+            assertThat(r.getAmount()).isEqualByComparingTo(amount);
+            assertThat(r.getTicks()).isEqualTo(ticks);
+        });
+    }
+
+    @Test
+    void roundTrip_poiUserModel_defaultNumeric() throws Exception {
+        final NumericDefault original = new NumericDefault(
+                new BigDecimal("1234.56"), BigInteger.valueOf(987));
+        File file = tempDir.resolve("rt-poi.xlsx").toFile();
+        SpreadsheetMapper poiMapper = SpreadsheetMapper.builder()
+                .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+                .build();
+        poiMapper.writeValue(file, Arrays.asList(original), NumericDefault.class);
+
+        java.util.List<NumericDefault> read = poiMapper.readValues(file, NumericDefault.class);
+        assertThat(read).singleElement().satisfies(r -> {
+            assertThat(r.getAmount()).isEqualByComparingTo(original.getAmount());
+            assertThat(r.getTicks()).isEqualTo(original.getTicks());
+        });
+    }
 }
