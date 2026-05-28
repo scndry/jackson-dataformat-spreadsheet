@@ -21,11 +21,12 @@ final class XlsxDomAssertions {
     /**
      * Asserts the named part is DOM-equal between {@code expected} and
      * {@code actual}, ignoring the {@code <dimension>} element and the
-     * default {@code s="0"} cell-style attribute that POI 5.2.3+ emits
-     * unconditionally (bug-51037 fix in {@code XSSFRow.onDocumentWrite})
-     * while earlier POI versions omit. The SSML writer always emits
-     * {@code s="0"}; strip on that side when the POI side is the older
-     * one so byte-equal comparison holds across POI versions.
+     * default {@code s="0"} cell-style attribute. Both sides may or may
+     * not emit {@code s="0"} depending on POI version (5.2.3+ emits it
+     * unconditionally via bug-51037 fix) and on whether the writer
+     * assigns a default style to newly created cells; treating it as
+     * equivalent to "no style" keeps the comparison stable across
+     * configurations.
      */
     static void assertPartEqualIgnoringDimension(
             final File expected, final File actual, final String partName) throws Exception {
@@ -38,9 +39,8 @@ final class XlsxDomAssertions {
             _removeDimensionElements(expectedDoc);
             _removeDimensionElements(actualDoc);
 
-            if (!PoiVersionProbe.isPoi523OrLater()) {
-                _stripDefaultStyleAttribute(actualDoc);
-            }
+            _stripDefaultStyleAttribute(expectedDoc);
+            _stripDefaultStyleAttribute(actualDoc);
 
             assertThat(actualDoc.getDocumentElement().isEqualNode(
                     expectedDoc.getDocumentElement()))

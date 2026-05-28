@@ -10,7 +10,7 @@
 
 | Library | Version |
 |---------|---------|
-| jackson-dataformat-spreadsheet | 1.7.0 |
+| jackson-dataformat-spreadsheet | 1.8.0 |
 | FastExcel | 0.20.0 |
 | Apache Fesod | 2.0.1-incubating |
 | Apache POI | 5.5.1 |
@@ -34,25 +34,25 @@ These benchmarks measure a single combination of design choices. Other productio
 
 | Library | 1K rows | 10K rows | 50K rows | 100K rows |
 |---------|---------|----------|----------|-----------|
-| jackson-spreadsheet | 3.30 ms | 29.41 ms | 145.03 ms | 277.67 ms |
-| FastExcel | **2.90 ms** | **25.94 ms** | **137.10 ms** | **263.30 ms** |
-| Apache Fesod | 5.17 ms | 46.23 ms | 232.03 ms | 554.32 ms |
-| Apache POI | 18.45 ms | 170.88 ms | 979.53 ms | 2071.82 ms |
-| jackson-spreadsheet (POI User Model) | 20.81 ms | 194.31 ms | 1142.17 ms | 2342.11 ms |
+| jackson-spreadsheet | 3.26 ms | 29.10 ms | 141.43 ms | 270.39 ms |
+| FastExcel | **2.59 ms** | **25.70 ms** | **129.13 ms** | **257.12 ms** |
+| Apache Fesod | 5.08 ms | 46.84 ms | 225.37 ms | 537.61 ms |
+| Apache POI | 18.02 ms | 169.95 ms | 886.21 ms | 1964.68 ms |
+| jackson-spreadsheet (POI User Model) | 20.49 ms | 190.94 ms | 978.04 ms | 2193.62 ms |
 
-FastExcel is faster at every scale (5–14%); the gap is narrowest at 100K (5%) and widest at 1K (14%). Apache POI's User Model loads the entire file up front and is 6–8× slower than streaming readers — first-N early exit pays the same cost as a full read. Apache POI also ships a SAX event API (`XSSFReader` + `XSSFSheetXMLHandler`) for streaming reads; that path is not measured here.
+FastExcel is faster at every scale (5–21%); the gap is narrowest at 100K (5%) and widest at 1K (21%). Apache POI's User Model loads the entire file up front and is 5.5–7.3× slower than streaming readers — first-N early exit pays the same cost as a full read. Apache POI also ships a SAX event API (`XSSFReader` + `XSSFSheetXMLHandler`) for streaming reads; that path is not measured here.
 
 ### Allocation per op
 
 | Library | 1K rows | 10K rows | 50K rows | 100K rows |
 |---------|---------|----------|----------|-----------|
 | jackson-spreadsheet | **6.5 MB** | **57 MB** | **275 MB** | **548 MB** |
-| FastExcel | 7.4 MB | 68 MB | 352 MB | 675 MB |
+| FastExcel | 7.1 MB | 68 MB | 337 MB | 673 MB |
 | Apache Fesod | 8.6 MB | 76 MB | 380 MB | 841 MB |
-| Apache POI | 42 MB | 407 MB | 2043 MB | 4086 MB |
-| jackson-spreadsheet (POI User Model) | 45 MB | 435 MB | 2193 MB | 4392 MB |
+| Apache POI | 42 MB | 407 MB | 2046 MB | 4053 MB |
+| jackson-spreadsheet (POI User Model) | 45 MB | 435 MB | 2181 MB | 4384 MB |
 
-jackson allocates 12–22% less than FastExcel across all scales, 7× less than Apache POI. POI User Model retains the full workbook in memory; heap budget must scale with file size.
+jackson allocates 9–19% less than FastExcel across all scales, ~7× less than Apache POI. POI User Model retains the full workbook in memory; heap budget must scale with file size.
 
 ## Write
 
@@ -60,25 +60,25 @@ jackson allocates 12–22% less than FastExcel across all scales, 7× less than 
 
 | Library | 1K rows | 10K rows | 50K rows | 100K rows |
 |---------|---------|----------|----------|-----------|
-| jackson-spreadsheet | 5.53 ms | 37.38 ms | **167.72 ms** | **333.89 ms** |
-| FastExcel | **4.10 ms** | **31.29 ms** | 171.45 ms | 352.81 ms |
-| Apache Fesod | 10.51 ms | 81.57 ms | 388.84 ms | 783.00 ms |
-| Apache POI (SXSSF) | 8.36 ms | 66.41 ms | 328.76 ms | 644.25 ms |
-| jackson-spreadsheet (POI User Model) | 9.34 ms | 77.66 ms | 389.50 ms | 803.11 ms |
+| jackson-spreadsheet | 5.51 ms | 32.78 ms | **153.81 ms** | **304.15 ms** |
+| FastExcel | **3.86 ms** | **30.62 ms** | 166.49 ms | 339.68 ms |
+| Apache Fesod | 10.24 ms | 79.54 ms | 394.48 ms | 766.63 ms |
+| Apache POI (SXSSF) | 8.33 ms | 66.29 ms | 332.01 ms | 645.21 ms |
+| jackson-spreadsheet (POI User Model) | 8.66 ms | 72.03 ms | 372.57 ms | 771.10 ms |
 
-jackson overtakes FastExcel at 50K+ (2% at 50K, 5% at 100K). FastExcel leads smaller workloads by 19–35%.
+jackson overtakes FastExcel at 50K+ (8% at 50K, 10% at 100K). FastExcel leads smaller workloads by 7–30%.
 
 ### Allocation per op
 
 | Library | 1K rows | 10K rows | 50K rows | 100K rows |
 |---------|---------|----------|----------|-----------|
-| jackson-spreadsheet | **3.4 MB** | **23 MB** | **119 MB** | **237 MB** |
-| FastExcel | 3.5 MB | 31 MB | 157 MB | 313 MB |
+| jackson-spreadsheet | **3.3 MB** | **23 MB** | **112 MB** | **223 MB** |
+| FastExcel | 3.6 MB | 31 MB | 157 MB | 313 MB |
 | Apache Fesod | 12 MB | 106 MB | 524 MB | 1046 MB |
-| Apache POI (SXSSF) | 6.5 MB | 49 MB | 249 MB | 497 MB |
-| jackson-spreadsheet (POI User Model) | 7.1 MB | 55 MB | 272 MB | 543 MB |
+| Apache POI (SXSSF) | 6.5 MB | 48 MB | 249 MB | 496 MB |
+| jackson-spreadsheet (POI User Model) | 6.3 MB | 49 MB | 237 MB | 472 MB |
 
-jackson writes with 24–27% less allocation than FastExcel from 10K onward; Apache Fesod allocates 3–4× as much.
+jackson writes with 26–29% less allocation than FastExcel from 10K onward; Apache Fesod allocates 3.6–4.7× as much.
 
 ## Sustained Throughput
 
@@ -88,18 +88,18 @@ jackson writes with 24–27% less allocation than FastExcel from 10K onward; Apa
 
 | Library | ops/sec | gc.alloc.rate | gc.count | gc.time |
 |---------|---------|---------------|----------|---------|
-| jackson-spreadsheet | 35.04 | **1993 MB/sec** | **256** | **241 ms** |
-| FastExcel | **39.43** | 2706 MB/sec | 347 | 312 ms |
+| jackson-spreadsheet | 35.39 | **1996 MB/sec** | **256** | **242 ms** |
+| FastExcel | **37.10** | 2490 MB/sec | 319 | 268 ms |
 
 **Write:**
 
 | Library | ops/sec | gc.alloc.rate | gc.count | gc.time |
 |---------|---------|---------------|----------|---------|
-| jackson-spreadsheet | 30.18 | **749 MB/sec** | **173** | **84 ms** |
-| FastExcel | **35.18** | 1172 MB/sec | 269 | 223 ms |
+| jackson-spreadsheet | 34.05 | **862 MB/sec** | **199** | **99 ms** |
+| FastExcel | **34.55** | 1143 MB/sec | 212 | 179 ms |
 
-- Read: FastExcel is ~13% faster but allocates 36% more per second and triggers 36% more GC cycles.
-- Write: FastExcel is ~17% faster but allocates 56% more per second and triggers 56% more GC cycles with ~2.7× longer GC time.
+- Read: FastExcel is ~5% faster but allocates 25% more per second and triggers 25% more GC cycles.
+- Write: FastExcel is ~1.5% faster but allocates 33% more per second with ~1.8× longer GC time.
 
 ## SharedStrings
 
@@ -109,17 +109,17 @@ jackson writes with 24–27% less allocation than FastExcel from 10K onward; Apa
 
 | Strategy | 10K rows | 50K rows | 100K rows |
 |----------|----------|----------|-----------|
-| InMemory (default) | **14.46 ms** | **67.08 ms** | **125.56 ms** |
-| FileBacked (H2 MVStore) | 24.40 ms | 106.52 ms | 204.54 ms |
-| FileBacked + Encrypted | 29.93 ms | 129.02 ms | 241.48 ms |
+| InMemory (default) | **14.89 ms** | **65.31 ms** | **126.78 ms** |
+| FileBacked (H2 MVStore) | 26.57 ms | 106.53 ms | 204.89 ms |
+| FileBacked + Encrypted | 30.29 ms | 121.66 ms | 239.50 ms |
 
 **Write:**
 
 | Strategy | 10K rows | 50K rows | 100K rows |
 |----------|----------|----------|-----------|
-| InMemory (default) | **17.42 ms** | **75.31 ms** | **160.64 ms** |
-| FileBacked (H2 MVStore) | 42.01 ms | 200.35 ms | 362.73 ms |
-| FileBacked + Encrypted | 50.51 ms | 304.18 ms | 666.64 ms |
+| InMemory (default) | **18.26 ms** | **77.92 ms** | **156.40 ms** |
+| FileBacked (H2 MVStore) | 41.25 ms | 202.51 ms | 388.60 ms |
+| FileBacked + Encrypted | 47.55 ms | 288.00 ms | 633.41 ms |
 
 FileBacked trades throughput for **peak heap reduction** — InMemory OOMs when the SST exceeds available heap.
 
