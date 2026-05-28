@@ -465,4 +465,79 @@ class NestedListReadTest {
                 .containsExactly(null, null);
         assertThat(read.get(0).getTotal()).isNull();
     }
+
+    @DataGrid(mergeColumn = OptBoolean.TRUE)
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class GroupedOuter {
+        @DataColumn(anchor = true) int orderId;
+        @DataColumnGroup("Customer") CustomerInfo customer;
+        @DataColumnGroup("Items") List<LineItem> items;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class CustomerInfo {
+        @DataColumn("Name") String name;
+        @DataColumn("Region") String region;
+    }
+
+    @Test
+    void roundTrip_groupOnSingleNested_plus_groupOnList() throws Exception {
+        File file = tempDir.resolve("grouped-outer.xlsx").toFile();
+        SpreadsheetMapper m = new SpreadsheetMapper();
+        List<GroupedOuter> in = Arrays.asList(
+                new GroupedOuter(1, new CustomerInfo("Acme", "Seoul"),
+                        Arrays.asList(new LineItem("A", 3, 9), new LineItem("B", 5, 25))),
+                new GroupedOuter(2, new CustomerInfo("Globex", "Busan"),
+                        Arrays.asList(new LineItem("C", 7, 70))));
+        m.writeValue(file, in, GroupedOuter.class);
+
+        List<GroupedOuter> out = m.readValues(file, GroupedOuter.class);
+        assertThat(out).isEqualTo(in);
+    }
+
+    @com.fasterxml.jackson.annotation.JsonTypeInfo(
+            use = com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NAME,
+            include = com.fasterxml.jackson.annotation.JsonTypeInfo.As.PROPERTY,
+            property = "method")
+    @com.fasterxml.jackson.annotation.JsonSubTypes({
+            @com.fasterxml.jackson.annotation.JsonSubTypes.Type(value = CardPay.class, name = "card"),
+            @com.fasterxml.jackson.annotation.JsonSubTypes.Type(value = CashPay.class, name = "cash")
+    })
+    interface PaymentMethod {}
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class CardPay implements PaymentMethod {
+        @DataColumn("Last4") String last4;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class CashPay implements PaymentMethod {
+        @DataColumn("Tendered") int tendered;
+    }
+
+    @DataGrid(mergeColumn = OptBoolean.TRUE)
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class PolymorphicOrder {
+        @DataColumn(anchor = true) int orderId;
+        @DataColumnGroup("Customer") CustomerInfo customer;
+        PaymentMethod payment;
+        @DataColumnGroup("Items") List<LineItem> items;
+    }
+
+    @Test
+    void roundTrip_polymorphic_plus_groupOnSingleNested_plus_groupOnList() throws Exception {
+        File file = tempDir.resolve("polymorphic-grouped-outer.xlsx").toFile();
+        SpreadsheetMapper m = new SpreadsheetMapper();
+        List<PolymorphicOrder> in = Arrays.asList(
+                new PolymorphicOrder(1, new CustomerInfo("Acme", "Seoul"),
+                        new CardPay("4242"),
+                        Arrays.asList(new LineItem("A", 3, 9))),
+                new PolymorphicOrder(2, new CustomerInfo("Globex", "Busan"),
+                        new CashPay(50),
+                        Arrays.asList(new LineItem("B", 5, 25))));
+        m.writeValue(file, in, PolymorphicOrder.class);
+
+        List<PolymorphicOrder> out = m.readValues(file, PolymorphicOrder.class);
+        assertThat(out).isEqualTo(in);
+    }
 }

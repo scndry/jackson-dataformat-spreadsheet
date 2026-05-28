@@ -39,6 +39,7 @@ final class RecordTreeBuffer {
     private final Map<ColumnPointer, ColumnPointer> _parentArrayScopeOf;
     private final Map<Column, ColumnPointer> _immediateScopeByColumn;
     private final Map<Column, Integer> _columnPositionByColumn;
+    private final Map<Column, List<String>> _relativeSegmentsByColumn;
     private final long _bufferLimitBytes;
     private final boolean _blankRowAsNull;
     private final boolean _breakOnBlankRow;
@@ -64,6 +65,7 @@ final class RecordTreeBuffer {
         _parentArrayScopeOf = _computeParentScopeMap(schema);
         _immediateScopeByColumn = _computeImmediateScopeByColumn(schema);
         _columnPositionByColumn = _computeColumnPositionByColumn(schema);
+        _relativeSegmentsByColumn = _computeRelativeSegmentsByColumn(schema);
         _bufferLimitBytes = bufferLimitBytes;
         _blankRowAsNull = blankRowAsNull;
         _breakOnBlankRow = breakOnBlankRow;
@@ -86,6 +88,21 @@ final class RecordTreeBuffer {
         for (final Column c : schema) {
             if (c != null) result.put(c, i);
             i++;
+        }
+        return result;
+    }
+
+    private static Map<Column, List<String>> _computeRelativeSegmentsByColumn(
+            final SpreadsheetSchema schema) {
+        final Map<Column, List<String>> result = new HashMap<>();
+        for (final Column c : schema) {
+            if (c == null) continue;
+            final ColumnPointer scope = SchemaAnchorInspector.immediateScope(c.getPointer());
+            final List<String> segs = new ArrayList<>();
+            for (final ColumnPointer seg : scope.relativize(c.getPointer())) {
+                segs.add(seg.name());
+            }
+            result.put(c, java.util.Collections.unmodifiableList(segs));
         }
         return result;
     }
@@ -220,9 +237,24 @@ final class RecordTreeBuffer {
 
     private void _emitRecord(final RecordNode record, final Emitter out) {
         out.token(JsonToken.START_OBJECT);
+        final List<String> openPath = new ArrayList<>();
         for (final Cell c : record.outerCells) {
-            out.fieldName(c.column.getPointer().name());
+            final List<String> path = _relativeSegmentsByColumn.get(c.column);
+            final int common = _commonPrefixLength(openPath, path, path.size() - 1);
+            for (int i = openPath.size() - common; i > 0; i--) {
+                out.token(JsonToken.END_OBJECT);
+            }
+            for (int i = common; i < path.size() - 1; i++) {
+                out.fieldName(path.get(i));
+                out.token(JsonToken.START_OBJECT);
+            }
+            out.fieldName(path.get(path.size() - 1));
             out.scalar(c.value, _scalarToken(c.value));
+            openPath.clear();
+            openPath.addAll(path.subList(0, path.size() - 1));
+        }
+        for (int i = openPath.size(); i > 0; i--) {
+            out.token(JsonToken.END_OBJECT);
         }
         for (final Map.Entry<ColumnPointer, List<RecordNode>> e : record.childRecords.entrySet()) {
             out.fieldName(e.getKey().getParent().name());
@@ -233,6 +265,13 @@ final class RecordTreeBuffer {
             out.token(JsonToken.END_ARRAY);
         }
         out.token(JsonToken.END_OBJECT);
+    }
+
+    private static int _commonPrefixLength(final List<String> a, final List<String> b, final int bLimit) {
+        final int n = Math.min(a.size(), bLimit);
+        int i = 0;
+        while (i < n && a.get(i).equals(b.get(i))) i++;
+        return i;
     }
 
     private void _addSortedByColumn(final List<Cell> cells, final Cell c) {
