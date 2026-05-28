@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Test;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.NestedAnchorValidator;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SpreadsheetSchemaImpl;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,7 +36,7 @@ class NestedAnchorValidatorTest {
 
     @Test
     void valid_anchorAtListBearingScope_doesNotThrow() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(Valid.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(Valid.class);
         assertThatCode(() -> NestedAnchorValidator.validate(schema)).doesNotThrowAnyException();
     }
 
@@ -54,7 +54,7 @@ class NestedAnchorValidatorTest {
 
     @Test
     void missing_anchorAtNestedScope_throws() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(MissingAtNested.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(MissingAtNested.class);
         assertThatThrownBy(() -> NestedAnchorValidator.validate(schema))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Missing anchor")
@@ -75,7 +75,7 @@ class NestedAnchorValidatorTest {
 
     @Test
     void missing_anchorAtRootScope_throws() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(MissingAtRoot.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(MissingAtRoot.class);
         assertThatThrownBy(() -> NestedAnchorValidator.validate(schema))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Missing anchor")
@@ -90,7 +90,7 @@ class NestedAnchorValidatorTest {
 
     @Test
     void missing_noAnchorAnywhereWithNestedList_throws() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(MissingAll.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(MissingAll.class);
         assertThatThrownBy(() -> NestedAnchorValidator.validate(schema))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Missing anchor")
@@ -111,7 +111,7 @@ class NestedAnchorValidatorTest {
 
     @Test
     void extra_anchorAtInnermostScope_throws() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(ExtraAtInnermost.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(ExtraAtInnermost.class);
         assertThatThrownBy(() -> NestedAnchorValidator.validate(schema))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Extra anchor")
@@ -126,7 +126,7 @@ class NestedAnchorValidatorTest {
 
     @Test
     void extra_anchorOnFlatSchema_throws() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(ExtraOnFlat.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(ExtraOnFlat.class);
         assertThatThrownBy(() -> NestedAnchorValidator.validate(schema))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Extra anchor")
@@ -142,7 +142,7 @@ class NestedAnchorValidatorTest {
 
     @Test
     void duplicate_anchorAtSameScope_throws() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(DuplicateAtRoot.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(DuplicateAtRoot.class);
         assertThatThrownBy(() -> NestedAnchorValidator.validate(schema))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Multiple anchors")
@@ -150,7 +150,7 @@ class NestedAnchorValidatorTest {
                 .hasMessageContaining("name");
     }
 
-    private static SpreadsheetSchema _schemaFor(final Class<?> type) throws Exception {
-        return new SpreadsheetMapper().sheetSchemaFor(type);
+    private static SpreadsheetSchemaImpl _schemaFor(final Class<?> type) throws Exception {
+        return (SpreadsheetSchemaImpl) new SpreadsheetMapper().sheetSchemaFor(type);
     }
 }

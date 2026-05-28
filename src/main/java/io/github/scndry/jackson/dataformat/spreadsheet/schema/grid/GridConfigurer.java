@@ -13,8 +13,8 @@ import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.Incubating;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SpreadsheetSchemaImpl;
 
 /**
  * Configurer for sheet-level features: freeze pane, auto filter, and conditional formatting.
@@ -90,7 +90,7 @@ public final class GridConfigurer {
     }
 
     public void apply(final Sheet sheet, final Styles styles,
-            final SpreadsheetSchema schema, final int lastRow) {
+            final SpreadsheetSchemaImpl schema, final int lastRow) {
         _applyFreezePane(sheet);
         _applyAutoFilter(sheet, schema, lastRow);
         _applyConditionalFormattings(sheet, styles, schema, lastRow);
@@ -104,10 +104,10 @@ public final class GridConfigurer {
         }
     }
 
-    private void _applyAutoFilter(final Sheet sheet, final SpreadsheetSchema schema, final int lastRow) {
-        if (!_autoFilter || schema.columnCount() == 0) return;
+    private void _applyAutoFilter(final Sheet sheet, final SpreadsheetSchemaImpl schema, final int lastRow) {
+        if (!_autoFilter || schema.size() == 0) return;
         final int firstCol = schema.getOriginColumn();
-        final int lastCol = firstCol + schema.columnCount() - 1;
+        final int lastCol = firstCol + schema.size() - 1;
         final int firstRow = schema.getLeafHeaderRow();
         final int endRow = lastRow < 0
                 ? sheet.getWorkbook().getSpreadsheetVersion().getMaxRows() - 1
@@ -116,7 +116,7 @@ public final class GridConfigurer {
     }
 
     private void _applyConditionalFormattings(final Sheet sheet, final Styles styles,
-            final SpreadsheetSchema schema, final int lastRow) {
+            final SpreadsheetSchemaImpl schema, final int lastRow) {
         if (_columnRules.isEmpty()) return;
         final Workbook wb = sheet.getWorkbook();
         final int dataRow = schema.getDataRow();
@@ -125,7 +125,7 @@ public final class GridConfigurer {
         final SheetConditionalFormatting scf = sheet.getSheetConditionalFormatting();
 
         for (final ColumnRule cr : _columnRules) {
-            final int colIndex = schema.columnIndexByName(cr.column);
+            final int colIndex = schema.columnIndex(cr.column);
             if (colIndex < 0) {
                 throw new IllegalArgumentException("Column '" + cr.column
                         + "' not found in schema. Available columns: " + schema.columnNames());
@@ -139,7 +139,7 @@ public final class GridConfigurer {
     private static ConditionalFormattingRule _createPoiRule(
             final SheetConditionalFormatting scf,
             final ConditionalFormatRule rule,
-            final SpreadsheetSchema schema,
+            final SpreadsheetSchemaImpl schema,
             final Workbook wb,
             final Styles styles) {
         if (rule instanceof CellIsRule) {
@@ -198,14 +198,14 @@ public final class GridConfigurer {
         ((ExtendedColor) colors[2]).setARGBHex("FF63BE7B");
     }
 
-    private static String _resolveOperand(final Object operand, final SpreadsheetSchema schema) {
+    private static String _resolveOperand(final Object operand, final SpreadsheetSchemaImpl schema) {
         if (operand instanceof Formula) {
             final Formula f = (Formula) operand;
             switch (f.kind()) {
                 case OF:
                     return f.value();
                 case COLUMN:
-                    final int col = schema.columnIndexByName(f.value());
+                    final int col = schema.columnIndex(f.value());
                     if (col < 0) {
                         throw new IllegalArgumentException("Formula column '" + f.value()
                                 + "' not found in schema. Available columns: " + schema.columnNames());

@@ -29,10 +29,10 @@ import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.HeaderLayoutVisitor;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.HeaderComments;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SpreadsheetSchemaImpl;
 import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetWriter;
 
 /**
@@ -61,7 +61,7 @@ public final class SSMLSheetWriter implements SheetWriter {
     private final ZipOutputStream _zip;
     private final StringBuilder _sb = new StringBuilder(BUFFER_SIZE);
 
-    private SpreadsheetSchema _schema;
+    private SpreadsheetSchemaImpl _schema;
     private CellAddress _reference;
     private SheetDataBuffer _data;
     private int _arrayScopeDepth;
@@ -108,9 +108,9 @@ public final class SSMLSheetWriter implements SheetWriter {
     }
 
     @Override
-    public void setSchema(final SpreadsheetSchema schema) {
+    public void setSchema(final SpreadsheetSchemaImpl schema) {
         _schema = schema;
-        _data = new SheetDataBuffer(schema.getOriginColumn() + schema.columnCount());
+        _data = new SheetDataBuffer(schema.getOriginColumn() + schema.size());
         try {
             _wb = _sheet.getWorkbook();
             _styles = _schema.buildStyles(_wb);

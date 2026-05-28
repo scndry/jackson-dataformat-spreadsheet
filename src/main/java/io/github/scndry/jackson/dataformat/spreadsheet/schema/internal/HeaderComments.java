@@ -24,7 +24,7 @@ public final class HeaderComments {
 
     private HeaderComments() {}
 
-    public static void apply(final Sheet sheet, final SpreadsheetSchema schema) {
+    public static void apply(final Sheet sheet, final SpreadsheetSchemaImpl schema) {
         if (!schema.usesHeader()) return;
         final CreationHelper factory = sheet.getWorkbook().getCreationHelper();
         schema.forEachHeaderCell(new HeaderLayoutVisitor() {

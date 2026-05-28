@@ -24,6 +24,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.generator.FormatVi
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.grid.GridConfigurer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SchemaShiftValidator;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SpreadsheetSchemaImpl;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder;
 
 @Slf4j
@@ -94,7 +95,7 @@ public final class SchemaGenerator {
             throw _invalidSchemaDefinition(type,
                     "has no visible properties — check field visibility or add getters");
         }
-        final SpreadsheetSchema schema = new SpreadsheetSchema(
+        final SpreadsheetSchemaImpl schema = new SpreadsheetSchemaImpl(
                 columns,
                 _generatorSettings._origin,
                 _generatorSettings._features,

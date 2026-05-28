@@ -9,7 +9,6 @@ import java.util.Set;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 
 /**
  * Read-time validation for the depth-aware nested-list contract:
@@ -29,7 +28,7 @@ public final class NestedAnchorValidator {
     /** Throws {@link IllegalStateException} when the schema violates the
      *  anchor invariant — exactly one anchor per nested-list-bearing
      *  record level, no anchors elsewhere. */
-    public static void validate(final SpreadsheetSchema schema) {
+    public static void validate(final SpreadsheetSchemaImpl schema) {
         final Set<ColumnPointer> expected = _listBearingScopes(schema);
         final Map<ColumnPointer, List<Column>> anchorsByScope = _anchorsByScope(schema);
 
@@ -47,7 +46,7 @@ public final class NestedAnchorValidator {
         throw new IllegalStateException(_buildMessage(missing, extra, duplicate));
     }
 
-    private static Set<ColumnPointer> _listBearingScopes(final SpreadsheetSchema schema) {
+    private static Set<ColumnPointer> _listBearingScopes(final SpreadsheetSchemaImpl schema) {
         final Set<ColumnPointer> scopes = new LinkedHashSet<>();
         for (final Column c : schema) {
             if (c == null) continue;
@@ -64,7 +63,7 @@ public final class NestedAnchorValidator {
         return scopes;
     }
 
-    private static Map<ColumnPointer, List<Column>> _anchorsByScope(final SpreadsheetSchema schema) {
+    private static Map<ColumnPointer, List<Column>> _anchorsByScope(final SpreadsheetSchemaImpl schema) {
         final Map<ColumnPointer, List<Column>> result = new LinkedHashMap<>();
         for (final Column c : schema) {
             if (c == null || !c.isAnchor()) continue;

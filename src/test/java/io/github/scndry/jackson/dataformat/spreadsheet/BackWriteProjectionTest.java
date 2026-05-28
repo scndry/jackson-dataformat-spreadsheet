@@ -17,8 +17,8 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SpreadsheetSchemaImpl;
 
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection.CELL_MEMORY_BYTES;
 import static io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection.ROW_MEMORY_BYTES;
@@ -53,7 +53,7 @@ class BackWriteProjectionTest {
 
     @Test
     void project_oneRow_equalsInnerRowMaxBytes() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(Outer.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(Outer.class);
         final ColumnPointer arrayPointer = _findInnerArrayPointer(schema);
 
         // Inner has 1 column → cellMemory 20 + rowMemory 8 = 28 bytes.
@@ -63,7 +63,7 @@ class BackWriteProjectionTest {
 
     @Test
     void project_scalesLinearlyWithListSize() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(Outer.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(Outer.class);
         final ColumnPointer arrayPointer = _findInnerArrayPointer(schema);
 
         final long perRow = BackWriteProjection.project(schema, arrayPointer, 1);
@@ -75,7 +75,7 @@ class BackWriteProjectionTest {
 
     @Test
     void project_zeroOrNegativeSize_returnsZero() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(Outer.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(Outer.class);
         final ColumnPointer arrayPointer = _findInnerArrayPointer(schema);
 
         assertThat(BackWriteProjection.project(schema, arrayPointer, 0)).isZero();
@@ -108,7 +108,7 @@ class BackWriteProjectionTest {
 
     @Test
     void requiresBackWriteScope_outerAfterListReturnsTrue() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(Outer.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(Outer.class);
         assertThat(BackWriteProjection.requiresBackWriteScope(schema)).isTrue();
     }
 
@@ -121,7 +121,7 @@ class BackWriteProjectionTest {
 
     @Test
     void requiresBackWriteScope_outerFirstReturnsFalse() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(OuterFirst.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(OuterFirst.class);
         assertThat(BackWriteProjection.requiresBackWriteScope(schema)).isFalse();
     }
 
@@ -143,7 +143,7 @@ class BackWriteProjectionTest {
 
     @Test
     void requiresBackWriteScope_nestedScopeOuterAfterListReturnsTrue() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(NestedOuterAfterList.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(NestedOuterAfterList.class);
         assertThat(BackWriteProjection.requiresBackWriteScope(schema)).isTrue();
     }
 
@@ -164,7 +164,7 @@ class BackWriteProjectionTest {
 
     @Test
     void requiresBackWriteScope_nestedScopeOuterFirstReturnsFalse() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(NestedOuterFirst.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(NestedOuterFirst.class);
         assertThat(BackWriteProjection.requiresBackWriteScope(schema)).isFalse();
     }
 
@@ -184,7 +184,7 @@ class BackWriteProjectionTest {
 
     @Test
     void requiresBackWriteScope_rootMultiSiblingReturnsTrue() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(RootSiblingLists.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(RootSiblingLists.class);
         assertThat(BackWriteProjection.requiresBackWriteScope(schema)).isTrue();
     }
 
@@ -206,7 +206,7 @@ class BackWriteProjectionTest {
 
     @Test
     void requiresBackWriteScope_nestedScopeMultiSiblingReturnsTrue() throws Exception {
-        final SpreadsheetSchema schema = _schemaFor(NestedMultiSiblingTop.class);
+        final SpreadsheetSchemaImpl schema = _schemaFor(NestedMultiSiblingTop.class);
         assertThat(BackWriteProjection.requiresBackWriteScope(schema)).isTrue();
     }
 
@@ -223,7 +223,7 @@ class BackWriteProjectionTest {
         // verify the message contract — operator size, the projected and
         // limit byte figures, and the three mitigation options.
         final SpreadsheetMapper mapper = new SpreadsheetMapper();
-        final SpreadsheetSchema schema = mapper.sheetSchemaFor(Outer.class);
+        final SpreadsheetSchemaImpl schema = (SpreadsheetSchemaImpl) mapper.sheetSchemaFor(Outer.class);
         final ColumnPointer arrayPointer = _findInnerArrayPointer(schema);
         final long perRow = BackWriteProjection.project(schema, arrayPointer, 1);
         final long limit = BackWriteProjection.backWriteBufferLimit();
@@ -249,14 +249,14 @@ class BackWriteProjectionTest {
     // Helpers
     // ----------------------------------------------------------------
 
-    private static SpreadsheetSchema _schemaFor(final Class<?> type) throws Exception {
-        return new SpreadsheetMapper().sheetSchemaFor(type);
+    private static SpreadsheetSchemaImpl _schemaFor(final Class<?> type) throws Exception {
+        return (SpreadsheetSchemaImpl) new SpreadsheetMapper().sheetSchemaFor(type);
     }
 
     /** Finds the array pointer ({@code items/[]}) for an inner column —
      *  the same pointer the writer hands to {@code project()} at
      *  {@code writeStartArray}. */
-    private static ColumnPointer _findInnerArrayPointer(final SpreadsheetSchema schema) {
+    private static ColumnPointer _findInnerArrayPointer(final SpreadsheetSchemaImpl schema) {
         for (final Column c : schema) {
             if (c == null) continue;
             final ColumnPointer p = c.getPointer();

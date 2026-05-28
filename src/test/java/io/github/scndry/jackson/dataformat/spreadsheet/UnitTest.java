@@ -2,6 +2,7 @@ package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SpreadsheetSchemaImpl;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -42,7 +43,7 @@ class UnitTest {
 
         @Test
         void dataRowWithHeader() throws Exception {
-            SpreadsheetSchema schema = mapper.sheetSchemaFor(Simple.class);
+            SpreadsheetSchemaImpl schema = (SpreadsheetSchemaImpl) mapper.sheetSchemaFor(Simple.class);
             assertThat(schema.usesHeader()).isTrue();
             assertThat(schema.getDataRow()).isEqualTo(1);
         }
@@ -50,7 +51,7 @@ class UnitTest {
         @Test
         void dataRowWithoutHeader() throws Exception {
             SpreadsheetMapper noHeader = mapper.rebuild().useHeader(false).build();
-            SpreadsheetSchema schema = noHeader.sheetSchemaFor(Simple.class);
+            SpreadsheetSchemaImpl schema = (SpreadsheetSchemaImpl) noHeader.sheetSchemaFor(Simple.class);
             assertThat(schema.usesHeader()).isFalse();
             assertThat(schema.getDataRow()).isEqualTo(0);
         }

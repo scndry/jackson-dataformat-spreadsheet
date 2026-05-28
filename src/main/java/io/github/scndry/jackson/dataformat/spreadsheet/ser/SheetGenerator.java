@@ -16,6 +16,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamWriteException
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SpreadsheetSchemaImpl;
 
 /**
  * {@link com.fasterxml.jackson.core.JsonGenerator} implementation
@@ -40,7 +41,7 @@ public final class SheetGenerator extends GeneratorBase {
 
     private final IOContext _ioContext;
     private final SheetWriter _writer;
-    private SpreadsheetSchema _schema;
+    private SpreadsheetSchemaImpl _schema;
     private SheetStreamContext _outputContext;
 
     public SheetGenerator(
@@ -71,7 +72,7 @@ public final class SheetGenerator extends GeneratorBase {
     @Override
     public void setSchema(final FormatSchema schema) {
         if (_schema != null) return;
-        _schema = (SpreadsheetSchema) schema;
+        _schema = (SpreadsheetSchemaImpl) schema;
         _writer.setSchema(_schema);
         if (_schema.usesHeader()) {
             _writer.writeHeaders();

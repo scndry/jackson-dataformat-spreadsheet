@@ -30,6 +30,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.NestedAnchorValidator;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SchemaAnchorInspector;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SpreadsheetSchemaImpl;
 
 /**
  * {@link com.fasterxml.jackson.core.JsonParser} implementation
@@ -53,7 +54,7 @@ public final class SheetParser extends ParserMinimalBase {
     private boolean _closed;
     private boolean _ended;
     private ObjectCodec _objectCodec;
-    private SpreadsheetSchema _schema;
+    private SpreadsheetSchemaImpl _schema;
     private SheetStreamContext _parsingContext;
     private RecordTreeBuffer _recordBuffer;
     private RecordTreeBuffer.Emitter _recordEmitter;
@@ -97,7 +98,7 @@ public final class SheetParser extends ParserMinimalBase {
 
     @Override
     public void setSchema(final FormatSchema schema) {
-        _schema = (SpreadsheetSchema) schema;
+        _schema = (SpreadsheetSchemaImpl) schema;
         if (_schema.getHeaderRowCount() > 1 && _schema.reordersColumns()) {
             throw new IllegalStateException(
                     "Column reordering is not supported with multi-row headers"
@@ -169,7 +170,7 @@ public final class SheetParser extends ParserMinimalBase {
                 if (_recordBuffer != null) {
                     _parsingContext.setCurrentName(_nextNames.removeFirst());
                 } else {
-                    final Column column = _schema.getColumn(_referenceColumn);
+                    final Column column = _schema.column(_referenceColumn);
                     final ColumnPointer pointer = _parsingContext.relativePointer(column.getPointer());
                     _parsingContext.setCurrentName(pointer.head().name());
                 }

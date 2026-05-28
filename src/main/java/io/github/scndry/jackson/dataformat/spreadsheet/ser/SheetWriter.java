@@ -7,6 +7,7 @@ import org.apache.poi.ss.util.CellAddress;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SpreadsheetSchemaImpl;
 
 /**
  * Low-level interface for writing values into spreadsheet cells.
@@ -20,7 +21,7 @@ public interface SheetWriter extends AutoCloseable {
 
     SpreadsheetVersion getSpreadsheetVersion();
 
-    void setSchema(SpreadsheetSchema schema);
+    void setSchema(SpreadsheetSchemaImpl schema);
 
     void setReference(CellAddress reference);
 
