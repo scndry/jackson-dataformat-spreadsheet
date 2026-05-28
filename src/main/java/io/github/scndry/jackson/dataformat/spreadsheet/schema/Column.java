@@ -20,7 +20,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumnGrou
  * @see SpreadsheetSchema
  * @see ColumnPointer
  */
-@EqualsAndHashCode
+@EqualsAndHashCode(cacheStrategy = EqualsAndHashCode.CacheStrategy.LAZY)
 public final class Column {
 
     private static final String[] NO_ALIASES = new String[0];
