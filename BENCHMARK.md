@@ -60,23 +60,23 @@ jackson allocates 9–19% less than FastExcel across all scales, ~7× less than 
 
 | Library | 1K rows | 10K rows | 50K rows | 100K rows |
 |---------|---------|----------|----------|-----------|
-| jackson-spreadsheet | 5.48 ms | 33.27 ms | **153.62 ms** | **303.45 ms** |
-| FastExcel | **3.92 ms** | **31.00 ms** | 166.76 ms | 349.70 ms |
-| Apache Fesod | 10.15 ms | 80.78 ms | 394.27 ms | 781.53 ms |
-| Apache POI (SXSSF) | 8.26 ms | 66.12 ms | 323.79 ms | 655.88 ms |
-| jackson-spreadsheet (POI User Model) | 9.45 ms | 79.36 ms | 399.27 ms | 799.91 ms |
+| jackson-spreadsheet | 5.51 ms | 32.78 ms | **153.81 ms** | **304.15 ms** |
+| FastExcel | **3.86 ms** | **30.62 ms** | 166.49 ms | 339.68 ms |
+| Apache Fesod | 10.24 ms | 79.54 ms | 394.48 ms | 766.63 ms |
+| Apache POI (SXSSF) | 8.33 ms | 66.29 ms | 332.01 ms | 645.21 ms |
+| jackson-spreadsheet (POI User Model) | 8.66 ms | 72.03 ms | 372.57 ms | 771.10 ms |
 
-jackson overtakes FastExcel at 50K+ (8% at 50K, 13% at 100K). FastExcel leads smaller workloads by 7–28%.
+jackson overtakes FastExcel at 50K+ (8% at 50K, 10% at 100K). FastExcel leads smaller workloads by 7–30%.
 
 ### Allocation per op
 
 | Library | 1K rows | 10K rows | 50K rows | 100K rows |
 |---------|---------|----------|----------|-----------|
-| jackson-spreadsheet | **3.3 MB** | **23 MB** | **112 MB** | **224 MB** |
+| jackson-spreadsheet | **3.3 MB** | **23 MB** | **112 MB** | **223 MB** |
 | FastExcel | 3.6 MB | 31 MB | 157 MB | 313 MB |
-| Apache Fesod | 12 MB | 106 MB | 524 MB | 1049 MB |
-| Apache POI (SXSSF) | 6.5 MB | 49 MB | 249 MB | 496 MB |
-| jackson-spreadsheet (POI User Model) | 7.1 MB | 57 MB | 275 MB | 551 MB |
+| Apache Fesod | 12 MB | 106 MB | 524 MB | 1046 MB |
+| Apache POI (SXSSF) | 6.5 MB | 48 MB | 249 MB | 496 MB |
+| jackson-spreadsheet (POI User Model) | 6.3 MB | 49 MB | 237 MB | 472 MB |
 
 jackson writes with 26–29% less allocation than FastExcel from 10K onward; Apache Fesod allocates 3.6–4.7× as much.
 
