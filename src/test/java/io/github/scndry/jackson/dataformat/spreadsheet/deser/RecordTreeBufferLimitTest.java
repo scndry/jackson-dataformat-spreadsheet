@@ -14,7 +14,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.SpreadsheetMapper;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataColumn;
 import io.github.scndry.jackson.dataformat.spreadsheet.annotation.DataGrid;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SpreadsheetSchemaImpl;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -56,7 +56,7 @@ class RecordTreeBufferLimitTest {
 
     private static ThrowingRunnable _runNRows(final long bufferLimitBytes, final int innerRows)
             throws Exception {
-        final SpreadsheetSchema schema = new SpreadsheetMapper().sheetSchemaFor(Outer.class);
+        final SpreadsheetSchemaImpl schema = (SpreadsheetSchemaImpl) new SpreadsheetMapper().sheetSchemaFor(Outer.class);
         final Column idCol = _findColumn(schema, "id");
         final Column xCol = _findColumn(schema, "x");
         final Column yCol = _findColumn(schema, "y");
@@ -82,7 +82,7 @@ class RecordTreeBufferLimitTest {
         };
     }
 
-    private static Column _findColumn(final SpreadsheetSchema schema, final String name) {
+    private static Column _findColumn(final SpreadsheetSchemaImpl schema, final String name) {
         for (final Column c : schema) {
             if (c != null && name.equals(c.getName())) return c;
         }

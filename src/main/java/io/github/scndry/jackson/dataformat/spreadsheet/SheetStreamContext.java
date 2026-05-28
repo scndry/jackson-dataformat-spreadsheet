@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonStreamContext;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SpreadsheetSchemaImpl;
 
 /**
  * {@link JsonStreamContext} extension that tracks the current
@@ -18,15 +19,15 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
 public abstract class SheetStreamContext extends JsonStreamContext {
 
     protected static final int INITIAL_INDEX = -1;
-    protected final SpreadsheetSchema _schema;
+    protected final SpreadsheetSchemaImpl _schema;
     protected int _size;
 
-    protected SheetStreamContext(final int type, final SpreadsheetSchema schema) {
+    protected SheetStreamContext(final int type, final SpreadsheetSchemaImpl schema) {
         super(type, INITIAL_INDEX);
         _schema = schema;
     }
 
-    public static SheetStreamContext createRootContext(final SpreadsheetSchema schema) {
+    public static SheetStreamContext createRootContext(final SpreadsheetSchemaImpl schema) {
         return new RootContext(schema);
     }
 
@@ -105,7 +106,7 @@ public abstract class SheetStreamContext extends JsonStreamContext {
 
         private int _step = DEFAULT_STEP;
 
-        RootContext(final SpreadsheetSchema schema) {
+        RootContext(final SpreadsheetSchemaImpl schema) {
             super(TYPE_ROOT, schema);
         }
 

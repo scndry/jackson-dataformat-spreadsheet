@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.OptBoolean;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SpreadsheetSchemaImpl;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -23,7 +24,7 @@ class AnnotationValueTest {
             @DataColumn(value = "Qty", width = 20) public int qty;
         }
 
-        SpreadsheetSchema schema = mapper.sheetSchemaFor(Row.class);
+        SpreadsheetSchemaImpl schema = (SpreadsheetSchemaImpl) mapper.sheetSchemaFor(Row.class);
         List<Column> columns = schema.getColumns(ColumnPointer.empty());
         assertThat(columns).hasSize(2);
         assertThat(columns.get(0).getName()).isEqualTo("Name");
@@ -38,7 +39,7 @@ class AnnotationValueTest {
             @DataColumn("B") public int b;
         }
 
-        SpreadsheetSchema schema = mapper.sheetSchemaFor(Row.class);
+        SpreadsheetSchemaImpl schema = (SpreadsheetSchemaImpl) mapper.sheetSchemaFor(Row.class);
         for (Column col : schema.getColumns(ColumnPointer.empty())) {
             assertThat(col.isMerge()).isTrue();
         }
@@ -52,7 +53,7 @@ class AnnotationValueTest {
             @DataColumn("B") public int b;
         }
 
-        SpreadsheetSchema schema = mapper.sheetSchemaFor(Row.class);
+        SpreadsheetSchemaImpl schema = (SpreadsheetSchemaImpl) mapper.sheetSchemaFor(Row.class);
         assertThat(schema.getColumns(ColumnPointer.empty()).get(0).isMerge()).isFalse();
         assertThat(schema.getColumns(ColumnPointer.empty()).get(1).isMerge()).isTrue();
     }
@@ -65,7 +66,7 @@ class AnnotationValueTest {
             @DataColumn("B") public int b;
         }
 
-        SpreadsheetSchema schema = mapper.sheetSchemaFor(Row.class);
+        SpreadsheetSchemaImpl schema = (SpreadsheetSchemaImpl) mapper.sheetSchemaFor(Row.class);
         assertThat(schema.getColumns(ColumnPointer.empty()).get(0).getValue().isAutoSize()).isFalse();
         assertThat(schema.getColumns(ColumnPointer.empty()).get(1).getValue().isAutoSize()).isTrue();
     }

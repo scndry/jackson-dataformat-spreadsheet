@@ -16,7 +16,7 @@ import com.fasterxml.jackson.core.JsonToken;
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetStreamReadException;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.Column;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.ColumnPointer;
-import io.github.scndry.jackson.dataformat.spreadsheet.schema.SpreadsheetSchema;
+import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SpreadsheetSchemaImpl;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.BackWriteProjection;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SchemaAnchorInspector;
 
@@ -33,7 +33,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SchemaAnc
  */
 final class RecordTreeBuffer {
 
-    private final SpreadsheetSchema _schema;
+    private final SpreadsheetSchemaImpl _schema;
     private final List<ColumnPointer> _anchorScopesByDepth;
     private final Set<ColumnPointer> _leafArrayScopes;
     private final Map<ColumnPointer, ColumnPointer> _parentArrayScopeOf;
@@ -49,15 +49,15 @@ final class RecordTreeBuffer {
     private final Map<ColumnPointer, Object> _lastAnchorByScope = new HashMap<>();
     private long _bufferedCells;
 
-    RecordTreeBuffer(final SpreadsheetSchema schema) {
+    RecordTreeBuffer(final SpreadsheetSchemaImpl schema) {
         this(schema, BackWriteProjection.backWriteBufferLimit(), true, false);
     }
 
-    RecordTreeBuffer(final SpreadsheetSchema schema, final long bufferLimitBytes) {
+    RecordTreeBuffer(final SpreadsheetSchemaImpl schema, final long bufferLimitBytes) {
         this(schema, bufferLimitBytes, true, false);
     }
 
-    RecordTreeBuffer(final SpreadsheetSchema schema, final long bufferLimitBytes,
+    RecordTreeBuffer(final SpreadsheetSchemaImpl schema, final long bufferLimitBytes,
                   final boolean blankRowAsNull, final boolean breakOnBlankRow) {
         _schema = schema;
         _anchorScopesByDepth = _collectAnchorScopes(schema);
@@ -72,7 +72,7 @@ final class RecordTreeBuffer {
     }
 
     private static Map<Column, ColumnPointer> _computeImmediateScopeByColumn(
-            final SpreadsheetSchema schema) {
+            final SpreadsheetSchemaImpl schema) {
         final Map<Column, ColumnPointer> result = new HashMap<>();
         for (final Column c : schema) {
             if (c == null) continue;
@@ -82,7 +82,7 @@ final class RecordTreeBuffer {
     }
 
     private static Map<Column, Integer> _computeColumnPositionByColumn(
-            final SpreadsheetSchema schema) {
+            final SpreadsheetSchemaImpl schema) {
         final Map<Column, Integer> result = new HashMap<>();
         int i = 0;
         for (final Column c : schema) {
@@ -93,7 +93,7 @@ final class RecordTreeBuffer {
     }
 
     private static Map<Column, List<String>> _computeRelativeSegmentsByColumn(
-            final SpreadsheetSchema schema) {
+            final SpreadsheetSchemaImpl schema) {
         final Map<Column, List<String>> result = new HashMap<>();
         for (final Column c : schema) {
             if (c == null) continue;
@@ -291,7 +291,7 @@ final class RecordTreeBuffer {
         return null;
     }
 
-    private static List<ColumnPointer> _collectAnchorScopes(final SpreadsheetSchema schema) {
+    private static List<ColumnPointer> _collectAnchorScopes(final SpreadsheetSchemaImpl schema) {
         final List<ColumnPointer> scopes = new ArrayList<>();
         if (SchemaAnchorInspector.findAnchorColumn(schema, ColumnPointer.empty()) != null) {
             scopes.add(ColumnPointer.empty());
@@ -305,7 +305,7 @@ final class RecordTreeBuffer {
         return scopes;
     }
 
-    private static Set<ColumnPointer> _findLeafArrayScopes(final SpreadsheetSchema schema) {
+    private static Set<ColumnPointer> _findLeafArrayScopes(final SpreadsheetSchemaImpl schema) {
         final Set<ColumnPointer> all = SchemaAnchorInspector.allArrayScopes(schema);
         final Set<ColumnPointer> leafs = new LinkedHashSet<>();
         for (final ColumnPointer scope : all) {
@@ -319,7 +319,7 @@ final class RecordTreeBuffer {
     }
 
     private static Map<ColumnPointer, ColumnPointer> _computeParentScopeMap(
-            final SpreadsheetSchema schema) {
+            final SpreadsheetSchemaImpl schema) {
         final Map<ColumnPointer, ColumnPointer> result = new HashMap<>();
         for (final ColumnPointer scope : SchemaAnchorInspector.allArrayScopes(schema)) {
             result.put(scope, _parentArrayScopeOf(scope));
