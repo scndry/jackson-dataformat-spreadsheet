@@ -465,4 +465,33 @@ class NestedListReadTest {
                 .containsExactly(null, null);
         assertThat(read.get(0).getTotal()).isNull();
     }
+
+    @DataGrid(mergeColumn = OptBoolean.TRUE)
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class GroupedOuter {
+        @DataColumn(anchor = true) int orderId;
+        @DataColumnGroup("Customer") CustomerInfo customer;
+        @DataColumnGroup("Items") List<LineItem> items;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class CustomerInfo {
+        @DataColumn("Name") String name;
+        @DataColumn("Region") String region;
+    }
+
+    @Test
+    void roundTrip_groupOnSingleNested_plus_groupOnList() throws Exception {
+        File file = tempDir.resolve("grouped-outer.xlsx").toFile();
+        SpreadsheetMapper m = new SpreadsheetMapper();
+        List<GroupedOuter> in = Arrays.asList(
+                new GroupedOuter(1, new CustomerInfo("Acme", "Seoul"),
+                        Arrays.asList(new LineItem("A", 3, 9), new LineItem("B", 5, 25))),
+                new GroupedOuter(2, new CustomerInfo("Globex", "Busan"),
+                        Arrays.asList(new LineItem("C", 7, 70))));
+        m.writeValue(file, in, GroupedOuter.class);
+
+        List<GroupedOuter> out = m.readValues(file, GroupedOuter.class);
+        assertThat(out).isEqualTo(in);
+    }
 }

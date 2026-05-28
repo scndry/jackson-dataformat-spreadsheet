@@ -220,9 +220,24 @@ final class RecordTreeBuffer {
 
     private void _emitRecord(final RecordNode record, final Emitter out) {
         out.token(JsonToken.START_OBJECT);
+        final List<String> openPath = new ArrayList<>();
         for (final Cell c : record.outerCells) {
-            out.fieldName(c.column.getPointer().name());
+            final List<String> path = _relativeSegments(record.scope, c.column.getPointer());
+            final int common = _commonPrefixLength(openPath, path, path.size() - 1);
+            for (int i = openPath.size() - common; i > 0; i--) {
+                out.token(JsonToken.END_OBJECT);
+            }
+            for (int i = common; i < path.size() - 1; i++) {
+                out.fieldName(path.get(i));
+                out.token(JsonToken.START_OBJECT);
+            }
+            out.fieldName(path.get(path.size() - 1));
             out.scalar(c.value, _scalarToken(c.value));
+            openPath.clear();
+            openPath.addAll(path.subList(0, path.size() - 1));
+        }
+        for (int i = openPath.size(); i > 0; i--) {
+            out.token(JsonToken.END_OBJECT);
         }
         for (final Map.Entry<ColumnPointer, List<RecordNode>> e : record.childRecords.entrySet()) {
             out.fieldName(e.getKey().getParent().name());
@@ -233,6 +248,21 @@ final class RecordTreeBuffer {
             out.token(JsonToken.END_ARRAY);
         }
         out.token(JsonToken.END_OBJECT);
+    }
+
+    private static List<String> _relativeSegments(final ColumnPointer scope, final ColumnPointer pointer) {
+        final List<String> result = new ArrayList<>();
+        for (final ColumnPointer seg : scope.relativize(pointer)) {
+            result.add(seg.name());
+        }
+        return result;
+    }
+
+    private static int _commonPrefixLength(final List<String> a, final List<String> b, final int bLimit) {
+        final int n = Math.min(a.size(), bLimit);
+        int i = 0;
+        while (i < n && a.get(i).equals(b.get(i))) i++;
+        return i;
     }
 
     private void _addSortedByColumn(final List<Cell> cells, final Cell c) {
