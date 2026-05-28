@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -57,6 +58,7 @@ public final class POISheetWriter implements SheetWriter {
     private final Map<Integer, Double> _columnMaxWidth = new HashMap<>();
     private DataFormatter _dataFormatter;
     private int _defaultCharWidth;
+    private CellStyle _defaultCellStyle;
 
     public POISheetWriter(final Sheet sheet) {
         this(sheet, null);
@@ -79,6 +81,10 @@ public final class POISheetWriter implements SheetWriter {
         HeaderComments.apply(_sheet, _schema);
         _dataFormatter = new DataFormatter();
         _defaultCharWidth = SheetUtil.getDefaultCharWidth(_sheet.getWorkbook());
+        // Pin a base CellStyle on every cell to skip POI's per-cell column-default
+        // style lookup at flush time (ColumnHelper.getColumn1Based, ~91% of CPU
+        // in the SXSSF write hot path).
+        _defaultCellStyle = _sheet.getWorkbook().getCellStyleAt(0);
     }
 
     @Override
@@ -152,8 +158,13 @@ public final class POISheetWriter implements SheetWriter {
     private <T> void _write(final T value, final BiConsumer<Cell, T> consumer) {
         final int row = _reference.getRow();
         final Cell cell;
+        final boolean newlyCreated;
         try {
-            cell = CellUtil.getCell(CellUtil.getRow(row, _sheet), _reference.getColumn());
+            final Row poiRow = CellUtil.getRow(row, _sheet);
+            final int colIndex = _reference.getColumn();
+            Cell existing = poiRow.getCell(colIndex);
+            newlyCreated = (existing == null);
+            cell = newlyCreated ? poiRow.createCell(colIndex) : existing;
         } catch (IllegalArgumentException e) {
             if (_sheet instanceof SXSSFSheet) {
                 final int window = ((SXSSFWorkbook) _sheet.getWorkbook())
@@ -169,17 +180,20 @@ public final class POISheetWriter implements SheetWriter {
         }
         consumer.accept(cell, value);
         final Column column = _schema.findColumn(_reference);
+        CellStyle style = null;
         if (column != null) {
             final String name = _schema.getDataRow() > row
                     ? column.getValue().getHeaderStyle()
                     : column.getValue().getStyle();
-            final CellStyle style = _styles.resolve(name, column.getType().getRawClass());
-            if (style != null) {
-                cell.setCellStyle(style);
-            }
+            style = _styles.resolve(name, column.getType().getRawClass());
             if (column.getValue().isAutoSize() && _shouldMeasureAutoSize(row)) {
                 _accumulateAutoSizeWidth(_reference.getColumn(), cell);
             }
+        }
+        if (style != null) {
+            cell.setCellStyle(style);
+        } else if (newlyCreated) {
+            cell.setCellStyle(_defaultCellStyle);
         }
         _lastRow = Math.max(_lastRow, row);
         if (log.isTraceEnabled()) {
