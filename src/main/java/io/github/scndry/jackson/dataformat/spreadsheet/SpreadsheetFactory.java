@@ -521,7 +521,7 @@ public final class SpreadsheetFactory extends JsonFactory {
         final EncryptedTempData tempData = new EncryptedTempData();
         final String password = out.getPassword();
         final EncryptionSpec spec = out.getEncryption() != null
-                ? out.getEncryption() : EncryptionSpec.strong();
+                ? out.getEncryption() : EncryptionSpec.balanced();
         // Captured locals — anonymous FilterOutputStream subclass shadows the
         // protected `out` field, so the SheetOutput must be referenced under a
         // distinct name to avoid the field shadowing.
@@ -573,7 +573,7 @@ public final class SpreadsheetFactory extends JsonFactory {
             try (InputStream plainIn = tempData.getInputStream();
                  POIFSFileSystem fs = new POIFSFileSystem();
                  OPCPackage opc = OPCPackage.open(plainIn)) {
-                final EncryptionInfo info = spec.toPoiEncryptionInfo();
+                final EncryptionInfo info = spec.toEncryptionInfo();
                 final Encryptor enc = Encryptor.getInstance(info);
                 try {
                     enc.confirmPassword(password);

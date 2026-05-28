@@ -101,7 +101,7 @@ public final class EncryptionSpec {
      */
     private static final int AES_BLOCK_SIZE_BYTES = 16;
 
-    EncryptionInfo toPoiEncryptionInfo() {
+    EncryptionInfo toEncryptionInfo() {
         // POI: standard encryption supports only ECB; agile uses CBC.
         final ChainingMode chaining = compatibility == Compatibility.EXCEL_2007_2010
                 ? ChainingMode.ecb : ChainingMode.cbc;
