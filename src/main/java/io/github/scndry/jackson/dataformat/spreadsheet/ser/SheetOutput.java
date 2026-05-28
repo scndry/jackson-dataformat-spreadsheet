@@ -25,10 +25,16 @@ public final class SheetOutput<T> implements SheetContent<T> {
 
     private final T _raw;
     private final String _name;
+    private final String _password;
 
-    private SheetOutput(final T raw, final String name) {
+    private SheetOutput(final T raw, final String name, final String password) {
         _raw = raw;
         _name = name;
+        _password = password;
+    }
+
+    private SheetOutput(final T raw, final String name) {
+        this(raw, name, null);
     }
 
     private static void _validateSheetName(final String name) {
@@ -94,15 +100,33 @@ public final class SheetOutput<T> implements SheetContent<T> {
         return new SheetOutput<>(raw, sheetName);
     }
 
+    /**
+     * Returns a copy of this {@code SheetOutput} with the given password for
+     * OOXML file-level encryption. Pass {@code null} to clear.
+     *
+     * <p>Encryption uses agile mode with AES-256 + SHA-512 (PBKDF2, 100K spin).
+     * The writer streams plain OOXML into an {@code EncryptedTempData}
+     * (AES-128-CBC, in-memory random key) so the intermediate bytes on disk
+     * cannot be decrypted even if the temp survives a crash. The encrypted
+     * output lands on the original target only after the generator closes;
+     * if the write fails mid-flight, the partial target file is deleted.
+     */
+    public SheetOutput<T> withPassword(final String password) {
+        return new SheetOutput<>(_raw, _name, password);
+    }
+
     @Override
     public T getRaw() { return _raw; }
 
     @Override
     public String getName() { return _name; }
 
+    public String getPassword() { return _password; }
+
     @Override
     public String toString() {
-        return "SheetOutput(raw=" + _raw + ", name=" + _name + ")";
+        return "SheetOutput(raw=" + _raw + ", name=" + _name
+                + ", password=" + (_password == null ? "null" : "***") + ")";
     }
 
 }
