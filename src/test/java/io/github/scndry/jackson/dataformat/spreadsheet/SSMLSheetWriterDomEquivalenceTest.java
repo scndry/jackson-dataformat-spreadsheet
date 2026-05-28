@@ -356,6 +356,63 @@ class SSMLSheetWriterDomEquivalenceTest {
         XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
     }
 
+    // -- @DataColumn(shift) / @DataColumnGroup(shift) ---------------------
+    // Regression guard for null-gap-column handling across writer iteration
+    // paths. The nested-list case triggers mergeScopedColumns with a root
+    // (empty) pointer, exercising every column-iterating path on POI write.
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class FlatShiftEntry {
+        @DataColumn String name;
+        @DataColumn int qty;
+        @DataColumn(shift = 1) double total;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    static class ShiftItem {
+        @DataColumn String product;
+        @DataColumn int qty;
+        @DataColumn(shift = 1) double amount;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor @DataGrid
+    static class GroupShiftEntry {
+        @DataColumn(anchor = true) String orderId;
+        @DataColumnGroup(value = "Items", shift = 1) List<ShiftItem> items;
+        @DataColumn double total;
+    }
+
+    @Test
+    void sheetXmlDomEquivalent_flatShift() throws Exception {
+        File ssmlFile = _debugFile("dom-shift-flat-ssml.xlsx");
+        File poiFile = _debugFile("dom-shift-flat-poi.xlsx");
+
+        List<FlatShiftEntry> data = Arrays.asList(
+                new FlatShiftEntry("Apple", 10, 15.50),
+                new FlatShiftEntry("Banana", 20, 8.00));
+
+        new SpreadsheetMapper().writeValue(ssmlFile, data, FlatShiftEntry.class);
+        _poiMapper().writeValue(poiFile, data, FlatShiftEntry.class);
+
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+    }
+
+    @Test
+    void sheetXmlDomEquivalent_groupShift_nestedList() throws Exception {
+        File ssmlFile = _debugFile("dom-shift-group-ssml.xlsx");
+        File poiFile = _debugFile("dom-shift-group-poi.xlsx");
+
+        List<GroupShiftEntry> data = Arrays.asList(
+                new GroupShiftEntry("ORD-1", Arrays.asList(
+                        new ShiftItem("Apple", 3, 9.0),
+                        new ShiftItem("Banana", 5, 5.0)), 14.0));
+
+        new SpreadsheetMapper().writeValue(ssmlFile, data, GroupShiftEntry.class);
+        _poiMapper().writeValue(poiFile, data, GroupShiftEntry.class);
+
+        XlsxDomAssertions.assertPartEqualIgnoringDimension(poiFile, ssmlFile, "/xl/worksheets/sheet1.xml");
+    }
+
     @Test
     void sharedStringsXmlDomEquivalent() throws Exception {
         File ssmlFile = _debugFile("dom-sst-ssml.xlsx");

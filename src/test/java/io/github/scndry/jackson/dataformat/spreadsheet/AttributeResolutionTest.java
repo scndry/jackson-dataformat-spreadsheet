@@ -41,7 +41,7 @@ class AttributeResolutionTest {
         return new DataColumnGroup.Value(name, "", headerStyle,
                 "", "", DataGrid.DEFAULT_COLUMN_WIDTH, OptBoolean.DEFAULT,
                 DataGrid.DEFAULT_MIN_COLUMN_WIDTH, DataGrid.DEFAULT_MAX_COLUMN_WIDTH,
-                OptBoolean.DEFAULT);
+                OptBoolean.DEFAULT, 0);
     }
 
     private static DataColumnGroup.Value groupWithChildDefaults(
@@ -51,7 +51,7 @@ class AttributeResolutionTest {
                 columnStyle, columnHeaderStyle,
                 DataGrid.DEFAULT_COLUMN_WIDTH, OptBoolean.DEFAULT,
                 DataGrid.DEFAULT_MIN_COLUMN_WIDTH, DataGrid.DEFAULT_MAX_COLUMN_WIDTH,
-                merge);
+                merge, 0);
     }
 
     @Test

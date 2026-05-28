@@ -17,6 +17,10 @@ import com.fasterxml.jackson.annotation.OptBoolean;
  * Unset attributes inherit defaults from the enclosing
  * {@link DataGrid}.
  *
+ * <p>If combined with {@link com.fasterxml.jackson.annotation.JsonUnwrapped @JsonUnwrapped}
+ * on the same field, the column annotation is silently ignored — only the
+ * unwrapped inner properties contribute to the schema.
+ *
  * @see DataGrid
  * @see io.github.scndry.jackson.dataformat.spreadsheet.schema.Column
  */
@@ -53,11 +57,11 @@ public @interface DataColumn {
     /** Whether to merge cells vertically for repeated values. */
     OptBoolean merge() default OptBoolean.DEFAULT;
 
-    /**
-     * Marks this column as the row anchor for nested-list records.
-     * Read-side only — the write path ignores this attribute.
-     */
+    /** Row anchor for nested-list records (read-side only; the write path ignores this attribute). */
     boolean anchor() default false;
+
+    /** Number of blank columns before this column (must be {@code >= 0}). */
+    int shift() default 0;
 
     @EqualsAndHashCode
     final class Value implements JacksonAnnotationValue<DataColumn> {
@@ -74,12 +78,24 @@ public @interface DataColumn {
         private final int _maxWidth;
         private final OptBoolean _merge;
         private final boolean _anchor;
+        private final int _shift;
 
+        /** @deprecated use the constructor that also accepts {@code shift}. */
+        @Deprecated
         public Value(final String name, final String comment,
                      final String style, final String headerStyle,
                      final int width, final OptBoolean autoSize,
                      final int minWidth, final int maxWidth, final OptBoolean merge,
                      final boolean anchor) {
+            this(name, comment, style, headerStyle, width, autoSize,
+                    minWidth, maxWidth, merge, anchor, 0);
+        }
+
+        public Value(final String name, final String comment,
+                     final String style, final String headerStyle,
+                     final int width, final OptBoolean autoSize,
+                     final int minWidth, final int maxWidth, final OptBoolean merge,
+                     final boolean anchor, final int shift) {
             _name = name;
             _comment = comment;
             _style = style;
@@ -90,17 +106,19 @@ public @interface DataColumn {
             _maxWidth = maxWidth;
             _merge = merge;
             _anchor = anchor;
+            _shift = shift;
         }
 
         private Value() {
             this("", "", "", "", DataGrid.DEFAULT_COLUMN_WIDTH, OptBoolean.DEFAULT,
                     DataGrid.DEFAULT_MIN_COLUMN_WIDTH, DataGrid.DEFAULT_MAX_COLUMN_WIDTH,
-                    OptBoolean.DEFAULT, false);
+                    OptBoolean.DEFAULT, false, 0);
         }
 
         private Value(final DataColumn ann) {
             this(ann.value(), ann.comment(), ann.style(), ann.headerStyle(), ann.width(),
-                    ann.autoSize(), ann.minWidth(), ann.maxWidth(), ann.merge(), ann.anchor()
+                    ann.autoSize(), ann.minWidth(), ann.maxWidth(), ann.merge(), ann.anchor(),
+                    ann.shift()
             );
         }
 
@@ -120,11 +138,12 @@ public @interface DataColumn {
         public int getMaxWidth() { return _maxWidth; }
         public OptBoolean getMerge() { return _merge; }
         public boolean getAnchor() { return _anchor; }
+        public int getShift() { return _shift; }
 
         public Value withName(final String name) {
             if (name == null || name.isEmpty()) return this;
             return new Value(name, _comment, _style, _headerStyle, _width, _autoSize,
-                    _minWidth, _maxWidth, _merge, _anchor);
+                    _minWidth, _maxWidth, _merge, _anchor, _shift);
         }
 
         public Value withDefaults(final DataGrid.Value defaults) {
@@ -139,7 +158,7 @@ public @interface DataColumn {
                     _maxWidth == DataGrid.DEFAULT_MAX_COLUMN_WIDTH
                             ? defaults.getMaxColumnWidth() : _maxWidth,
                     _merge == OptBoolean.DEFAULT ? defaults.getMergeColumn() : _merge,
-                    _anchor
+                    _anchor, _shift
             );
         }
 
@@ -170,6 +189,7 @@ public @interface DataColumn {
                     + ", maxWidth=" + _maxWidth
                     + ", merge=" + _merge
                     + ", anchor=" + _anchor
+                    + ", shift=" + _shift
                     + ")";
         }
     }

@@ -86,9 +86,11 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
             }
             final String columnName = _resolveColumnName(prop);
             final String[] aliases = _aliases(prop);
+            _wrapper.addShift(columnValue.getShift());
             _wrapper.add(new Column(pointer, columnValue.withName(columnName),
                     _wrapper.getGroupHierarchy(), type, aliases));
         } else {
+            _wrapper.addShift(groupValue.getShift());
             _wrapper.addAll(visitor);
         }
     }
@@ -103,6 +105,7 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
         // Type discriminator column
         final String discriminator = typeInfo.property();
         final ColumnPointer discPointer = pointer.resolve(discriminator);
+        _wrapper.addShift(columnValue.getShift());
         _wrapper.add(new Column(discPointer,
                 columnValue.withName(discriminator),
                 hierarchy,
@@ -118,6 +121,13 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
             final JsonSerializer<Object> ser = _provider.findValueSerializer(subType);
             ser.acceptJsonFormatVisitor(visitor, subType);
             for (final Column col : visitor) {
+                if (col == null) {
+                    throw new IllegalStateException(
+                            "Shift inside polymorphic subtype "
+                                    + subType.getRawClass().getSimpleName()
+                                    + " is not supported (polymorphic field at "
+                                    + pointer + "). Place shift outside the polymorphic field.");
+                }
                 if (seen.add(col.getPointer().toString())) {
                     _wrapper.add(col);
                 }
@@ -173,7 +183,8 @@ final class ObjectFormatVisitor extends JsonObjectFormatVisitor.Base {
         return new DataColumnGroup.Value(name, ann.comment(), ann.headerStyle(),
                 ann.columnStyle(), ann.columnHeaderStyle(),
                 ann.columnWidth(), ann.autoSizeColumn(),
-                ann.minColumnWidth(), ann.maxColumnWidth(), ann.mergeColumn())
+                ann.minColumnWidth(), ann.maxColumnWidth(), ann.mergeColumn(),
+                ann.shift())
                 .withDefaults(grid);
     }
 

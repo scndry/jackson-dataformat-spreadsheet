@@ -108,4 +108,11 @@ public final class FormatVisitorWrapper
             add(column);
         }
     }
+
+    void addShift(final int n) {
+        if (n <= 0) return;
+        for (int i = 0; i < n; i++) {
+            _columns.add(null);
+        }
+    }
 }

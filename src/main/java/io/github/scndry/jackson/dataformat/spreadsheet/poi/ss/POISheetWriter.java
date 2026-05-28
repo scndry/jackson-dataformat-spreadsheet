@@ -216,6 +216,7 @@ public final class POISheetWriter implements SheetWriter {
         if (size <= 1) return;
         final List<Column> columns = _schema.getColumns(filter);
         for (final Column column : columns) {
+            if (column == null) continue;
             if (!column.isMerge()) continue;
             if (filter.relativize(column.getPointer()).contains(ColumnPointer.array())) continue;
             final int col = _schema.columnIndexOf(column);
@@ -271,6 +272,7 @@ public final class POISheetWriter implements SheetWriter {
     @Override
     public void adjustColumnWidth() {
         for (final Column column : _schema) {
+            if (column == null) continue;
             final int col = _schema.columnIndexOf(column);
             final DataColumn.Value value = column.getValue();
             double width;

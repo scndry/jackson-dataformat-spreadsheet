@@ -342,6 +342,17 @@ try (XSSFWorkbook wb = new XSSFWorkbook(new File("template.xlsx"))) {
 }
 ```
 
+For columns whose values come from a template formula, leave the slot blank with [`@DataColumn(shift = N)`](#datacolumn):
+
+```java
+@DataGrid
+class Row {
+    @DataColumn String name;   // column A
+    @DataColumn int qty;       // column B
+    @DataColumn(shift = 1) double total;  // column C left blank for template formula; total written to column D
+}
+```
+
 **Reading from an open workbook:**
 
 ```java
@@ -461,6 +472,8 @@ class Order {
 List<Order> orders = mapper.readValues(file, Order.class);
 ```
 
+The `anchor` flag is read-side only — the write path derives the multi-row layout from the nested list structure and ignores it.
+
 ## Annotations
 
 ### @DataGrid
@@ -493,12 +506,15 @@ Customizes individual column properties. Unset attributes inherit from the enclo
 | `minWidth` | `-1` (none) | Minimum column width |
 | `maxWidth` | `255` | Maximum column width |
 | `merge` | `DEFAULT` | Merge cells vertically |
+| `shift` | `0` | Number of blank columns to leave before this field |
 
 `autoSize` may not be accurate for [fullwidth forms](https://en.wikipedia.org/wiki/Halfwidth_and_fullwidth_forms) like [CJK characters](https://en.wikipedia.org/wiki/CJK_characters).
 
 `autoSize` is not supported in the default streaming write path — enable `USE_POI_USER_MODEL` or set `width` explicitly.
 
 When `USE_POI_USER_MODEL` is enabled, `autoSize` samples rows for bounded overhead (~1.5× write time at 100K rows) and may miss outliers between sample rows — pin a known column with `width` if exact fit matters.
+
+`shift` applies on both read and write. With `useHeader(true)`, a shift nested inside a `@DataColumnGroup` collapses the multi-row header to a single leaf row (group labels are skipped while cascade attributes still apply per-column).
 
 ### @DataColumnGroup
 
@@ -516,8 +532,11 @@ Renders flattened columns from a nested object field under a shared group header
 | `minColumnWidth` | `-1` (none) | Default minimum width for child columns (cascade) |
 | `maxColumnWidth` | `255` | Default maximum width for child columns (cascade) |
 | `mergeColumn` | `DEFAULT` | Default merge for child columns (cascade) |
+| `shift` | `0` | Number of blank columns to leave before this group |
 
 The seven cascade attributes mirror `@DataGrid`'s corresponding defaults and act as an intermediate layer between the leaf `@DataColumn` and the enclosing `@DataGrid` — see *Attribute Resolution Order* below.
+
+`shift` on a group leaves N blank columns before the group's first child column. Same bounds as `@DataColumn(shift)`.
 
 ```java
 @DataGrid
