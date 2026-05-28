@@ -627,7 +627,7 @@ class Bar {
 | `@JsonValue` / `@JsonCreator` on enum | Yes | Yes | Custom enum cell values |
 | `@JsonEnumDefaultValue` | Yes | — | Unknown enum fallback |
 | `@JsonSerialize` / `@JsonDeserialize` | Yes | Yes | Custom type conversion |
-| `@JsonFormat(shape = STRING)` | — | Yes | Force string cell for numeric types |
+| `@JsonFormat(shape = STRING)` | — | Yes | Force string cell for numeric types — use on `BigDecimal` / `BigInteger` to preserve precision |
 | `@JsonUnwrapped` | Yes | Yes | Flatten nested object — headers use leaf name (`x`) instead of path (`inner/x`); supports `prefix`/`suffix` for collision avoidance |
 | `@JsonIncludeProperties` | Yes | Yes | Whitelist fields |
 | `@JsonFilter` | — | Yes | Programmatic column filtering |
