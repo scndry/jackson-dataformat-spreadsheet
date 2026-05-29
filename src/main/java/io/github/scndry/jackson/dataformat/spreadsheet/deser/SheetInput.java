@@ -117,13 +117,8 @@ public final class SheetInput<T> implements SheetContent<T> {
     }
 
     /**
-     * Returns a copy of this {@code SheetInput} with the given password for
-     * OOXML file-level (agile) decryption. Pass {@code null} to clear.
-     *
-     * <p>Decryption materialises plain OOXML in a POSIX 0600 temp file that is
-     * deleted on {@link SheetParser} close. {@code InputStream} sources are not
-     * closed by this library. A wrong password throws
-     * {@link org.apache.poi.EncryptedDocumentException}.
+     * Returns a copy with the given password for OOXML file-level
+     * decryption. Pass {@code null} to clear.
      */
     public SheetInput<T> withPassword(final String password) {
         return new SheetInput<>(_raw, _name, _index, password);

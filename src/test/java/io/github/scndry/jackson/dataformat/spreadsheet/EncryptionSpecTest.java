@@ -75,7 +75,7 @@ class EncryptionSpecTest {
     void default_strong_whenNoExplicitSpec() throws Exception {
         final File file = tempDir.resolve("default.xlsx").toFile();
         final SpreadsheetMapper mapper = new SpreadsheetMapper();
-        // No withEncryption() → defaults to strong()
+        // No spec arg → defaults to strong()
         mapper.writeValue(
                 SheetOutput.target(file).withPassword("secret"),
                 SAMPLE, Row.class);

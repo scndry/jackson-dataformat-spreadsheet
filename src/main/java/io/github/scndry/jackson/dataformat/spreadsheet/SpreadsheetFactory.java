@@ -348,19 +348,13 @@ public final class SpreadsheetFactory extends JsonFactory {
     }
 
     /**
-     * Decrypts an encrypted OOXML source to a POSIX owner-only temp file and
-     * returns a fresh {@link SheetInput} referencing it. The temp file is
-     * scheduled for deletion when the resulting {@link SheetParser} closes
-     * (resource-managed). Caller-owned {@link InputStream} sources are first
-     * spooled to disk to keep heap usage bounded for large encrypted files.
-     *
-     * <p>Throws {@link EncryptedDocumentException} when the password is wrong
-     * or the source is not actually encrypted.
+     * Decrypts an encrypted OOXML source to an owner-only temp file and
+     * returns a fresh {@link SheetInput} referencing it. The temp is cleaned
+     * when the resulting {@link SheetParser} closes.
      */
     @SuppressWarnings("unchecked")
     private SheetInput<?> _decryptToSheetInput(final SheetInput<?> src) throws IOException {
-        // F6: spool InputStream to disk before opening POIFS to avoid loading the
-        // entire encrypted file into memory.
+        // Spool InputStream to disk to bound heap usage.
         final File encryptedFile;
         final boolean spooledFromStream;
         if (src.isFile()) {
@@ -429,7 +423,7 @@ public final class SpreadsheetFactory extends JsonFactory {
         try {
             return new POIFSFileSystem(encryptedFile, true);
         } catch (org.apache.poi.poifs.filesystem.OfficeXmlFileException e) {
-            // F8: plain OOXML (zip) — POIFSFileSystem only opens OLE2 binary.
+            // Plain OOXML (zip) reaches here as OfficeXmlFileException — POIFSFileSystem only opens OLE2.
             throw new EncryptedDocumentException(
                     "Source is not an encrypted OOXML document (password was supplied"
                             + " but the file is a plain OOXML package): " + src);
@@ -511,20 +505,15 @@ public final class SpreadsheetFactory extends JsonFactory {
     }
 
     /**
-     * Wraps an encrypted target — the writer streams plain OOXML into an
-     * {@link EncryptedTempData} (AES-128-CBC with an in-memory random key, so
-     * even if the temp survives a crash the bytes on disk are unreadable). On
-     * close the temp is fed through {@link Encryptor} (agile, AES-256 + SHA-512)
-     * and the encrypted bytes land on the original target.
+     * Wraps an encrypted target — plain OOXML is streamed into an
+     * {@link EncryptedTempData} and encrypted on close.
      */
     private SheetOutput<OutputStream> _encryptedWrap(final SheetOutput<?> out) throws IOException {
         final EncryptedTempData tempData = new EncryptedTempData();
         final String password = out.getPassword();
         final EncryptionSpec spec = out.getEncryption() != null
                 ? out.getEncryption() : EncryptionSpec.strong();
-        // Captured locals — anonymous FilterOutputStream subclass shadows the
-        // protected `out` field, so the SheetOutput must be referenced under a
-        // distinct name to avoid the field shadowing.
+        // FilterOutputStream's protected `out` field shadows the SheetOutput name below.
         final SheetOutput<?> destination = out;
         final OutputStream tempStream;
         try {
@@ -554,11 +543,7 @@ public final class SpreadsheetFactory extends JsonFactory {
     @SuppressWarnings("unchecked")
     private void _encryptToTarget(final EncryptedTempData tempData, final SheetOutput<?> out,
                                   final String password, final EncryptionSpec spec) throws IOException {
-        // SEC-18: for File targets, write encrypted bytes into a sibling temp file
-        // and atomically rename onto the final target. Partial encrypted bytes
-        // never appear at the target path; mid-write failures leave the original
-        // target untouched. OutputStream targets cannot be made atomic by this
-        // library — the caller owns the stream and must wrap accordingly.
+        // File targets: write to a sibling temp, then atomic rename — partial bytes never reach the target.
         final File finalTarget = out.isFile() ? ((SheetOutput<File>) out).getRaw() : null;
         final File siblingTemp = finalTarget != null
                 ? new File(finalTarget.getAbsoluteFile().getParentFile(),
@@ -577,10 +562,8 @@ public final class SpreadsheetFactory extends JsonFactory {
                 final Encryptor enc = Encryptor.getInstance(info);
                 try {
                     enc.confirmPassword(password);
-                    // Explicit close on the cipher stream is critical: OPCPackage.save
-                    // only calls finish() on its ZipArchiveOutputStream wrap, never
-                    // close(), so AgileCipherOutputStream never commits its
-                    // EncryptionInfo / EncryptedPackage entries to the POIFS root.
+                    // OPCPackage.save() only finishes the zip wrap, never closes;
+                    // explicit close commits EncryptionInfo / EncryptedPackage to the POIFS root.
                     try (OutputStream encStream = enc.getDataStream(fs)) {
                         opc.save(encStream);
                     }
@@ -596,7 +579,6 @@ public final class SpreadsheetFactory extends JsonFactory {
             primary = e;
             throw e;
         } finally {
-            // F3: addSuppressed pattern — preserve primary IOException
             if (siblingTemp != null) {
                 try {
                     target.close();
@@ -610,13 +592,12 @@ public final class SpreadsheetFactory extends JsonFactory {
                                 java.nio.file.StandardCopyOption.ATOMIC_MOVE,
                                 java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                     } catch (java.nio.file.AtomicMoveNotSupportedException ex) {
-                        // Cross-filesystem fallback — non-atomic but the partial
-                        // intermediate state is the sibling, not finalTarget.
+                        // Cross-filesystem — non-atomic, but partial state stays in sibling.
                         Files.move(siblingTemp.toPath(), finalTarget.toPath(),
                                 java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                     }
                 } else {
-                    // F4: mid-write failure — delete sibling, leave finalTarget untouched.
+                    // Mid-write failure — delete sibling, leave target untouched.
                     if (siblingTemp.exists() && !siblingTemp.delete() && log.isWarnEnabled()) {
                         log.warn("Failed to delete partial encrypted sibling: {}", siblingTemp);
                     }

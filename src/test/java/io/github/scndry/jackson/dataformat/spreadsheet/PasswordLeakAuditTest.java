@@ -11,9 +11,6 @@ import io.github.scndry.jackson.dataformat.spreadsheet.ser.SheetOutput;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * SEC-21 — Jackson serialize 의 password leak 검증.
- */
 class PasswordLeakAuditTest {
 
     private static final String SECRET = "MY_VERY_SECRET_PASSWORD";
@@ -23,8 +20,7 @@ class PasswordLeakAuditTest {
         final ObjectMapper m = new ObjectMapper();
         final SheetInput<File> in = SheetInput.source(new File("/tmp/x.xlsx")).withPassword(SECRET);
         final String json = m.writeValueAsString(in);
-        // SEC-21 fail 검출: password 가 JSON 에 포함되면 leak
-        assertThat(json).as("SheetInput JSON 에 password 가 포함 (SEC-21)").doesNotContain(SECRET);
+        assertThat(json).as("password leaked to SheetInput JSON").doesNotContain(SECRET);
     }
 
     @Test
@@ -32,7 +28,7 @@ class PasswordLeakAuditTest {
         final ObjectMapper m = new ObjectMapper();
         final SheetOutput<File> out = SheetOutput.target(new File("/tmp/y.xlsx")).withPassword(SECRET);
         final String json = m.writeValueAsString(out);
-        assertThat(json).as("SheetOutput JSON 에 password 가 포함 (SEC-21)").doesNotContain(SECRET);
+        assertThat(json).as("password leaked to SheetOutput JSON").doesNotContain(SECRET);
     }
 
     @Test

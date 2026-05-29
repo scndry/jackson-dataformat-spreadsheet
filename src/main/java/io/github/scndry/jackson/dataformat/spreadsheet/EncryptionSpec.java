@@ -8,13 +8,9 @@ import org.apache.poi.poifs.crypt.HashAlgorithm;
 
 /**
  * Encryption strength preset for password-protected OOXML output, used with
- * {@code SheetOutput.withEncryption}. {@link #strong()} is the default when
- * a password is set without an explicit spec.
- *
- * <p>The four presets cover the practical strength / compatibility / speed
- * axis without exposing POI's cipher / hash / mode enums. {@link #custom()}
- * opens a builder for finer control while keeping POI types behind the
- * abstraction.
+ * {@code SheetOutput.withPassword(password, spec)}. {@link #strong()} is the
+ * default when a password is set without an explicit spec; {@link #custom()}
+ * opens a builder for finer control.
  */
 public final class EncryptionSpec {
 
@@ -94,11 +90,7 @@ public final class EncryptionSpec {
     public Hash getHash() { return hash; }
     public int getKeyBits() { return keyBits; }
 
-    /**
-     * AES uses a fixed 16-byte block at every key size; this is the value POI
-     * expects in {@link EncryptionInfo}'s {@code blockSize} slot regardless of
-     * key length.
-     */
+    // AES uses a fixed 16-byte block at every key size; POI expects this in EncryptionInfo#blockSize.
     private static final int AES_BLOCK_SIZE_BYTES = 16;
 
     EncryptionInfo toEncryptionInfo() {
