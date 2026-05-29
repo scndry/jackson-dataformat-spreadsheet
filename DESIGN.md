@@ -137,6 +137,7 @@ The library draws a deliberate line. These are outside its scope entirely:
 | **Charts, pivot tables, macros** | Outside data binding scope — these are document features, not data features |
 | **Cell-level random access** | Contradicts the streaming model that enables performance |
 | **Validation rules** | Business logic belongs in the application, not the format layer |
+| **Sheet- and workbook-level protection** | Tamper hash on readable content, not encryption — different mechanism; POI handles it |
 
 Sheet selection is a different case — the library provides `SheetInput` and `SheetOutput` for it, but the decision is explicit, not defaulted. The default (first sheet) works without any wrapper; naming or indexing a sheet is an opt-in choice.
 
