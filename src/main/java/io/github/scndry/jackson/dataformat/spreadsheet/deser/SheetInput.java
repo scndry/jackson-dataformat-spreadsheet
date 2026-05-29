@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import lombok.EqualsAndHashCode;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetContent;
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.Incubating;
 
 /**
  * Immutable descriptor for a spreadsheet read source. Wraps a
@@ -118,6 +119,7 @@ public final class SheetInput<T> implements SheetContent<T> {
      * Returns a copy with the given password for OOXML file-level
      * decryption. Pass {@code null} to clear.
      */
+    @Incubating
     public SheetInput<T> withPassword(final String password) {
         return new SheetInput<>(_raw, _name, _index, password);
     }

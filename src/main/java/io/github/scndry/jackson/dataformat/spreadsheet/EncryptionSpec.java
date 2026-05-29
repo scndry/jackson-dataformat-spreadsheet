@@ -6,12 +6,15 @@ import org.apache.poi.poifs.crypt.EncryptionInfo;
 import org.apache.poi.poifs.crypt.EncryptionMode;
 import org.apache.poi.poifs.crypt.HashAlgorithm;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.Incubating;
+
 /**
  * Encryption strength preset for password-protected OOXML output, used with
  * {@code SheetOutput.withPassword(password, spec)}. {@link #strong()} is the
  * default when a password is set without an explicit spec; {@link #custom()}
  * opens a builder for finer control.
  */
+@Incubating
 public final class EncryptionSpec {
 
     /** Underlying cipher family. */

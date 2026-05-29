@@ -9,6 +9,7 @@ import org.apache.poi.ss.util.WorkbookUtil;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.EncryptionSpec;
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetContent;
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.Incubating;
 
 /**
  * Immutable descriptor for a spreadsheet write target. Wraps a
@@ -108,6 +109,7 @@ public final class SheetOutput<T> implements SheetContent<T> {
      * Returns a copy with the given password for OOXML file-level encryption
      * using {@link EncryptionSpec#strong()}. Pass {@code null} to clear.
      */
+    @Incubating
     public SheetOutput<T> withPassword(final String password) {
         return new SheetOutput<>(_raw, _name, password, null);
     }
@@ -117,6 +119,7 @@ public final class SheetOutput<T> implements SheetContent<T> {
      * A {@code null} spec uses {@link EncryptionSpec#strong()}; a {@code null}
      * password clears both.
      */
+    @Incubating
     public SheetOutput<T> withPassword(final String password, final EncryptionSpec encryption) {
         return new SheetOutput<>(_raw, _name, password, password == null ? null : encryption);
     }
