@@ -7,17 +7,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 
-import java.security.GeneralSecurityException;
-
-import org.apache.poi.EncryptedDocumentException;
-import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.openxml4j.opc.PackagePart;
-import org.apache.poi.poifs.crypt.Decryptor;
-import org.apache.poi.poifs.crypt.EncryptionInfo;
-import org.apache.poi.poifs.crypt.Encryptor;
-import org.apache.poi.poifs.crypt.temp.EncryptedTempData;
 import org.apache.poi.poifs.filesystem.FileMagic;
-import org.apache.poi.poifs.filesystem.POIFSFileSystem;
+import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
@@ -33,6 +25,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetInput;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetParser;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetReader;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.OoxmlEncryption;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.PackageUtil;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.SSMLSheetReader;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.SSMLSheetWriter;
@@ -179,7 +172,7 @@ public final class SpreadsheetFactory extends JsonFactory {
     public SheetParser createParser(final SheetInput<?> src) throws IOException {
         SheetInput<?> source = src;
         if (src.getPassword() != null) {
-            source = _decryptToSheetInput(src);
+            source = OoxmlEncryption.decrypt(src);
         }
         source = _preferRawAsFile(source);
         final boolean resourceManaged = src != source;
@@ -217,10 +210,23 @@ public final class SpreadsheetFactory extends JsonFactory {
     }
 
     public SheetGenerator createGenerator(final SheetOutput<?> out) throws IOException {
+        final Workbook workbook = _workbookProvider.create();
+        if (out.getPassword() != null
+                && workbook.getSpreadsheetVersion() != SpreadsheetVersion.EXCEL2007) {
+            try {
+                workbook.close();
+            } catch (IOException e) {
+                if (log.isWarnEnabled()) {
+                    log.warn("Failed to close workbook after password guard rejection: {}", e.getMessage());
+                }
+            }
+            throw new IllegalArgumentException(
+                    "Password protection is supported for OOXML (XLSX) targets only");
+        }
         final SheetOutput<OutputStream> output = _rawAsOutputStream(out);
         final boolean resourceManaged = out != output;
         final IOContext ctxt = _createContext(_createContentReference(output), resourceManaged);
-        return _createGenerator(_createSheetWriter(output), ctxt);
+        return _createGenerator(_createSheetWriter(workbook, output), ctxt);
     }
 
     @Override
@@ -347,104 +353,6 @@ public final class SpreadsheetFactory extends JsonFactory {
                 ? SheetInput.source(file, src.getName()) : SheetInput.source(file, src.getIndex());
     }
 
-    /**
-     * Decrypts an encrypted OOXML source to an owner-only temp file and
-     * returns a fresh {@link SheetInput} referencing it. The temp is cleaned
-     * when the resulting {@link SheetParser} closes.
-     */
-    @SuppressWarnings("unchecked")
-    private SheetInput<?> _decryptToSheetInput(final SheetInput<?> src) throws IOException {
-        // Spool InputStream to disk to bound heap usage.
-        final File encryptedFile;
-        final boolean spooledFromStream;
-        if (src.isFile()) {
-            encryptedFile = ((SheetInput<File>) src).getRaw();
-            spooledFromStream = false;
-        } else {
-            encryptedFile = _spoolToSecureTempFile(
-                    ((SheetInput<InputStream>) src).getRaw(),
-                    "jackson-spreadsheet-encrypted-");
-            spooledFromStream = true;
-        }
-
-        File decrypted = null;
-        try (POIFSFileSystem fs = _openEncryptedPOIFS(encryptedFile, src)) {
-            final EncryptionInfo info;
-            try {
-                info = new EncryptionInfo(fs);
-            } catch (IOException e) {
-                throw new EncryptedDocumentException(
-                        "Source is not an encrypted OOXML document (password was supplied"
-                                + " but no EncryptionInfo entry found): " + src);
-            }
-            final Decryptor d = Decryptor.getInstance(info);
-            try {
-                if (!d.verifyPassword(src.getPassword())) {
-                    throw new EncryptedDocumentException(
-                            "Invalid password for encrypted spreadsheet source: " + src);
-                }
-            } catch (GeneralSecurityException e) {
-                throw new IOException("Failed to verify password for " + src, e);
-            }
-            decrypted = POICompat.createSecureTempFile(
-                    "jackson-spreadsheet-decrypted-", ".xlsx").toFile();
-            try (InputStream plain = d.getDataStream(fs);
-                 FileOutputStream out = new FileOutputStream(decrypted)) {
-                final byte[] buf = new byte[8192];
-                int n;
-                while ((n = plain.read(buf)) != -1) {
-                    out.write(buf, 0, n);
-                }
-            } catch (GeneralSecurityException e) {
-                throw new IOException("Failed to read decrypted data stream for " + src, e);
-            }
-        } catch (IOException | RuntimeException e) {
-            if (decrypted != null) {
-                try { POICompat.releaseTempFile(decrypted.toPath()); }
-                catch (IOException cleanup) { e.addSuppressed(cleanup); }
-            }
-            throw e;
-        } finally {
-            if (spooledFromStream) {
-                try { POICompat.releaseTempFile(encryptedFile.toPath()); }
-                catch (IOException ignore) { /* best effort */ }
-            }
-        }
-        if (log.isDebugEnabled()) {
-            log.debug("Decrypted encrypted source to temp file: {}", decrypted);
-        }
-        return src.isNamed()
-                ? SheetInput.source(decrypted, src.getName())
-                : SheetInput.source(decrypted, src.getIndex());
-    }
-
-    private POIFSFileSystem _openEncryptedPOIFS(final File encryptedFile, final SheetInput<?> src)
-            throws IOException {
-        try {
-            return new POIFSFileSystem(encryptedFile, true);
-        } catch (org.apache.poi.poifs.filesystem.OfficeXmlFileException e) {
-            // Plain OOXML (zip) reaches here as OfficeXmlFileException — POIFSFileSystem only opens OLE2.
-            throw new EncryptedDocumentException(
-                    "Source is not an encrypted OOXML document (password was supplied"
-                            + " but the file is a plain OOXML package): " + src);
-        }
-    }
-
-    private File _spoolToSecureTempFile(final InputStream in, final String prefix) throws IOException {
-        final File temp = POICompat.createSecureTempFile(prefix, ".tmp").toFile();
-        try (FileOutputStream out = new FileOutputStream(temp)) {
-            final byte[] buf = new byte[8192];
-            int n;
-            while ((n = in.read(buf)) != -1) {
-                out.write(buf, 0, n);
-            }
-        } catch (IOException e) {
-            try { POICompat.releaseTempFile(temp.toPath()); }
-            catch (IOException cleanup) { e.addSuppressed(cleanup); }
-            throw e;
-        }
-        return temp;
-    }
 
     /*
     /**********************************************************
@@ -457,8 +365,7 @@ public final class SpreadsheetFactory extends JsonFactory {
     }
 
     @SuppressWarnings("resource")
-    private SheetWriter _createSheetWriter(final SheetOutput<OutputStream> out) throws IOException {
-        final Workbook workbook = _workbookProvider.create();
+    private SheetWriter _createSheetWriter(final Workbook workbook, final SheetOutput<OutputStream> out) throws IOException {
         final Sheet sheet = out.isNamed()
                 ? workbook.createSheet(out.getName()) : workbook.createSheet();
         final boolean useUserModel = _shouldUsePOIUserModel(sheet);
@@ -497,113 +404,11 @@ public final class SpreadsheetFactory extends JsonFactory {
     private SheetOutput<OutputStream> _rawAsOutputStream(
             final SheetOutput<?> out) throws IOException {
         if (out.getPassword() != null) {
-            return _encryptedWrap(out);
+            return OoxmlEncryption.wrapTarget(out);
         }
         if (!out.isFile()) return (SheetOutput<OutputStream>) out;
         final OutputStream raw = Files.newOutputStream(((File) out.getRaw()).toPath());
         return out.isNamed() ? SheetOutput.target(raw, out.getName()) : SheetOutput.target(raw);
-    }
-
-    /**
-     * Wraps an encrypted target — plain OOXML is streamed into an
-     * {@link EncryptedTempData} and encrypted on close.
-     */
-    private SheetOutput<OutputStream> _encryptedWrap(final SheetOutput<?> out) throws IOException {
-        final EncryptedTempData tempData = new EncryptedTempData();
-        final String password = out.getPassword();
-        final EncryptionSpec spec = out.getEncryption() != null
-                ? out.getEncryption() : EncryptionSpec.strong();
-        // FilterOutputStream's protected `out` field shadows the SheetOutput name below.
-        final SheetOutput<?> destination = out;
-        final OutputStream tempStream;
-        try {
-            tempStream = new java.io.FilterOutputStream(tempData.getOutputStream()) {
-                private boolean closed;
-                @Override
-                public void close() throws IOException {
-                    if (closed) return;
-                    closed = true;
-                    super.close();
-                    try {
-                        _encryptToTarget(tempData, destination, password, spec);
-                    } finally {
-                        tempData.dispose();
-                    }
-                }
-            };
-        } catch (IOException | RuntimeException e) {
-            tempData.dispose();
-            throw e;
-        }
-        return out.isNamed()
-                ? SheetOutput.target(tempStream, out.getName())
-                : SheetOutput.target(tempStream);
-    }
-
-    @SuppressWarnings("unchecked")
-    private void _encryptToTarget(final EncryptedTempData tempData, final SheetOutput<?> out,
-                                  final String password, final EncryptionSpec spec) throws IOException {
-        // File targets: write to a sibling temp, then atomic rename — partial bytes never reach the target.
-        final File finalTarget = out.isFile() ? ((SheetOutput<File>) out).getRaw() : null;
-        final File siblingTemp = finalTarget != null
-                ? new File(finalTarget.getAbsoluteFile().getParentFile(),
-                        finalTarget.getName() + ".enc-" + Long.toUnsignedString(System.nanoTime(), 36) + ".tmp")
-                : null;
-        final OutputStream target = (siblingTemp != null)
-                ? new FileOutputStream(siblingTemp)
-                : ((SheetOutput<OutputStream>) out).getRaw();
-        boolean writeFinalized = false;
-        IOException primary = null;
-        try {
-            try (InputStream plainIn = tempData.getInputStream();
-                 POIFSFileSystem fs = new POIFSFileSystem();
-                 OPCPackage opc = OPCPackage.open(plainIn)) {
-                final EncryptionInfo info = spec.toEncryptionInfo();
-                final Encryptor enc = Encryptor.getInstance(info);
-                try {
-                    enc.confirmPassword(password);
-                    // OPCPackage.save() only finishes the zip wrap, never closes;
-                    // explicit close commits EncryptionInfo / EncryptedPackage to the POIFS root.
-                    try (OutputStream encStream = enc.getDataStream(fs)) {
-                        opc.save(encStream);
-                    }
-                } catch (GeneralSecurityException e) {
-                    throw new IOException("Failed to encrypt spreadsheet output", e);
-                }
-                fs.writeFilesystem(target);
-                writeFinalized = true;
-            } catch (org.apache.poi.openxml4j.exceptions.InvalidFormatException e) {
-                throw new IOException("Failed to open temp data for encryption", e);
-            }
-        } catch (IOException e) {
-            primary = e;
-            throw e;
-        } finally {
-            if (siblingTemp != null) {
-                try {
-                    target.close();
-                } catch (IOException closeEx) {
-                    if (primary != null) primary.addSuppressed(closeEx);
-                    else throw closeEx;
-                }
-                if (writeFinalized) {
-                    try {
-                        Files.move(siblingTemp.toPath(), finalTarget.toPath(),
-                                java.nio.file.StandardCopyOption.ATOMIC_MOVE,
-                                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                    } catch (java.nio.file.AtomicMoveNotSupportedException ex) {
-                        // Cross-filesystem — non-atomic, but partial state stays in sibling.
-                        Files.move(siblingTemp.toPath(), finalTarget.toPath(),
-                                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                    }
-                } else {
-                    // Mid-write failure — delete sibling, leave target untouched.
-                    if (siblingTemp.exists() && !siblingTemp.delete() && log.isWarnEnabled()) {
-                        log.warn("Failed to delete partial encrypted sibling: {}", siblingTemp);
-                    }
-                }
-            }
-        }
     }
 
     /**

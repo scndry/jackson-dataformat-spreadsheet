@@ -96,7 +96,8 @@ public final class EncryptionSpec {
     // AES uses a fixed 16-byte block at every key size; POI expects this in EncryptionInfo#blockSize.
     private static final int AES_BLOCK_SIZE_BYTES = 16;
 
-    EncryptionInfo toEncryptionInfo() {
+    /** Internal — used by the write path to build the POI {@link EncryptionInfo}. */
+    public EncryptionInfo toEncryptionInfo() {
         // POI: standard encryption supports only ECB; agile uses CBC.
         final ChainingMode chaining = compatibility == Compatibility.EXCEL_2007_2010
                 ? ChainingMode.ecb : ChainingMode.cbc;

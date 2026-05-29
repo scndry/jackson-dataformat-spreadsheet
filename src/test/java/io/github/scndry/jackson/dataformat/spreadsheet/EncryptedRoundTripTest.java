@@ -1,6 +1,7 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -13,6 +14,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.poi.EncryptedDocumentException;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -163,6 +166,67 @@ class EncryptedRoundTripTest {
                 SheetInput.source(file).withPassword("secret"),
                 Employee.class);
         assertThat(output).isEqualTo(input);
+    }
+
+    @Test
+    void roundTrip_sxssfEncrypted() throws Exception {
+        final File file = tempDir.resolve("sxssf.xlsx").toFile();
+        final List<Employee> input = SAMPLE;
+        final SpreadsheetMapper mapper = sxssfMapper();
+
+        mapper.writeValue(
+                SheetOutput.target(file).withPassword("secret"),
+                input, Employee.class);
+        final List<Employee> output = new SpreadsheetMapper().readValues(
+                SheetInput.source(file).withPassword("secret"),
+                Employee.class);
+        assertThat(output).isEqualTo(input);
+    }
+
+    @Test
+    void read_xlsFile_withPassword_throws() throws Exception {
+        final File file = makeXlsFile("plain.xls");
+        final SpreadsheetMapper mapper = new SpreadsheetMapper();
+
+        assertThatThrownBy(() -> mapper.readValues(
+                SheetInput.source(file).withPassword("secret"),
+                Employee.class))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("OOXML (XLSX) sources only");
+    }
+
+    @Test
+    void write_xlsTarget_withPassword_throws() throws Exception {
+        final File file = tempDir.resolve("out.xls").toFile();
+        final SpreadsheetMapper mapper = hssfMapper();
+
+        assertThatThrownBy(() -> mapper.writeValue(
+                SheetOutput.target(file).withPassword("secret"),
+                SAMPLE, Employee.class))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("OOXML (XLSX) targets only");
+    }
+
+    private File makeXlsFile(final String name) throws Exception {
+        final File file = tempDir.resolve(name).toFile();
+        try (HSSFWorkbook wb = new HSSFWorkbook();
+             FileOutputStream fos = new FileOutputStream(file)) {
+            wb.createSheet().createRow(0).createCell(0).setCellValue("x");
+            wb.write(fos);
+        }
+        return file;
+    }
+
+    private static SpreadsheetMapper hssfMapper() {
+        return new SpreadsheetMapper(
+                new SpreadsheetFactory(HSSFWorkbook::new,
+                        SpreadsheetFactory.DEFAULT_SHEET_PARSER_FEATURE_FLAGS));
+    }
+
+    private static SpreadsheetMapper sxssfMapper() {
+        return new SpreadsheetMapper(
+                new SpreadsheetFactory(SXSSFWorkbook::new,
+                        SpreadsheetFactory.DEFAULT_SHEET_PARSER_FEATURE_FLAGS));
     }
 
     private static SpreadsheetMapper poiMapper() {
