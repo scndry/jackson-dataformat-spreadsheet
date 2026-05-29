@@ -108,8 +108,8 @@ public final class SheetOutput<T> implements SheetContent<T> {
 
     /**
      * Returns a copy with the given password for OOXML file-level encryption,
-     * using {@link EncryptionSpec#balanced()} (agile AES-128 + SHA-512 —
-     * matches Excel's native default). Pass {@code null} to clear.
+     * using {@link EncryptionSpec#strong()} (agile AES-256 + SHA-512). Pass
+     * {@code null} to clear.
      *
      * <p>For {@link java.io.File} targets the encrypted output is written to a
      * sibling temp and atomically renamed onto the target on close, so
@@ -124,7 +124,7 @@ public final class SheetOutput<T> implements SheetContent<T> {
     /**
      * Returns a copy with the given password and {@link EncryptionSpec}. The
      * spec selects the strength / compatibility / cipher trade-off. A
-     * {@code null} spec falls back to {@link EncryptionSpec#balanced()}. A
+     * {@code null} spec falls back to {@link EncryptionSpec#strong()}. A
      * {@code null} password clears both.
      */
     public SheetOutput<T> withPassword(final String password, final EncryptionSpec encryption) {

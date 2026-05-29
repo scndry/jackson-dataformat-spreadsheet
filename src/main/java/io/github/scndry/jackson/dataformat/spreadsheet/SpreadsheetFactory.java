@@ -521,7 +521,7 @@ public final class SpreadsheetFactory extends JsonFactory {
         final EncryptedTempData tempData = new EncryptedTempData();
         final String password = out.getPassword();
         final EncryptionSpec spec = out.getEncryption() != null
-                ? out.getEncryption() : EncryptionSpec.balanced();
+                ? out.getEncryption() : EncryptionSpec.strong();
         // Captured locals — anonymous FilterOutputStream subclass shadows the
         // protected `out` field, so the SheetOutput must be referenced under a
         // distinct name to avoid the field shadowing.

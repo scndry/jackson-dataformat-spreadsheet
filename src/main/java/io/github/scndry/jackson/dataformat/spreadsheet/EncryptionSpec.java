@@ -71,7 +71,7 @@ public final class EncryptionSpec {
         return new EncryptionSpec(Compatibility.EXCEL_2013_PLUS, Cipher.AES_256, Hash.SHA_512, 256);
     }
 
-    /** AES-128 + SHA-512 (Excel 2013+). Roughly half the key-schedule cost of {@link #strong()}. */
+    /** AES-128 + SHA-512 (Excel 2013+). LibreOffice rejects this combination — use {@link #strong()} or {@link #legacy()} for LibreOffice compatibility. */
     public static EncryptionSpec balanced() {
         return new EncryptionSpec(Compatibility.EXCEL_2013_PLUS, Cipher.AES_128, Hash.SHA_512, 128);
     }
