@@ -988,7 +988,7 @@ SheetOutput.target(file).withPassword("secret", EncryptionSpec.legacy())
 
 `EncryptionSpec.custom()` opens a builder for arbitrary combinations.
 
-Sheet-level and workbook-level protection are out of scope — use POI directly.
+Scope covers the output XLSX file only. For at-rest protection of the file-backed shared-strings temp store, see [Low-Memory Mode](#low-memory-mode-for-large-files). Sheet-level and workbook-level protection are out of scope — use POI directly.
 
 ## Low-Memory Mode for Large Files
 
