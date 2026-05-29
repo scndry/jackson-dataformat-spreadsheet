@@ -1,6 +1,9 @@
 package io.github.scndry.jackson.dataformat.spreadsheet;
 
 import java.io.File;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
@@ -99,4 +102,76 @@ class EncryptedRoundTripTest {
                 Employee.class);
         assertThat(output).isEqualTo(input);
     }
+
+    @Test
+    void roundTrip_poiUserModel() throws Exception {
+        final File file = tempDir.resolve("poi-um.xlsx").toFile();
+        final List<Employee> input = SAMPLE;
+        final SpreadsheetMapper mapper = poiMapper();
+
+        mapper.writeValue(
+                SheetOutput.target(file).withPassword("secret"),
+                input, Employee.class);
+        final List<Employee> output = mapper.readValues(
+                SheetInput.source(file).withPassword("secret"),
+                Employee.class);
+        assertThat(output).isEqualTo(input);
+    }
+
+    @Test
+    void roundTrip_streamRaw() throws Exception {
+        final File file = tempDir.resolve("stream.xlsx").toFile();
+        final List<Employee> input = SAMPLE;
+        final SpreadsheetMapper mapper = new SpreadsheetMapper();
+
+        try (OutputStream out = Files.newOutputStream(file.toPath())) {
+            mapper.writeValue(
+                    SheetOutput.target(out).withPassword("secret"),
+                    input, Employee.class);
+        }
+        try (InputStream in = Files.newInputStream(file.toPath())) {
+            final List<Employee> output = mapper.readValues(
+                    SheetInput.source(in).withPassword("secret"),
+                    Employee.class);
+            assertThat(output).isEqualTo(input);
+        }
+    }
+
+    @Test
+    void crossPath_ssmlWriteEncrypt_poiReadDecrypt() throws Exception {
+        final File file = tempDir.resolve("cross-sw-pr.xlsx").toFile();
+        final List<Employee> input = SAMPLE;
+
+        new SpreadsheetMapper().writeValue(
+                SheetOutput.target(file).withPassword("secret"),
+                input, Employee.class);
+        final List<Employee> output = poiMapper().readValues(
+                SheetInput.source(file).withPassword("secret"),
+                Employee.class);
+        assertThat(output).isEqualTo(input);
+    }
+
+    @Test
+    void crossPath_poiWriteEncrypt_ssmlReadDecrypt() throws Exception {
+        final File file = tempDir.resolve("cross-pw-sr.xlsx").toFile();
+        final List<Employee> input = SAMPLE;
+
+        poiMapper().writeValue(
+                SheetOutput.target(file).withPassword("secret"),
+                input, Employee.class);
+        final List<Employee> output = new SpreadsheetMapper().readValues(
+                SheetInput.source(file).withPassword("secret"),
+                Employee.class);
+        assertThat(output).isEqualTo(input);
+    }
+
+    private static SpreadsheetMapper poiMapper() {
+        return SpreadsheetMapper.builder()
+                .enable(SpreadsheetFactory.Feature.USE_POI_USER_MODEL)
+                .build();
+    }
+
+    private static final List<Employee> SAMPLE = Arrays.asList(
+            new Employee("Alice", 80000),
+            new Employee("Bob", 65000));
 }
