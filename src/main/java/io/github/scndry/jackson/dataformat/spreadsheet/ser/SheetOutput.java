@@ -7,7 +7,9 @@ import java.nio.file.Path;
 import lombok.EqualsAndHashCode;
 import org.apache.poi.ss.util.WorkbookUtil;
 
+import io.github.scndry.jackson.dataformat.spreadsheet.EncryptionSpec;
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetContent;
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.Incubating;
 
 /**
  * Immutable descriptor for a spreadsheet write target. Wraps a
@@ -25,10 +27,19 @@ public final class SheetOutput<T> implements SheetContent<T> {
 
     private final T _raw;
     private final String _name;
+    private final String _password;
+    private final EncryptionSpec _encryption;
 
-    private SheetOutput(final T raw, final String name) {
+    private SheetOutput(final T raw, final String name, final String password,
+                        final EncryptionSpec encryption) {
         _raw = raw;
         _name = name;
+        _password = password;
+        _encryption = encryption;
+    }
+
+    private SheetOutput(final T raw, final String name) {
+        this(raw, name, null, null);
     }
 
     private static void _validateSheetName(final String name) {
@@ -94,15 +105,40 @@ public final class SheetOutput<T> implements SheetContent<T> {
         return new SheetOutput<>(raw, sheetName);
     }
 
+    /**
+     * Returns a copy with the given password for OOXML file-level encryption
+     * using {@link EncryptionSpec#strong()}. Pass {@code null} to clear.
+     */
+    @Incubating
+    public SheetOutput<T> withPassword(final String password) {
+        return new SheetOutput<>(_raw, _name, password, null);
+    }
+
+    /**
+     * Returns a copy with the given password and {@link EncryptionSpec}.
+     * A {@code null} spec uses {@link EncryptionSpec#strong()}; a {@code null}
+     * password clears both.
+     */
+    @Incubating
+    public SheetOutput<T> withPassword(final String password, final EncryptionSpec encryption) {
+        return new SheetOutput<>(_raw, _name, password, password == null ? null : encryption);
+    }
+
     @Override
     public T getRaw() { return _raw; }
 
     @Override
     public String getName() { return _name; }
 
+    public String getPassword() { return _password; }
+
+    public EncryptionSpec getEncryption() { return _encryption; }
+
     @Override
     public String toString() {
-        return "SheetOutput(raw=" + _raw + ", name=" + _name + ")";
+        return "SheetOutput(raw=" + _raw + ", name=" + _name
+                + ", password=" + (_password == null ? "null" : "***")
+                + ", encryption=" + (_encryption == null ? "default" : _encryption) + ")";
     }
 
 }

@@ -957,6 +957,39 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 List<Row> rows = mapper.readValues(inputStream, Row.class);
 ```
 
+### Password Protection
+
+OOXML files can be encrypted with a password. The same `withPassword` applies to both directions.
+
+```java
+// Write
+mapper.writeValue(
+    SheetOutput.target(file).withPassword("secret"),
+    products, Product.class);
+
+// Read
+List<Product> list = mapper.readValues(
+    SheetInput.source(file).withPassword("secret"),
+    Product.class);
+```
+
+The default is `EncryptionSpec.strong()` (AES-256 + SHA-512). Pass an explicit spec for a different trade-off:
+
+```java
+SheetOutput.target(file).withPassword("secret", EncryptionSpec.legacy())
+```
+
+| Preset | Cipher | Hash | Mode | Notes |
+|--------|--------|------|------|-------|
+| `strong()` | AES-256 | SHA-512 | Agile (Excel 2013+) | Default. Opens in Excel, Numbers, LibreOffice. |
+| `balanced()` | AES-128 | SHA-512 | Agile (Excel 2013+) | LibreOffice rejects this combination. |
+| `legacy()` | AES-128 | SHA-1 | Standard (Excel 2007/2010) | For older Excel that rejects agile. |
+| `fast()` | AES-128 | SHA-256 | Agile (Excel 2013+) | Lighter hash than `balanced()`. |
+
+`EncryptionSpec.custom()` opens a builder for arbitrary combinations.
+
+Scope covers the output XLSX file only. For at-rest protection of the file-backed shared-strings temp store, see [Low-Memory Mode](#low-memory-mode-for-large-files). Sheet-level and workbook-level protection are out of scope — use POI directly.
+
 ## Low-Memory Mode for Large Files
 
 For extremely large XLSX files that cause `OutOfMemoryError`:
@@ -976,7 +1009,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .build();
 ```
 
-This protects the temp file only — the output XLSX is not encrypted. Workbook-level password protection (encrypted XLSX) is out of scope; use POI directly for that.
+This protects the temp file only — the output XLSX is not encrypted. For full-file XLSX encryption, see [Password Protection](#password-protection).
 
 Requires `com.h2database:h2` on the classpath:
 

@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import lombok.EqualsAndHashCode;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetContent;
+import io.github.scndry.jackson.dataformat.spreadsheet.annotation.Incubating;
 
 /**
  * Immutable descriptor for a spreadsheet read source. Wraps a
@@ -25,17 +26,21 @@ public final class SheetInput<T> implements SheetContent<T> {
     private final T _raw;
     private final String _name;
     private final int _index;
+    private final String _password;
+
+    private SheetInput(final T raw, final String name, final int index, final String password) {
+        _raw = raw;
+        _name = name;
+        _index = index;
+        _password = password;
+    }
 
     private SheetInput(final T raw, final int index) {
-        _raw = raw;
-        _name = null;
-        _index = index;
+        this(raw, null, index, null);
     }
 
     private SheetInput(final T raw, final String name) {
-        _raw = raw;
-        _name = name;
-        _index = -1;
+        this(raw, name, -1, null);
     }
 
     /**
@@ -110,6 +115,15 @@ public final class SheetInput<T> implements SheetContent<T> {
         return new SheetInput<>(raw, sheetName);
     }
 
+    /**
+     * Returns a copy with the given password for OOXML file-level
+     * decryption. Pass {@code null} to clear.
+     */
+    @Incubating
+    public SheetInput<T> withPassword(final String password) {
+        return new SheetInput<>(_raw, _name, _index, password);
+    }
+
     @Override
     public T getRaw() { return _raw; }
 
@@ -118,9 +132,12 @@ public final class SheetInput<T> implements SheetContent<T> {
 
     public int getIndex() { return _index; }
 
+    public String getPassword() { return _password; }
+
     @Override
     public String toString() {
-        return "SheetInput(raw=" + _raw + ", name=" + _name + ", index=" + _index + ")";
+        return "SheetInput(raw=" + _raw + ", name=" + _name + ", index=" + _index
+                + ", password=" + (_password == null ? "null" : "***") + ")";
     }
 
 }

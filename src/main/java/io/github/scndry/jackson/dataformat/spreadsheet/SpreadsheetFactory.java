@@ -9,6 +9,7 @@ import java.nio.file.Files;
 
 import org.apache.poi.openxml4j.opc.PackagePart;
 import org.apache.poi.poifs.filesystem.FileMagic;
+import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
@@ -24,6 +25,7 @@ import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetInput;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetParser;
 import io.github.scndry.jackson.dataformat.spreadsheet.deser.SheetReader;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.POICompat;
+import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.OoxmlEncryption;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.PackageUtil;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.SSMLSheetReader;
 import io.github.scndry.jackson.dataformat.spreadsheet.poi.ooxml.SSMLSheetWriter;
@@ -168,7 +170,11 @@ public final class SpreadsheetFactory extends JsonFactory {
 
     @SuppressWarnings("unchecked")
     public SheetParser createParser(final SheetInput<?> src) throws IOException {
-        final SheetInput<?> source = _preferRawAsFile(src);
+        SheetInput<?> source = src;
+        if (src.getPassword() != null) {
+            source = OoxmlEncryption.decrypt(src);
+        }
+        source = _preferRawAsFile(source);
         final boolean resourceManaged = src != source;
         final IOContext ctxt = _createContext(_createContentReference(source), resourceManaged);
         final SheetReader reader;
@@ -204,10 +210,23 @@ public final class SpreadsheetFactory extends JsonFactory {
     }
 
     public SheetGenerator createGenerator(final SheetOutput<?> out) throws IOException {
+        final Workbook workbook = _workbookProvider.create();
+        if (out.getPassword() != null
+                && workbook.getSpreadsheetVersion() != SpreadsheetVersion.EXCEL2007) {
+            try {
+                workbook.close();
+            } catch (IOException e) {
+                if (log.isWarnEnabled()) {
+                    log.warn("Failed to close workbook after password guard rejection: {}", e.getMessage());
+                }
+            }
+            throw new IllegalArgumentException(
+                    "Password protection is supported for OOXML (XLSX) targets only");
+        }
         final SheetOutput<OutputStream> output = _rawAsOutputStream(out);
         final boolean resourceManaged = out != output;
         final IOContext ctxt = _createContext(_createContentReference(output), resourceManaged);
-        return _createGenerator(_createSheetWriter(output), ctxt);
+        return _createGenerator(_createSheetWriter(workbook, output), ctxt);
     }
 
     @Override
@@ -334,6 +353,7 @@ public final class SpreadsheetFactory extends JsonFactory {
                 ? SheetInput.source(file, src.getName()) : SheetInput.source(file, src.getIndex());
     }
 
+
     /*
     /**********************************************************
     /* Factory methods used by factory for creating generator instances,
@@ -345,8 +365,7 @@ public final class SpreadsheetFactory extends JsonFactory {
     }
 
     @SuppressWarnings("resource")
-    private SheetWriter _createSheetWriter(final SheetOutput<OutputStream> out) throws IOException {
-        final Workbook workbook = _workbookProvider.create();
+    private SheetWriter _createSheetWriter(final Workbook workbook, final SheetOutput<OutputStream> out) throws IOException {
         final Sheet sheet = out.isNamed()
                 ? workbook.createSheet(out.getName()) : workbook.createSheet();
         final boolean useUserModel = _shouldUsePOIUserModel(sheet);
@@ -384,6 +403,9 @@ public final class SpreadsheetFactory extends JsonFactory {
     @SuppressWarnings("unchecked")
     private SheetOutput<OutputStream> _rawAsOutputStream(
             final SheetOutput<?> out) throws IOException {
+        if (out.getPassword() != null) {
+            return OoxmlEncryption.wrapTarget(out);
+        }
         if (!out.isFile()) return (SheetOutput<OutputStream>) out;
         final OutputStream raw = Files.newOutputStream(((File) out.getRaw()).toPath());
         return out.isNamed() ? SheetOutput.target(raw, out.getName()) : SheetOutput.target(raw);
