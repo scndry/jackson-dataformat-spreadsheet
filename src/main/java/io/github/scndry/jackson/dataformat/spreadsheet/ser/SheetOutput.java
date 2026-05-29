@@ -4,8 +4,6 @@ import java.io.File;
 import java.io.OutputStream;
 import java.nio.file.Path;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import lombok.EqualsAndHashCode;
 import org.apache.poi.ss.util.WorkbookUtil;
 
@@ -129,10 +127,8 @@ public final class SheetOutput<T> implements SheetContent<T> {
     @Override
     public String getName() { return _name; }
 
-    @JsonIgnore
     public String getPassword() { return _password; }
 
-    @JsonIgnore
     public EncryptionSpec getEncryption() { return _encryption; }
 
     @Override

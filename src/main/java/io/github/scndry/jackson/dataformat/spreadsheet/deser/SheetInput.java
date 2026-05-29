@@ -4,8 +4,6 @@ import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Path;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import lombok.EqualsAndHashCode;
 
 import io.github.scndry.jackson.dataformat.spreadsheet.SheetContent;
@@ -132,7 +130,6 @@ public final class SheetInput<T> implements SheetContent<T> {
 
     public int getIndex() { return _index; }
 
-    @JsonIgnore
     public String getPassword() { return _password; }
 
     @Override
