@@ -18,13 +18,17 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.Spreadshe
 
 /**
  * Configurer for sheet-level features: freeze pane, auto filter, conditional formatting,
- * and sheet protection. Conditional formatting rules reference style names declared in
+ * sheet protection, display gridlines, zoom, and right-to-left. Conditional formatting
+ * rules reference style names declared in
  * {@link io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder}.
  */
 public final class GridConfigurer {
 
     private int _freezePaneColSplit = -1;
     private int _freezePaneRowSplit = -1;
+    private Boolean _displayGridlines;
+    private int _zoom = -1;
+    private Boolean _rightToLeft;
     private boolean _autoFilter;
     private String _protectSheetPassword;
     private final List<ColumnRule> _columnRules = new ArrayList<>();
@@ -41,6 +45,24 @@ public final class GridConfigurer {
     public GridConfigurer freezePane(final int colSplit, final int rowSplit) {
         _freezePaneColSplit = colSplit;
         _freezePaneRowSplit = rowSplit;
+        return this;
+    }
+
+    @Incubating
+    public GridConfigurer displayGridlines(final boolean show) {
+        _displayGridlines = show;
+        return this;
+    }
+
+    @Incubating
+    public GridConfigurer zoom(final int percent) {
+        _zoom = percent;
+        return this;
+    }
+
+    @Incubating
+    public GridConfigurer rightToLeft(final boolean value) {
+        _rightToLeft = value;
         return this;
     }
 
@@ -99,6 +121,9 @@ public final class GridConfigurer {
     public void apply(final Sheet sheet, final Styles styles,
             final SpreadsheetSchemaImpl schema, final int lastRow) {
         _applyFreezePane(sheet);
+        _applyDisplayGridlines(sheet);
+        _applyZoom(sheet);
+        _applyRightToLeft(sheet);
         _applyAutoFilter(sheet, schema, lastRow);
         _applyProtectSheet(sheet);
         _applyConditionalFormattings(sheet, styles, schema, lastRow);
@@ -109,6 +134,24 @@ public final class GridConfigurer {
             sheet.createFreezePane(
                     Math.max(_freezePaneColSplit, 0),
                     Math.max(_freezePaneRowSplit, 0));
+        }
+    }
+
+    private void _applyDisplayGridlines(final Sheet sheet) {
+        if (_displayGridlines != null) {
+            sheet.setDisplayGridlines(_displayGridlines);
+        }
+    }
+
+    private void _applyZoom(final Sheet sheet) {
+        if (_zoom > 0) {
+            sheet.setZoom(_zoom);
+        }
+    }
+
+    private void _applyRightToLeft(final Sheet sheet) {
+        if (_rightToLeft != null) {
+            sheet.setRightToLeft(_rightToLeft);
         }
     }
 
