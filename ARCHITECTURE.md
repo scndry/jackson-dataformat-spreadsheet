@@ -279,7 +279,7 @@ The read path and the write path have different relationships with POI:
 | **XLSX write (default)** | Scaffold generation (`XSSFWorkbook.write()`) | StringBuilder streaming for worksheet + SST, zip entry copy for metadata |
 | **Non-streaming write** | `Workbook.write()`, `CellStyle`, `Font` | Schema-driven cell routing, merge logic |
 | **Styling** | `CellStyle` / `Font` API | `StylesBuilder` (fluent builder layer) |
-| **Sheet-level features** | `Sheet.createFreezePane`, `setAutoFilter`, `protectSheet`, `ConditionalFormatting` API | `GridConfigurer` (fluent builder layer) |
+| **Sheet-level features** | `Sheet.createFreezePane`, `setAutoFilter`, `protectSheet`, `setDisplayGridlines`, `setZoom`, `setRightToLeft`, `ConditionalFormatting` API | `GridConfigurer` (fluent builder layer) |
 
 By default, both XLSX read and write paths bypass POI's User Model — the read path uses direct StAX parsing, the write path uses StringBuilder streaming with a POI scaffold for package metadata. Non-streaming paths (XLS, or XLSX with `USE_POI_USER_MODEL`) use POI's full User Model.
 

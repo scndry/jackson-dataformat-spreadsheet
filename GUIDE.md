@@ -742,12 +742,15 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
         .freezePane(0, 1)
         .autoFilter()
         .protectSheet("secret")
+        .displayGridlines(false)
+        .zoom(125)
+        .rightToLeft(true)
         .conditionalFormatting("score",
             greaterThanOrEqual(80).style("highlight")))
     .build();
 ```
 
-`freezePane(colSplit, rowSplit)` freezes the leftmost columns / topmost rows. `autoFilter()` enables the filter dropdown across all schema columns. `protectSheet(password)` enables sheet protection — for discouraging edits, not strong file-level encryption (see [File-Level Encryption](#file-level-encryption) for the latter). All three work identically on streaming and `USE_POI_USER_MODEL` write paths.
+`freezePane(colSplit, rowSplit)` freezes the leftmost columns / topmost rows. `autoFilter()` enables the filter dropdown across all schema columns. `protectSheet(password)` enables sheet protection — for discouraging edits, not strong file-level encryption (see [File-Level Encryption](#file-level-encryption) for the latter). `displayGridlines(boolean)`, `zoom(int percent)`, and `rightToLeft(boolean)` control sheet view rendering. All work identically on streaming and `USE_POI_USER_MODEL` write paths.
 
 ### Conditional Formatting
 
