@@ -39,13 +39,13 @@ Available on Maven Central:
 <dependency>
     <groupId>io.github.scndry</groupId>
     <artifactId>jackson-dataformat-spreadsheet</artifactId>
-    <version>1.7.1</version>
+    <version>1.8.0</version>
 </dependency>
 ```
 
 **Gradle:**
 ```groovy
-implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.7.1"
+implementation "io.github.scndry:jackson-dataformat-spreadsheet:1.8.0"
 ```
 
 ### Requirements
