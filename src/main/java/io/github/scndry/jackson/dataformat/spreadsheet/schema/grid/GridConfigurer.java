@@ -17,8 +17,8 @@ import io.github.scndry.jackson.dataformat.spreadsheet.schema.Styles;
 import io.github.scndry.jackson.dataformat.spreadsheet.schema.internal.SpreadsheetSchemaImpl;
 
 /**
- * Configurer for sheet-level features: freeze pane, auto filter, and conditional formatting.
- * Conditional formatting rules reference style names declared in
+ * Configurer for sheet-level features: freeze pane, auto filter, conditional formatting,
+ * and sheet protection. Conditional formatting rules reference style names declared in
  * {@link io.github.scndry.jackson.dataformat.spreadsheet.schema.style.StylesBuilder}.
  */
 public final class GridConfigurer {
@@ -26,6 +26,7 @@ public final class GridConfigurer {
     private int _freezePaneColSplit = -1;
     private int _freezePaneRowSplit = -1;
     private boolean _autoFilter;
+    private String _protectSheetPassword;
     private final List<ColumnRule> _columnRules = new ArrayList<>();
 
     private static final class ColumnRule {
@@ -45,6 +46,12 @@ public final class GridConfigurer {
 
     public GridConfigurer autoFilter() {
         _autoFilter = true;
+        return this;
+    }
+
+    @Incubating
+    public GridConfigurer protectSheet(final String password) {
+        _protectSheetPassword = password;
         return this;
     }
 
@@ -93,6 +100,7 @@ public final class GridConfigurer {
             final SpreadsheetSchemaImpl schema, final int lastRow) {
         _applyFreezePane(sheet);
         _applyAutoFilter(sheet, schema, lastRow);
+        _applyProtectSheet(sheet);
         _applyConditionalFormattings(sheet, styles, schema, lastRow);
     }
 
@@ -113,6 +121,12 @@ public final class GridConfigurer {
                 ? sheet.getWorkbook().getSpreadsheetVersion().getMaxRows() - 1
                 : lastRow;
         sheet.setAutoFilter(new CellRangeAddress(firstRow, endRow, firstCol, lastCol));
+    }
+
+    private void _applyProtectSheet(final Sheet sheet) {
+        if (_protectSheetPassword != null) {
+            sheet.protectSheet(_protectSheetPassword);
+        }
     }
 
     private void _applyConditionalFormattings(final Sheet sheet, final Styles styles,

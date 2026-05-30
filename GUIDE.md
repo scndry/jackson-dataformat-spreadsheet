@@ -741,12 +741,13 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .gridConfigurer(new GridConfigurer()
         .freezePane(0, 1)
         .autoFilter()
+        .protectSheet("secret")
         .conditionalFormatting("score",
             greaterThanOrEqual(80).style("highlight")))
     .build();
 ```
 
-`freezePane(colSplit, rowSplit)` freezes the leftmost columns / topmost rows. `autoFilter()` enables the filter dropdown across all schema columns. Both work identically on streaming and `USE_POI_USER_MODEL` write paths.
+`freezePane(colSplit, rowSplit)` freezes the leftmost columns / topmost rows. `autoFilter()` enables the filter dropdown across all schema columns. `protectSheet(password)` enables sheet protection — for discouraging edits, not strong file-level encryption (see [File-Level Encryption](#file-level-encryption) for the latter). All three work identically on streaming and `USE_POI_USER_MODEL` write paths.
 
 ### Conditional Formatting
 
@@ -957,7 +958,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
 List<Row> rows = mapper.readValues(inputStream, Row.class);
 ```
 
-### Password Protection
+### File-Level Encryption
 
 OOXML files can be encrypted with a password. The same `withPassword` applies to both directions.
 
@@ -1009,7 +1010,7 @@ SpreadsheetMapper mapper = SpreadsheetMapper.builder()
     .build();
 ```
 
-This protects the temp file only — the output XLSX is not encrypted. For full-file XLSX encryption, see [Password Protection](#password-protection).
+This protects the temp file only — the output XLSX is not encrypted. For full-file XLSX encryption, see [File-Level Encryption](#file-level-encryption).
 
 Requires `com.h2database:h2` on the classpath:
 
