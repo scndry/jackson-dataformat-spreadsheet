@@ -22,7 +22,7 @@ repositories {
 dependencies {
     api("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     api("org.apache.poi:poi-ooxml:$poiVersion")
-    implementation("com.fasterxml:aalto-xml:1.3.4")
+    implementation("com.fasterxml:aalto-xml:1.4.0")
     implementation("org.slf4j:slf4j-api:2.0.18")
     compileOnly("com.h2database:h2:2.2.224")
 }
